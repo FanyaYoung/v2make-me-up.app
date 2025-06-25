@@ -12,7 +12,7 @@ const Header = () => {
               <Search className="w-5 h-5 text-white" />
             </div>
             <span className="text-2xl font-bold bg-gradient-to-r from-rose-600 to-purple-600 bg-clip-text text-transparent">
-              Foundation Finder
+              Make Me Up
             </span>
           </div>
           <nav className="hidden md:flex items-center space-x-6">
