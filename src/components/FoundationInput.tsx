@@ -6,19 +6,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Search } from 'lucide-react';
 
-interface FoundationInputProps {
-  onSubmit: (brand: string, shade: string) => void;
+interface Brand {
+  id: string;
+  name: string;
+  logo_url: string;
+  is_active: boolean;
 }
 
-const FoundationInput = ({ onSubmit }: FoundationInputProps) => {
+interface FoundationInputProps {
+  onSubmit: (brand: string, shade: string) => void;
+  brands: Brand[];
+}
+
+const FoundationInput = ({ onSubmit, brands }: FoundationInputProps) => {
   const [selectedBrand, setSelectedBrand] = useState('');
   const [shadeInput, setShadeInput] = useState('');
-
-  const popularBrands = [
-    'Fenty Beauty', 'Charlotte Tilbury', 'Rare Beauty', 'NARS', 'MAC',
-    'Too Faced', 'Urban Decay', 'Estée Lauder', 'Maybelline', 'L\'Oréal',
-    'Revlon', 'CoverGirl', 'Dior', 'YSL', 'Giorgio Armani'
-  ];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,9 +48,9 @@ const FoundationInput = ({ onSubmit }: FoundationInputProps) => {
                 <SelectValue placeholder="Select your foundation brand" />
               </SelectTrigger>
               <SelectContent className="bg-white">
-                {popularBrands.map((brand) => (
-                  <SelectItem key={brand} value={brand}>
-                    {brand}
+                {brands.map((brand) => (
+                  <SelectItem key={brand.id} value={brand.name}>
+                    {brand.name}
                   </SelectItem>
                 ))}
               </SelectContent>
