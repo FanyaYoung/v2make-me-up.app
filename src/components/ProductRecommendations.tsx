@@ -13,6 +13,13 @@ interface ProductRecommendationsProps {
 }
 
 const ProductRecommendations = ({ matches, onSelectMatch, currentFoundation }: ProductRecommendationsProps) => {
+  // Enhanced product images for better visual appeal
+  const productImages = [
+    "https://images.unsplash.com/photo-1631214540242-0671f8420636?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+    "https://images.unsplash.com/photo-1596462502278-27bfdc403348?q=80&w=2030&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+    "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?q=80&w=2126&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+  ];
+
   return (
     <div className="space-y-6">
       <div className="text-center">
@@ -29,9 +36,9 @@ const ProductRecommendations = ({ matches, onSelectMatch, currentFoundation }: P
               <div className="flex flex-col md:flex-row gap-6">
                 <div className="flex-shrink-0">
                   <img 
-                    src={match.imageUrl} 
+                    src={productImages[index] || productImages[0]}
                     alt={`${match.brand} ${match.product}`}
-                    className="w-24 h-24 object-cover rounded-lg shadow-md"
+                    className="w-32 h-32 object-cover rounded-lg shadow-md"
                   />
                 </div>
                 
