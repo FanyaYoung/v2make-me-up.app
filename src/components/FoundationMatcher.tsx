@@ -1,5 +1,7 @@
 
 import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import FoundationInput from './FoundationInput';
 import ProductRecommendations from './ProductRecommendations';
 import VirtualTryOn from './VirtualTryOn';
@@ -10,72 +12,65 @@ const FoundationMatcher = () => {
   const [matches, setMatches] = useState<FoundationMatch[]>([]);
   const [selectedMatch, setSelectedMatch] = useState<FoundationMatch | null>(null);
 
+  // Fetch brands for the foundation input
+  const { data: brands } = useQuery({
+    queryKey: ['brands'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('brands')
+        .select('*')
+        .eq('is_active', true)
+        .order('name');
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch foundation products with their shades
+  const { data: products } = useQuery({
+    queryKey: ['foundation-products'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('foundation_products')
+        .select(`
+          *,
+          brands!inner(name, logo_url),
+          foundation_shades(*)
+        `)
+        .eq('is_active', true);
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const handleFoundationSubmit = (brand: string, shade: string) => {
     setCurrentFoundation({ brand, shade });
     
-    // Mock API call - in real app, this would call a foundation matching service
-    const mockMatches: FoundationMatch[] = [
-      {
-        id: '1',
-        brand: 'Fenty Beauty',
-        product: 'Pro Filt\'r Soft Matte Foundation',
-        shade: '220 - Medium with neutral undertones',
-        price: 36.00,
-        rating: 4.4,
-        reviewCount: 1247,
-        availability: {
-          online: true,
-          inStore: true,
-          readyForPickup: true,
-          nearbyStores: ['Sephora - Downtown', 'Ulta - Mall Plaza']
-        },
-        matchPercentage: 95,
-        undertone: 'neutral',
-        coverage: 'full',
-        finish: 'matte',
-        imageUrl: '/placeholder.svg'
+    if (!products) return;
+
+    // Create mock matches from available products
+    const mockMatches: FoundationMatch[] = products.slice(0, 3).map((product, index) => ({
+      id: product.id,
+      brand: product.brands.name,
+      product: product.name,
+      shade: product.foundation_shades[0]?.shade_name || 'Universal',
+      price: product.price || 0,
+      rating: 4.2 + (index * 0.2),
+      reviewCount: 800 + (index * 200),
+      availability: {
+        online: true,
+        inStore: index < 2,
+        readyForPickup: index < 2,
+        nearbyStores: index < 2 ? ['Sephora - Downtown', 'Ulta - Mall Plaza'] : []
       },
-      {
-        id: '2',
-        brand: 'Charlotte Tilbury',
-        product: 'Airbrush Flawless Foundation',
-        shade: '6 Medium',
-        price: 44.00,
-        rating: 4.6,
-        reviewCount: 892,
-        availability: {
-          online: true,
-          inStore: false,
-          readyForPickup: false,
-          nearbyStores: []
-        },
-        matchPercentage: 92,
-        undertone: 'neutral',
-        coverage: 'medium',
-        finish: 'natural',
-        imageUrl: '/placeholder.svg'
-      },
-      {
-        id: '3',
-        brand: 'Rare Beauty',
-        product: 'Liquid Touch Weightless Foundation',
-        shade: '240N',
-        price: 29.00,
-        rating: 4.3,
-        reviewCount: 654,
-        availability: {
-          online: true,
-          inStore: true,
-          readyForPickup: true,
-          nearbyStores: ['Sephora - Westfield']
-        },
-        matchPercentage: 89,
-        undertone: 'neutral',
-        coverage: 'medium',
-        finish: 'natural',
-        imageUrl: '/placeholder.svg'
-      }
-    ];
+      matchPercentage: 95 - (index * 3),
+      undertone: 'neutral',
+      coverage: product.coverage || 'medium',
+      finish: product.finish || 'natural',
+      imageUrl: product.image_url || '/placeholder.svg'
+    }));
     
     setMatches(mockMatches);
   };
@@ -84,7 +79,10 @@ const FoundationMatcher = () => {
     <div className="max-w-7xl mx-auto">
       <div className="grid lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2">
-          <FoundationInput onSubmit={handleFoundationSubmit} />
+          <FoundationInput 
+            onSubmit={handleFoundationSubmit} 
+            brands={brands || []}
+          />
           {matches.length > 0 && (
             <ProductRecommendations 
               matches={matches}
