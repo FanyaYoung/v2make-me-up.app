@@ -24,6 +24,13 @@ const VirtualTryOn = ({ selectedMatch }: VirtualTryOnProps) => {
 
   const startCamera = useCallback(async () => {
     try {
+      console.log('Requesting camera access...');
+      
+      // Check if getUserMedia is supported
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Camera access not supported in this browser');
+      }
+
       const mediaStream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
           width: { ideal: 640 }, 
@@ -32,12 +39,16 @@ const VirtualTryOn = ({ selectedMatch }: VirtualTryOnProps) => {
         } 
       });
       
+      console.log('Camera access granted');
       setStream(mediaStream);
       setIsUsingCamera(true);
       setUploadedImage(null);
       
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
+        videoRef.current.onloadedmetadata = () => {
+          videoRef.current?.play();
+        };
       }
       
       toast({
@@ -46,9 +57,21 @@ const VirtualTryOn = ({ selectedMatch }: VirtualTryOnProps) => {
       });
     } catch (error) {
       console.error('Error accessing camera:', error);
+      let errorMessage = "Please allow camera access to use virtual try-on";
+      
+      if (error instanceof Error) {
+        if (error.name === 'NotAllowedError') {
+          errorMessage = "Camera access was denied. Please enable camera permissions and try again.";
+        } else if (error.name === 'NotFoundError') {
+          errorMessage = "No camera found. Please connect a camera and try again.";
+        } else if (error.name === 'NotSupportedError') {
+          errorMessage = "Camera access is not supported in this browser.";
+        }
+      }
+      
       toast({
-        title: "Camera access denied",
-        description: "Please allow camera access to use virtual try-on",
+        title: "Camera access failed",
+        description: errorMessage,
         variant: "destructive"
       });
     }
@@ -125,7 +148,20 @@ const VirtualTryOn = ({ selectedMatch }: VirtualTryOnProps) => {
   const generateFoundationOverlay = () => {
     if (!selectedMatch) return null;
     
-    // Create a subtle foundation overlay effect
+    // Create a more realistic foundation overlay effect
+    const getShadeColor = (shade: string) => {
+      if (shade.toLowerCase().includes('light') || shade.toLowerCase().includes('fair')) {
+        return '245,220,200';
+      } else if (shade.toLowerCase().includes('medium')) {
+        return '210,180,140';
+      } else if (shade.toLowerCase().includes('deep') || shade.toLowerCase().includes('dark')) {
+        return '180,140,100';
+      }
+      return '220,190,160'; // default
+    };
+    
+    const shadeColor = getShadeColor(selectedMatch.shade);
+    
     const overlayStyle = {
       position: 'absolute' as const,
       top: 0,
@@ -134,12 +170,9 @@ const VirtualTryOn = ({ selectedMatch }: VirtualTryOnProps) => {
       bottom: 0,
       background: `linear-gradient(
         135deg, 
-        rgba(${selectedMatch.shade.includes('Light') ? '245,220,200' : 
-              selectedMatch.shade.includes('Medium') ? '210,180,140' : '180,140,100'}, 0.15) 0%,
-        rgba(${selectedMatch.shade.includes('Light') ? '240,210,180' : 
-              selectedMatch.shade.includes('Medium') ? '200,160,120' : '160,120,80'}, 0.25) 50%,
-        rgba(${selectedMatch.shade.includes('Light') ? '235,200,170' : 
-              selectedMatch.shade.includes('Medium') ? '190,150,110' : '150,110,70'}, 0.15) 100%
+        rgba(${shadeColor}, 0.15) 0%,
+        rgba(${shadeColor}, 0.25) 50%,
+        rgba(${shadeColor}, 0.15) 100%
       )`,
       mixBlendMode: 'overlay' as const,
       borderRadius: '0.5rem',
