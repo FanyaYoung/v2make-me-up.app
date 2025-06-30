@@ -13,12 +13,43 @@ interface ProductRecommendationsProps {
 }
 
 const ProductRecommendations = ({ matches, onSelectMatch, currentFoundation }: ProductRecommendationsProps) => {
-  // Enhanced product images for better visual appeal
-  const productImages = [
-    "https://images.unsplash.com/photo-1631214540242-0671f8420636?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-    "https://images.unsplash.com/photo-1596462502278-27bfdc403348?q=80&w=2030&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-    "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?q=80&w=2126&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
-  ];
+  // Function to generate a shade color swatch
+  const generateShadeColor = (shade: string, undertone: string) => {
+    // Base colors for different undertones
+    const undertoneColors = {
+      warm: { r: 210, g: 180, b: 140 },
+      cool: { r: 240, g: 220, b: 200 },
+      neutral: { r: 220, g: 190, b: 160 },
+      yellow: { r: 200, g: 170, b: 120 },
+      pink: { r: 230, g: 200, b: 180 },
+      red: { r: 190, g: 150, b: 120 },
+      olive: { r: 180, g: 160, b: 120 }
+    };
+
+    const baseColor = undertoneColors[undertone.toLowerCase() as keyof typeof undertoneColors] || undertoneColors.neutral;
+    
+    // Adjust darkness based on shade name
+    const shadeLower = shade.toLowerCase();
+    let multiplier = 1;
+    
+    if (shadeLower.includes('fair') || shadeLower.includes('light')) {
+      multiplier = 1.1;
+    } else if (shadeLower.includes('medium') || shadeLower.includes('med')) {
+      multiplier = 0.85;
+    } else if (shadeLower.includes('deep') || shadeLower.includes('dark') || shadeLower.includes('tan')) {
+      multiplier = 0.6;
+    } else if (shadeLower.includes('rich') || shadeLower.includes('espresso')) {
+      multiplier = 0.4;
+    }
+
+    const adjustedColor = {
+      r: Math.round(baseColor.r * multiplier),
+      g: Math.round(baseColor.g * multiplier),
+      b: Math.round(baseColor.b * multiplier)
+    };
+
+    return `rgb(${adjustedColor.r}, ${adjustedColor.g}, ${adjustedColor.b})`;
+  };
 
   return (
     <div className="space-y-6">
@@ -35,11 +66,22 @@ const ProductRecommendations = ({ matches, onSelectMatch, currentFoundation }: P
             <CardContent className="p-6">
               <div className="flex flex-col md:flex-row gap-6">
                 <div className="flex-shrink-0">
-                  <img 
-                    src={productImages[index] || productImages[0]}
-                    alt={`${match.brand} ${match.product}`}
-                    className="w-32 h-32 object-cover rounded-lg shadow-md"
-                  />
+                  <div className="w-32 h-32 rounded-lg shadow-md overflow-hidden bg-gray-100">
+                    <div className="w-full h-full flex flex-col">
+                      {/* Foundation shade color */}
+                      <div 
+                        className="flex-1 border-b border-gray-200"
+                        style={{ backgroundColor: generateShadeColor(match.shade, match.undertone) }}
+                        title={`${match.shade} shade`}
+                      />
+                      {/* Brand/product info overlay */}
+                      <div className="h-8 bg-white/90 flex items-center justify-center">
+                        <span className="text-xs font-medium text-gray-700 truncate px-2">
+                          {match.brand}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
                 
                 <div className="flex-grow space-y-3">
@@ -47,7 +89,14 @@ const ProductRecommendations = ({ matches, onSelectMatch, currentFoundation }: P
                     <div>
                       <h3 className="text-xl font-semibold text-gray-800">{match.brand}</h3>
                       <p className="text-gray-600 font-medium">{match.product}</p>
-                      <p className="text-rose-600 font-semibold">{match.shade}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <p className="text-rose-600 font-semibold">{match.shade}</p>
+                        <div 
+                          className="w-4 h-4 rounded-full border border-gray-300"
+                          style={{ backgroundColor: generateShadeColor(match.shade, match.undertone) }}
+                          title={`${match.shade} color preview`}
+                        />
+                      </div>
                     </div>
                     <div className="text-right">
                       <div className="text-2xl font-bold text-gray-800">${match.price}</div>
