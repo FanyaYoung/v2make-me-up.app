@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Camera, Upload, X, RotateCcw } from 'lucide-react';
@@ -14,7 +14,6 @@ const VirtualTryOn = ({ selectedMatch }: VirtualTryOnProps) => {
   const [isUsingCamera, setIsUsingCamera] = useState(false);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
   const [showOverlay, setShowOverlay] = useState(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -22,12 +21,20 @@ const VirtualTryOn = ({ selectedMatch }: VirtualTryOnProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
+  // Cleanup camera stream on unmount
+  useEffect(() => {
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [stream]);
+
   const startCamera = useCallback(async () => {
     try {
       console.log('Requesting camera access...');
       
-      // Check if getUserMedia is supported
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      if (!navigator.mediaDevices?.getUserMedia) {
         throw new Error('Camera access not supported in this browser');
       }
 
@@ -46,9 +53,7 @@ const VirtualTryOn = ({ selectedMatch }: VirtualTryOnProps) => {
       
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
-        videoRef.current.onloadedmetadata = () => {
-          videoRef.current?.play();
-        };
+        await videoRef.current.play();
       }
       
       toast({
@@ -86,16 +91,22 @@ const VirtualTryOn = ({ selectedMatch }: VirtualTryOnProps) => {
   }, [stream]);
 
   const capturePhoto = useCallback(() => {
-    if (!videoRef.current || !canvasRef.current || !selectedMatch) return;
+    if (!videoRef.current || !canvasRef.current || !selectedMatch) {
+      console.log('Missing requirements for photo capture');
+      return;
+    }
     
     const canvas = canvasRef.current;
     const video = videoRef.current;
     const ctx = canvas.getContext('2d');
     
-    if (!ctx) return;
+    if (!ctx) {
+      console.error('Could not get canvas context');
+      return;
+    }
     
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
     
     // Draw the video frame
     ctx.drawImage(video, 0, 0);
@@ -130,56 +141,86 @@ const VirtualTryOn = ({ selectedMatch }: VirtualTryOnProps) => {
       
       const reader = new FileReader();
       reader.onload = (e) => {
-        setUploadedImage(e.target?.result as string);
-        setIsUsingCamera(false);
-        setShowOverlay(true);
-        stopCamera();
+        const result = e.target?.result;
+        if (typeof result === 'string') {
+          setUploadedImage(result);
+          setIsUsingCamera(false);
+          setShowOverlay(true);
+          stopCamera();
+          
+          toast({
+            title: "Image uploaded",
+            description: "Virtual try-on ready!"
+          });
+        }
       };
       reader.readAsDataURL(file);
     }
   };
 
   const resetTryOn = () => {
+    if (uploadedImage) {
+      URL.revokeObjectURL(uploadedImage);
+    }
     setUploadedImage(null);
     setShowOverlay(false);
     stopCamera();
   };
 
   const generateFoundationOverlay = () => {
-    if (!selectedMatch) return null;
+    if (!selectedMatch || !showOverlay) return null;
     
-    // Create a more realistic foundation overlay effect
-    const getShadeColor = (shade: string) => {
-      if (shade.toLowerCase().includes('light') || shade.toLowerCase().includes('fair')) {
-        return '245,220,200';
-      } else if (shade.toLowerCase().includes('medium')) {
-        return '210,180,140';
-      } else if (shade.toLowerCase().includes('deep') || shade.toLowerCase().includes('dark')) {
-        return '180,140,100';
+    // Generate more realistic foundation colors based on shade name and undertone
+    const getShadeRGB = (shade: string, undertone: string) => {
+      const undertoneMap = {
+        warm: { r: 210, g: 170, b: 130 },
+        cool: { r: 240, g: 215, b: 195 },
+        neutral: { r: 220, g: 185, b: 155 },
+        yellow: { r: 200, g: 165, b: 115 },
+        pink: { r: 235, g: 195, b: 175 },
+        red: { r: 190, g: 145, b: 115 },
+        olive: { r: 180, g: 155, b: 115 }
+      };
+      
+      const base = undertoneMap[undertone.toLowerCase() as keyof typeof undertoneMap] || undertoneMap.neutral;
+      
+      // Adjust for shade depth
+      const shadeLower = shade.toLowerCase();
+      let multiplier = 1;
+      
+      if (shadeLower.includes('fair') || shadeLower.includes('light')) {
+        multiplier = 1.15;
+      } else if (shadeLower.includes('medium')) {
+        multiplier = 0.85;
+      } else if (shadeLower.includes('deep') || shadeLower.includes('dark')) {
+        multiplier = 0.65;
+      } else if (shadeLower.includes('rich') || shadeLower.includes('espresso')) {
+        multiplier = 0.45;
       }
-      return '220,190,160'; // default
+      
+      return {
+        r: Math.min(255, Math.round(base.r * multiplier)),
+        g: Math.min(255, Math.round(base.g * multiplier)),
+        b: Math.min(255, Math.round(base.b * multiplier))
+      };
     };
     
-    const shadeColor = getShadeColor(selectedMatch.shade);
+    const shadeColor = getShadeRGB(selectedMatch.shade, selectedMatch.undertone);
     
-    const overlayStyle = {
-      position: 'absolute' as const,
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: `linear-gradient(
-        135deg, 
-        rgba(${shadeColor}, 0.15) 0%,
-        rgba(${shadeColor}, 0.25) 50%,
-        rgba(${shadeColor}, 0.15) 100%
-      )`,
-      mixBlendMode: 'overlay' as const,
-      borderRadius: '0.5rem',
-      pointerEvents: 'none' as const
-    };
-    
-    return showOverlay ? <div style={overlayStyle} /> : null;
+    return (
+      <div 
+        className="absolute inset-0 rounded-lg pointer-events-none"
+        style={{
+          background: `linear-gradient(
+            135deg, 
+            rgba(${shadeColor.r}, ${shadeColor.g}, ${shadeColor.b}, 0.2) 0%,
+            rgba(${shadeColor.r}, ${shadeColor.g}, ${shadeColor.b}, 0.3) 50%,
+            rgba(${shadeColor.r}, ${shadeColor.g}, ${shadeColor.b}, 0.2) 100%
+          )`,
+          mixBlendMode: 'multiply'
+        }}
+      />
+    );
   };
 
   return (
@@ -211,7 +252,7 @@ const VirtualTryOn = ({ selectedMatch }: VirtualTryOnProps) => {
                       autoPlay
                       playsInline
                       muted
-                      className="w-full h-full object-cover transform -scale-x-100"
+                      className="w-full h-full object-cover scale-x-[-1]"
                     />
                     <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10">
                       <Button
@@ -275,16 +316,14 @@ const VirtualTryOn = ({ selectedMatch }: VirtualTryOnProps) => {
               )}
               
               {isUsingCamera && (
-                <div className="space-y-2">
-                  <Button 
-                    onClick={stopCamera}
-                    variant="outline"
-                    className="w-full border-gray-300 text-gray-700 hover:bg-gray-50"
-                  >
-                    <X className="w-4 h-4 mr-2" />
-                    Stop Camera
-                  </Button>
-                </div>
+                <Button 
+                  onClick={stopCamera}
+                  variant="outline"
+                  className="w-full border-gray-300 text-gray-700 hover:bg-gray-50"
+                >
+                  <X className="w-4 h-4 mr-2" />
+                  Stop Camera
+                </Button>
               )}
               
               {uploadedImage && (

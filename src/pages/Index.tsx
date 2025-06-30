@@ -5,6 +5,7 @@ import Header from '../components/Header';
 import HeroSection from '../components/HeroSection';
 import FoundationVisual from '../components/FoundationVisual';
 import ShadeComparison from '../components/ShadeComparison';
+import { Toaster } from '@/components/ui/toaster';
 
 const Index = () => {
   return (
@@ -16,6 +17,7 @@ const Index = () => {
         <FoundationMatcher />
       </main>
       <ShadeComparison />
+      <Toaster />
     </div>
   );
 };
