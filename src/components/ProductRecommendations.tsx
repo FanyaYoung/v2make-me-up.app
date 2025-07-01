@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -127,7 +126,7 @@ const ProductRecommendations = ({ matches, onSelectMatch, currentFoundation }: P
                           </span>
                         ))}
                       </div>
-                      <span>{match.rating} ({match.reviewCount} reviews)</span>
+                      <span>{match.rating.toFixed(1)} ({match.reviewCount} reviews)</span>
                     </div>
                   </div>
                   
