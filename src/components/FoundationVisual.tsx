@@ -30,27 +30,8 @@ const FoundationVisual = () => {
           </p>
         </div>
 
-        {/* Foundation Shade Spectrum */}
-        <div className="mb-16">
-          <h3 className="text-2xl font-semibold text-center mb-8 text-gray-800">
-            Complete Shade Range
-          </h3>
-          <div className="flex justify-center items-center flex-wrap gap-4">
-            {foundationShades.map((shade, index) => (
-              <div key={index} className="text-center">
-                <div
-                  className="w-16 h-16 rounded-full shadow-lg border-2 border-white mx-auto mb-2"
-                  style={{ backgroundColor: shade.color }}
-                ></div>
-                <p className="text-xs font-medium text-gray-700">{shade.name}</p>
-                <p className="text-xs text-gray-500">{shade.brand}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
         {/* Matching Examples */}
-        <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+        <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto mb-16">
           {matchingPairs.map((pair, pairIndex) => (
             <Card key={pairIndex} className="p-6 bg-gradient-to-br from-rose-50 to-purple-50 border-rose-200">
               <div className="text-center mb-4">
@@ -95,7 +76,7 @@ const FoundationVisual = () => {
         </div>
 
         {/* Interactive Demo Hint */}
-        <div className="text-center mt-12">
+        <div className="text-center">
           <div className="inline-flex items-center bg-gradient-to-r from-rose-500 to-purple-500 text-white px-6 py-3 rounded-full">
             <span className="text-sm font-medium">
               Try the foundation matcher below to see your personalized results!

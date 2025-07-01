@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -11,6 +10,16 @@ const FoundationMatcher = () => {
   const [currentFoundation, setCurrentFoundation] = useState<{brand: string, shade: string} | null>(null);
   const [matches, setMatches] = useState<FoundationMatch[]>([]);
   const [selectedMatch, setSelectedMatch] = useState<FoundationMatch | null>(null);
+
+  // Sample foundation shades data for visualization
+  const foundationShades = [
+    { name: 'Fair Light', color: '#F4D5B4', brand: 'Brand A' },
+    { name: 'Light Medium', color: '#E8C2A0', brand: 'Brand B' },
+    { name: 'Medium', color: '#D2AD86', brand: 'Brand C' },
+    { name: 'Medium Deep', color: '#B5967A', brand: 'Brand D' },
+    { name: 'Deep', color: '#8B6F56', brand: 'Brand E' },
+    { name: 'Very Deep', color: '#6B4F3A', brand: 'Brand F' },
+  ];
 
   // Fetch brands for the foundation input
   const { data: brands } = useQuery({
@@ -152,6 +161,31 @@ const FoundationMatcher = () => {
             onSubmit={handleFoundationSubmit} 
             brands={brands || []}
           />
+          
+          {/* Complete Shade Range Section */}
+          <div className="mb-8">
+            <div className="text-center mb-8">
+              <h3 className="text-2xl font-semibold mb-4 text-gray-800">
+                Complete Shade Range
+              </h3>
+              <p className="text-gray-600 mb-6">
+                Our AI analyzes undertones, depth, and color properties to find your perfect matches across all major brands
+              </p>
+            </div>
+            <div className="flex justify-center items-center flex-wrap gap-4">
+              {foundationShades.map((shade, index) => (
+                <div key={index} className="text-center">
+                  <div
+                    className="w-16 h-16 rounded-full shadow-lg border-2 border-white mx-auto mb-2"
+                    style={{ backgroundColor: shade.color }}
+                  ></div>
+                  <p className="text-xs font-medium text-gray-700">{shade.name}</p>
+                  <p className="text-xs text-gray-500">{shade.brand}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
           {matches.length > 0 && (
             <ProductRecommendations 
               matches={matches}
