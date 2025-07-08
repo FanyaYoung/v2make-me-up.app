@@ -195,7 +195,13 @@ const FoundationMatcher = () => {
           )}
         </div>
         <div className="lg:col-span-1">
-          <VirtualTryOn selectedMatch={selectedMatch} />
+          <VirtualTryOn 
+            selectedMatch={selectedMatch} 
+            onShadeRecommendations={(recommendations) => {
+              console.log('New shade recommendations:', recommendations);
+              // You can handle the recommendations here
+            }}
+          />
         </div>
       </div>
     </div>
