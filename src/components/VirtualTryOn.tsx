@@ -54,27 +54,108 @@ const VirtualTryOn = ({ selectedMatch, onShadeRecommendations }: VirtualTryOnPro
 
   const startCamera = useCallback(async () => {
     try {
-      console.log('Requesting camera access...');
+      console.log('Starting camera setup...');
+      
+      // Check if we're on HTTPS or localhost (required for camera access)
+      if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+        throw new Error('Camera access requires HTTPS or localhost');
+      }
       
       if (!navigator.mediaDevices?.getUserMedia) {
         throw new Error('Camera access not supported in this browser');
       }
 
-      const mediaStream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
-          width: { ideal: 640 }, 
-          height: { ideal: 480 },
-          facingMode: 'user'
-        } 
-      });
+      // Stop any existing stream first
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+
+      console.log('Requesting camera permissions...');
       
-      console.log('Camera access granted');
+      // Try different camera constraints if the first fails
+      const constraints = [
+        { 
+          video: { 
+            width: { ideal: 640 }, 
+            height: { ideal: 480 },
+            facingMode: 'user'
+          } 
+        },
+        { 
+          video: { 
+            facingMode: 'user'
+          } 
+        },
+        { 
+          video: true 
+        }
+      ];
+
+      let mediaStream: MediaStream | null = null;
+      let lastError: Error | null = null;
+
+      for (const constraint of constraints) {
+        try {
+          console.log('Trying constraint:', constraint);
+          mediaStream = await navigator.mediaDevices.getUserMedia(constraint);
+          console.log('Camera access granted with constraint:', constraint);
+          break;
+        } catch (err) {
+          console.log('Constraint failed:', constraint, err);
+          lastError = err as Error;
+          continue;
+        }
+      }
+
+      if (!mediaStream) {
+        throw lastError || new Error('Failed to access camera with all constraints');
+      }
+      
+      console.log('Media stream obtained:', mediaStream);
+      console.log('Video tracks:', mediaStream.getVideoTracks());
+      
       setStream(mediaStream);
       setIsUsingCamera(true);
       
       if (videoRef.current) {
+        console.log('Setting video source...');
         videoRef.current.srcObject = mediaStream;
-        await videoRef.current.play();
+        
+        // Add event listeners for debugging
+        videoRef.current.onloadedmetadata = () => {
+          console.log('Video metadata loaded');
+          console.log('Video dimensions:', videoRef.current?.videoWidth, 'x', videoRef.current?.videoHeight);
+        };
+        
+        videoRef.current.oncanplay = () => {
+          console.log('Video can play');
+        };
+        
+        videoRef.current.onplay = () => {
+          console.log('Video started playing');
+        };
+        
+        videoRef.current.onerror = (e) => {
+          console.error('Video error:', e);
+        };
+        
+        try {
+          await videoRef.current.play();
+          console.log('Video play() successful');
+        } catch (playError) {
+          console.error('Video play failed:', playError);
+          // Try to play again after a short delay
+          setTimeout(async () => {
+            try {
+              if (videoRef.current) {
+                await videoRef.current.play();
+                console.log('Video play() successful on retry');
+              }
+            } catch (retryError) {
+              console.error('Video play retry failed:', retryError);
+            }
+          }, 100);
+        }
       }
       
       toast({
@@ -86,12 +167,20 @@ const VirtualTryOn = ({ selectedMatch, onShadeRecommendations }: VirtualTryOnPro
       let errorMessage = "Please allow camera access to use virtual try-on";
       
       if (error instanceof Error) {
+        console.log('Error name:', error.name, 'Message:', error.message);
+        
         if (error.name === 'NotAllowedError') {
           errorMessage = "Camera access was denied. Please enable camera permissions and try again.";
         } else if (error.name === 'NotFoundError') {
           errorMessage = "No camera found. Please connect a camera and try again.";
         } else if (error.name === 'NotSupportedError') {
           errorMessage = "Camera access is not supported in this browser.";
+        } else if (error.name === 'NotReadableError') {
+          errorMessage = "Camera is already in use by another application. Please close other camera apps and try again.";
+        } else if (error.message.includes('HTTPS')) {
+          errorMessage = "Camera access requires a secure connection (HTTPS).";
+        } else {
+          errorMessage = `Camera error: ${error.message}`;
         }
       }
       
@@ -100,8 +189,12 @@ const VirtualTryOn = ({ selectedMatch, onShadeRecommendations }: VirtualTryOnPro
         description: errorMessage,
         variant: "destructive"
       });
+      
+      // Reset state on error
+      setIsUsingCamera(false);
+      setStream(null);
     }
-  }, [toast]);
+  }, [toast, stream]);
 
   const stopCamera = useCallback(() => {
     if (stream) {
@@ -438,13 +531,22 @@ const VirtualTryOn = ({ selectedMatch, onShadeRecommendations }: VirtualTryOnPro
             {/* Main photo display */}
             <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden relative">
               {isUsingCamera ? (
-                <div className="relative w-full h-full">
+                <div className="relative w-full h-full bg-gray-200">
                   <video
                     ref={videoRef}
                     autoPlay
                     playsInline
                     muted
-                    className="w-full h-full object-cover scale-x-[-1]"
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      transform: 'scaleX(-1)',
+                      backgroundColor: '#000'
+                    }}
+                    onLoadedData={() => console.log('Video loaded data')}
+                    onLoadStart={() => console.log('Video load start')}
+                    onCanPlayThrough={() => console.log('Video can play through')}
                   />
                   <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10">
                     <Button
@@ -457,6 +559,9 @@ const VirtualTryOn = ({ selectedMatch, onShadeRecommendations }: VirtualTryOnPro
                   </div>
                   <div className="absolute top-4 left-4 text-white text-sm bg-black/50 px-2 py-1 rounded">
                     {photos.length}/{maxPhotos} photos
+                  </div>
+                  <div className="absolute top-4 right-4 text-white text-xs bg-black/50 px-2 py-1 rounded">
+                    {stream ? 'Stream Active' : 'No Stream'}
                   </div>
                 </div>
               ) : activePhoto ? (
