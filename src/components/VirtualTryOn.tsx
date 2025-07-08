@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Camera, Upload, X, RotateCcw, Plus, Trash2, Palette, Loader2 } from 'lucide-react';
+import { Camera, Upload, X, RotateCcw, Plus, Trash2, Palette, Loader2, Eye, Grid3X3, Split } from 'lucide-react';
 import { FoundationMatch } from '../types/foundation';
 import { useToast } from '@/hooks/use-toast';
 import { skinToneAnalyzer, SkinToneAnalysis } from './SkinToneAnalyzer';
@@ -31,6 +31,9 @@ const VirtualTryOn = ({ selectedMatch, onShadeRecommendations }: VirtualTryOnPro
   const [showOverlay, setShowOverlay] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [shadeRecommendations, setShadeRecommendations] = useState<ShadeRecommendation[]>([]);
+  const [comparisonMode, setComparisonMode] = useState<'single' | 'comparison'>('single');
+  const [selectedShades, setSelectedShades] = useState<FoundationMatch[]>([]);
+  const [activeShadeIndex, setActiveShadeIndex] = useState(0);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -395,6 +398,14 @@ const VirtualTryOn = ({ selectedMatch, onShadeRecommendations }: VirtualTryOnPro
     }
 
     setShadeRecommendations(mockRecommendations);
+    
+    // Auto-populate shade comparison with recommendations
+    const shadesToCompare = [mockRecommendations[0]?.shade, mockRecommendations[1]?.shade].filter(Boolean) as FoundationMatch[];
+    if (selectedMatch && !shadesToCompare.find(s => s.id === selectedMatch.id)) {
+      shadesToCompare.unshift(selectedMatch);
+    }
+    setSelectedShades(shadesToCompare.slice(0, 4)); // Max 4 shades for comparison
+    
     onShadeRecommendations?.(mockRecommendations);
   };
 
@@ -421,43 +432,45 @@ const VirtualTryOn = ({ selectedMatch, onShadeRecommendations }: VirtualTryOnPro
     setActivePhotoIndex(0);
     setShowOverlay(false);
     setShadeRecommendations([]);
+    setSelectedShades([]);
+    setComparisonMode('single');
     stopCamera();
   };
 
-  const generateFoundationOverlay = () => {
-    if (!selectedMatch || !showOverlay || !activePhoto) return null;
-    
-    // Generate foundation colors based on analysis or default
-    const getShadeRGB = (shade: string, undertone: string) => {
-      const undertoneMap = {
-        warm: { r: 210, g: 170, b: 130 },
-        cool: { r: 240, g: 215, b: 195 },
-        neutral: { r: 220, g: 185, b: 155 },
-        olive: { r: 180, g: 155, b: 115 }
-      };
-      
-      const base = undertoneMap[undertone.toLowerCase() as keyof typeof undertoneMap] || undertoneMap.neutral;
-      
-      // Adjust for shade depth
-      const shadeLower = shade.toLowerCase();
-      let multiplier = 1;
-      
-      if (shadeLower.includes('fair') || shadeLower.includes('light')) {
-        multiplier = 1.15;
-      } else if (shadeLower.includes('medium')) {
-        multiplier = 0.85;
-      } else if (shadeLower.includes('deep') || shadeLower.includes('dark')) {
-        multiplier = 0.65;
-      }
-      
-      return {
-        r: Math.min(255, Math.round(base.r * multiplier)),
-        g: Math.min(255, Math.round(base.g * multiplier)),
-        b: Math.min(255, Math.round(base.b * multiplier))
-      };
+  const getShadeRGB = (shade: string, undertone: string) => {
+    const undertoneMap = {
+      warm: { r: 210, g: 170, b: 130 },
+      cool: { r: 240, g: 215, b: 195 },
+      neutral: { r: 220, g: 185, b: 155 },
+      olive: { r: 180, g: 155, b: 115 }
     };
     
-    const shadeColor = getShadeRGB(selectedMatch.shade, selectedMatch.undertone);
+    const base = undertoneMap[undertone.toLowerCase() as keyof typeof undertoneMap] || undertoneMap.neutral;
+    
+    // Adjust for shade depth
+    const shadeLower = shade.toLowerCase();
+    let multiplier = 1;
+    
+    if (shadeLower.includes('fair') || shadeLower.includes('light')) {
+      multiplier = 1.15;
+    } else if (shadeLower.includes('medium')) {
+      multiplier = 0.85;
+    } else if (shadeLower.includes('deep') || shadeLower.includes('dark')) {
+      multiplier = 0.65;
+    }
+    
+    return {
+      r: Math.min(255, Math.round(base.r * multiplier)),
+      g: Math.min(255, Math.round(base.g * multiplier)),
+      b: Math.min(255, Math.round(base.b * multiplier))
+    };
+  };
+
+  const generateFoundationOverlay = (shade?: FoundationMatch) => {
+    const shadeToUse = shade || selectedMatch;
+    if (!shadeToUse || !showOverlay || !activePhoto) return null;
+    
+    const shadeColor = getShadeRGB(shadeToUse.shade, shadeToUse.undertone);
     
     return (
       <div 
@@ -473,6 +486,28 @@ const VirtualTryOn = ({ selectedMatch, onShadeRecommendations }: VirtualTryOnPro
         }}
       />
     );
+  };
+
+  const addShadeToComparison = (shade: FoundationMatch) => {
+    if (selectedShades.length >= 4) {
+      toast({
+        title: "Maximum shades reached",
+        description: "You can compare up to 4 shades at once",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!selectedShades.find(s => s.id === shade.id)) {
+      setSelectedShades(prev => [...prev, shade]);
+    }
+  };
+
+  const removeShadeFromComparison = (shadeId: string) => {
+    setSelectedShades(prev => prev.filter(s => s.id !== shadeId));
+    if (activeShadeIndex >= selectedShades.length - 1) {
+      setActiveShadeIndex(Math.max(0, selectedShades.length - 2));
+    }
   };
 
   return (
@@ -632,7 +667,31 @@ const VirtualTryOn = ({ selectedMatch, onShadeRecommendations }: VirtualTryOnPro
 
             {photos.length > 0 && (
               <div className="space-y-2">
-                {activePhoto && selectedMatch && (
+                {/* View Toggle */}
+                {selectedShades.length > 1 && (
+                  <div className="flex gap-2">
+                    <Button 
+                      onClick={() => setComparisonMode('single')}
+                      variant={comparisonMode === 'single' ? 'default' : 'outline'}
+                      size="sm"
+                      className="flex-1"
+                    >
+                      <Eye className="w-4 h-4 mr-1" />
+                      Single View
+                    </Button>
+                    <Button 
+                      onClick={() => setComparisonMode('comparison')}
+                      variant={comparisonMode === 'comparison' ? 'default' : 'outline'}
+                      size="sm"
+                      className="flex-1"
+                    >
+                      <Split className="w-4 h-4 mr-1" />
+                      Compare
+                    </Button>
+                  </div>
+                )}
+
+                {activePhoto && selectedMatch && comparisonMode === 'single' && (
                   <Button 
                     onClick={() => setShowOverlay(!showOverlay)}
                     variant="outline"
@@ -651,6 +710,71 @@ const VirtualTryOn = ({ selectedMatch, onShadeRecommendations }: VirtualTryOnPro
                   <Trash2 className="w-4 h-4 mr-2" />
                   Clear All Photos
                 </Button>
+              </div>
+            )}
+
+            {/* Shade Comparison View */}
+            {comparisonMode === 'comparison' && selectedShades.length > 0 && activePhoto && (
+              <div className="space-y-4 pt-4 border-t border-gray-200">
+                <h4 className="font-semibold text-gray-800 text-sm flex items-center gap-2">
+                  <Grid3X3 className="w-4 h-4" />
+                  Shade Comparison
+                </h4>
+                
+                {/* Comparison Grid */}
+                <div className="grid grid-cols-2 gap-2">
+                  {selectedShades.slice(0, 4).map((shade, index) => (
+                    <div key={shade.id} className="relative">
+                      <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden relative">
+                        <img 
+                          src={activePhoto.url} 
+                          alt={`Comparison ${index + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                        {generateFoundationOverlay(shade)}
+                        <div className="absolute bottom-1 left-1 right-1 bg-black/70 text-white text-xs p-1 rounded text-center">
+                          <div className="truncate">{shade.brand}</div>
+                          <div className="truncate text-[10px]">{shade.shade}</div>
+                        </div>
+                        <button
+                          onClick={() => removeShadeFromComparison(shade.id)}
+                          className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-xs"
+                        >
+                          <X className="w-2 h-2" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {/* Add more shades button */}
+                  {selectedShades.length < 4 && (
+                    <div className="aspect-square bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center">
+                      <div className="text-center">
+                        <Plus className="w-6 h-6 text-gray-400 mx-auto mb-1" />
+                        <p className="text-xs text-gray-500">Add Shade</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Shade Selection from Recommendations */}
+                {shadeRecommendations.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs text-gray-600">Add to comparison:</p>
+                    <div className="flex flex-wrap gap-1">
+                      {shadeRecommendations.map((rec, index) => (
+                        <button
+                          key={index}
+                          onClick={() => addShadeToComparison(rec.shade)}
+                          disabled={selectedShades.find(s => s.id === rec.shade.id) !== undefined}
+                          className="px-2 py-1 text-xs bg-rose-100 text-rose-700 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-rose-200"
+                        >
+                          {rec.shade.brand} - {rec.shade.shade}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
