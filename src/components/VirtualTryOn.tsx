@@ -122,12 +122,17 @@ const VirtualTryOn = ({ selectedMatch, onShadeRecommendations }: VirtualTryOnPro
       
       if (videoRef.current) {
         console.log('Setting video source...');
+        console.log('Video element exists:', !!videoRef.current);
+        console.log('Video element display style:', getComputedStyle(videoRef.current).display);
+        console.log('Video element visibility:', getComputedStyle(videoRef.current).visibility);
+        
         videoRef.current.srcObject = mediaStream;
         
         // Add event listeners for debugging
         videoRef.current.onloadedmetadata = () => {
           console.log('Video metadata loaded');
           console.log('Video dimensions:', videoRef.current?.videoWidth, 'x', videoRef.current?.videoHeight);
+          console.log('Video readyState:', videoRef.current?.readyState);
         };
         
         videoRef.current.oncanplay = () => {
@@ -142,23 +147,36 @@ const VirtualTryOn = ({ selectedMatch, onShadeRecommendations }: VirtualTryOnPro
           console.error('Video error:', e);
         };
         
+        videoRef.current.onloadstart = () => {
+          console.log('Video load start triggered');
+        };
+        
+        videoRef.current.onwaiting = () => {
+          console.log('Video waiting for data');
+        };
+        
         try {
-          await videoRef.current.play();
+          console.log('Attempting to play video...');
+          const playPromise = videoRef.current.play();
+          await playPromise;
           console.log('Video play() successful');
         } catch (playError) {
           console.error('Video play failed:', playError);
-          // Try to play again after a short delay
-          setTimeout(async () => {
+          // Force video to display even without autoplay
+          if (videoRef.current) {
+            videoRef.current.muted = true;
+            videoRef.current.playsInline = true;
+            console.log('Retrying with forced mute and playsInline...');
             try {
-              if (videoRef.current) {
-                await videoRef.current.play();
-                console.log('Video play() successful on retry');
-              }
+              await videoRef.current.play();
+              console.log('Video play() successful on retry');
             } catch (retryError) {
               console.error('Video play retry failed:', retryError);
             }
-          }, 100);
+          }
         }
+      } else {
+        console.error('Video ref is null!');
       }
       
       toast({
