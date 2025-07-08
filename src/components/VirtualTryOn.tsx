@@ -120,6 +120,9 @@ const VirtualTryOn = ({ selectedMatch, onShadeRecommendations }: VirtualTryOnPro
       setStream(mediaStream);
       setIsUsingCamera(true);
       
+      // Wait for React to render the video element
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       if (videoRef.current) {
         console.log('Setting video source...');
         console.log('Video element exists:', !!videoRef.current);
