@@ -44,6 +44,106 @@ export type Database = {
         }
         Relationships: []
       }
+      cosmetics_product_attributes: {
+        Row: {
+          attribute_name: string
+          attribute_value: string | null
+          created_at: string
+          id: string
+          product_id: string
+        }
+        Insert: {
+          attribute_name: string
+          attribute_value?: string | null
+          created_at?: string
+          id?: string
+          product_id: string
+        }
+        Update: {
+          attribute_name?: string
+          attribute_value?: string | null
+          created_at?: string
+          id?: string
+          product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cosmetics_product_attributes_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "cosmetics_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cosmetics_products: {
+        Row: {
+          brand_id: string | null
+          category: string | null
+          created_at: string
+          dataset_name: string
+          description: string | null
+          id: string
+          image_url: string | null
+          ingredients: string | null
+          metadata: Json | null
+          price: number | null
+          product_name: string
+          product_type: string | null
+          product_url: string | null
+          rating: number | null
+          subcategory: string | null
+          total_reviews: number | null
+          updated_at: string
+        }
+        Insert: {
+          brand_id?: string | null
+          category?: string | null
+          created_at?: string
+          dataset_name: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          ingredients?: string | null
+          metadata?: Json | null
+          price?: number | null
+          product_name: string
+          product_type?: string | null
+          product_url?: string | null
+          rating?: number | null
+          subcategory?: string | null
+          total_reviews?: number | null
+          updated_at?: string
+        }
+        Update: {
+          brand_id?: string | null
+          category?: string | null
+          created_at?: string
+          dataset_name?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          ingredients?: string | null
+          metadata?: Json | null
+          price?: number | null
+          product_name?: string
+          product_type?: string | null
+          product_url?: string | null
+          rating?: number | null
+          subcategory?: string | null
+          total_reviews?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cosmetics_products_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       foundation_products: {
         Row: {
           brand_id: string | null
@@ -522,7 +622,26 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_cosmetics_import_stats: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          dataset_name: string
+          total_products: number
+          brands_count: number
+          product_types_count: number
+          categories_count: number
+          avg_price: number
+          avg_rating: number
+        }[]
+      }
+      link_foundation_products: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      match_cosmetics_brands: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
     }
     Enums: {
       coverage_level: "light" | "medium" | "full" | "buildable"
