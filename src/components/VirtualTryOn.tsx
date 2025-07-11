@@ -5,6 +5,7 @@ import { Camera, Upload, X, RotateCcw, Plus, Trash2, Palette, Loader2, Eye, Grid
 import { FoundationMatch } from '../types/foundation';
 import { useToast } from '@/hooks/use-toast';
 import { skinToneAnalyzer, SkinToneAnalysis } from './SkinToneAnalyzer';
+import { supabase } from '@/integrations/supabase/client';
 
 interface PhotoData {
   id: string;
@@ -373,61 +374,171 @@ const VirtualTryOn = ({ selectedMatch, onShadeRecommendations }: VirtualTryOnPro
   };
 
   const generateShadeRecommendations = async (analysis: SkinToneAnalysis) => {
-    // Mock implementation - in real app, this would query the database
-    const mockRecommendations: ShadeRecommendation[] = [
-      {
-        shade: {
-          id: 'rec-1',
-          brand: 'Fenty Beauty',
-          product: 'Pro Filt\'r Foundation',
-          shade: '210 - Medium',
-          price: 36,
-          rating: 4.5,
-          reviewCount: 1240,
-          availability: { online: true, inStore: true, readyForPickup: true, nearbyStores: [] },
-          matchPercentage: 95,
-          undertone: analysis.dominantTone.undertone,
-          coverage: 'medium',
-          finish: 'matte',
-          imageUrl: '/placeholder.svg'
-        },
-        confidence: analysis.dominantTone.confidence,
-        targetTone: 'dominant'
+    try {
+      console.log('Generating recommendations for skin analysis:', analysis);
+      
+      // Convert depth string to numeric level
+      const getDepthLevel = (depth: string): number => {
+        switch (depth) {
+          case 'fair': return 2;
+          case 'light': return 4;
+          case 'medium': return 6;
+          case 'deep': return 8;
+          case 'very-deep': return 10;
+          default: return 6;
+        }
+      };
+      
+      const dominantDepthLevel = getDepthLevel(analysis.dominantTone.depth);
+      
+      // Query database for shades that match the analyzed undertone
+      const { data: matchingShades, error } = await supabase
+        .from('foundation_shades')
+        .select(`
+          *,
+          foundation_products!inner(
+            *,
+            brands!inner(name, logo_url)
+          )
+        `)
+        .eq('undertone', analysis.dominantTone.undertone)
+        .gte('depth_level', Math.max(1, dominantDepthLevel - 2))
+        .lte('depth_level', Math.min(10, dominantDepthLevel + 2))
+        .eq('is_available', true)
+        .limit(4);
+
+      if (error) {
+        console.error('Error fetching shade recommendations:', error);
+        throw error;
       }
-    ];
 
-    if (analysis.secondaryTone) {
-      mockRecommendations.push({
-        shade: {
-          id: 'rec-2',
-          brand: 'Charlotte Tilbury',
-          product: 'Airbrush Flawless Foundation',
-          shade: '6 Medium',
-          price: 44,
-          rating: 4.3,
-          reviewCount: 850,
-          availability: { online: true, inStore: true, readyForPickup: true, nearbyStores: [] },
-          matchPercentage: 88,
-          undertone: analysis.secondaryTone.undertone,
-          coverage: 'full',
-          finish: 'natural',
-          imageUrl: '/placeholder.svg'
-        },
-        confidence: analysis.secondaryTone.confidence,
-        targetTone: 'secondary'
+      const recommendations: ShadeRecommendation[] = [];
+      
+      // Process the matching shades
+      matchingShades?.forEach((shade, index) => {
+        const product = shade.foundation_products;
+        const brand = product.brands;
+        
+        const foundationMatch: FoundationMatch = {
+          id: `${product.id}-${shade.id}`,
+          brand: brand.name,
+          product: product.name,
+          shade: shade.shade_name,
+          price: product.price || 36.00,
+          rating: 4.3 + (index * 0.1),
+          reviewCount: 800 + (index * 100),
+          availability: {
+            online: true,
+            inStore: index < 2,
+            readyForPickup: index < 2,
+            nearbyStores: index < 2 ? ['Sephora - Downtown', 'Ulta - Mall Plaza'] : []
+          },
+          matchPercentage: 95 - (index * 2),
+          undertone: shade.undertone,
+          coverage: product.coverage || 'medium',
+          finish: product.finish || 'natural',
+          imageUrl: product.image_url || '/placeholder.svg'
+        };
+
+        recommendations.push({
+          shade: foundationMatch,
+          confidence: analysis.dominantTone.confidence,
+          targetTone: index === 0 ? 'dominant' : 'secondary'
+        });
       });
-    }
 
-    setShadeRecommendations(mockRecommendations);
-    
-    // Auto-populate shade comparison with recommendations
-    const shadesToCompare = [mockRecommendations[0]?.shade, mockRecommendations[1]?.shade].filter(Boolean) as FoundationMatch[];
-    if (selectedMatch && !shadesToCompare.find(s => s.id === selectedMatch.id)) {
-      shadesToCompare.unshift(selectedMatch);
+      // If we didn't get enough recommendations, add some with different undertones
+      if (recommendations.length < 2 && analysis.secondaryTone) {
+        const secondaryDepthLevel = getDepthLevel(analysis.secondaryTone.depth);
+        
+        const { data: alternativeShades } = await supabase
+          .from('foundation_shades')
+          .select(`
+            *,
+            foundation_products!inner(
+              *,
+              brands!inner(name, logo_url)
+            )
+          `)
+          .eq('undertone', analysis.secondaryTone.undertone)
+          .gte('depth_level', Math.max(1, secondaryDepthLevel - 1))
+          .lte('depth_level', Math.min(10, secondaryDepthLevel + 1))
+          .eq('is_available', true)
+          .limit(2);
+
+        alternativeShades?.forEach((shade, index) => {
+          const product = shade.foundation_products;
+          const brand = product.brands;
+          
+          const foundationMatch: FoundationMatch = {
+            id: `${product.id}-${shade.id}-alt`,
+            brand: brand.name,
+            product: product.name,
+            shade: shade.shade_name,
+            price: product.price || 36.00,
+            rating: 4.1 + (index * 0.1),
+            reviewCount: 600 + (index * 100),
+            availability: {
+              online: true,
+              inStore: false,
+              readyForPickup: false,
+              nearbyStores: []
+            },
+            matchPercentage: 88 - (index * 3),
+            undertone: shade.undertone,
+            coverage: product.coverage || 'medium',
+            finish: product.finish || 'natural',
+            imageUrl: product.image_url || '/placeholder.svg'
+          };
+
+          recommendations.push({
+            shade: foundationMatch,
+            confidence: analysis.secondaryTone.confidence,
+            targetTone: 'secondary'
+          });
+        });
+      }
+
+      console.log('Generated recommendations:', recommendations);
+      setShadeRecommendations(recommendations);
+      
+      // Auto-populate shade comparison with recommendations
+      const shadesToCompare = recommendations.map(r => r.shade);
+      if (selectedMatch && !shadesToCompare.find(s => s.id === selectedMatch.id)) {
+        shadesToCompare.unshift(selectedMatch);
+      }
+      setSelectedShades(shadesToCompare.slice(0, 4)); // Max 4 shades for comparison
+      
+      onShadeRecommendations?.(recommendations);
+    } catch (error) {
+      console.error('Error generating shade recommendations:', error);
+      
+      // Fallback to basic recommendations if database query fails
+      const fallbackRecommendations: ShadeRecommendation[] = [
+        {
+          shade: {
+            id: 'fallback-1',
+            brand: 'Fenty Beauty',
+            product: 'Pro Filt\'r Foundation',
+            shade: '220 - Light Medium with neutral undertones',
+            price: 36,
+            rating: 4.5,
+            reviewCount: 1240,
+            availability: { online: true, inStore: true, readyForPickup: true, nearbyStores: [] },
+            matchPercentage: 85,
+            undertone: analysis.dominantTone.undertone,
+            coverage: 'medium',
+            finish: 'matte',
+            imageUrl: '/placeholder.svg'
+          },
+          confidence: analysis.dominantTone.confidence,
+          targetTone: 'dominant'
+        }
+      ];
+      
+      setShadeRecommendations(fallbackRecommendations);
+      onShadeRecommendations?.(fallbackRecommendations);
     }
-    setSelectedShades(shadesToCompare.slice(0, 4)); // Max 4 shades for comparison
-    
-    onShadeRecommendations?.(mockRecommendations);
   };
 
   const removePhoto = (photoId: string) => {

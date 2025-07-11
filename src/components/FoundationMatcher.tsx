@@ -60,6 +60,11 @@ const FoundationMatcher = () => {
         throw error;
       }
       console.log('Products fetched:', data);
+      console.log('Foundation shades available:', data?.map(p => ({ 
+        brand: p.brands.name, 
+        product: p.name, 
+        shades: p.foundation_shades?.length || 0 
+      })));
       return data;
     },
   });
@@ -84,14 +89,48 @@ const FoundationMatcher = () => {
     // Take first 3 products and use their actual shade data
     otherBrandProducts.slice(0, 3).forEach((product, index) => {
       const availableShades = product.foundation_shades || [];
-      const selectedShade = availableShades[0] || {
-        shade_name: 'Universal Match',
-        undertone: 'neutral',
-        hex_color: '#D4A574'
-      };
+      
+      // Find a shade that closely matches the input shade
+      let selectedShade = availableShades.find(s => 
+        s.shade_name.toLowerCase().includes(shade.toLowerCase()) ||
+        s.shade_code?.toLowerCase().includes(shade.toLowerCase())
+      );
+      
+      // If no direct match, pick a shade based on shade keywords
+      if (!selectedShade && availableShades.length > 0) {
+        const shadeLower = shade.toLowerCase();
+        if (shadeLower.includes('fair') || shadeLower.includes('light')) {
+          selectedShade = availableShades.find(s => s.depth_level && s.depth_level <= 3);
+        } else if (shadeLower.includes('medium')) {
+          selectedShade = availableShades.find(s => s.depth_level && s.depth_level >= 4 && s.depth_level <= 7);
+        } else if (shadeLower.includes('deep') || shadeLower.includes('dark')) {
+          selectedShade = availableShades.find(s => s.depth_level && s.depth_level >= 8);
+        }
+      }
+      
+      // Fallback to first available shade
+      if (!selectedShade && availableShades.length > 0) {
+        selectedShade = availableShades[Math.floor(availableShades.length / 2)]; // Pick middle shade
+      }
+      
+      // Final fallback
+      if (!selectedShade) {
+        selectedShade = {
+          id: 'fallback',
+          shade_name: 'Universal Match',
+          shade_code: 'UM',
+          undertone: 'neutral' as const,
+          hex_color: '#D4A574',
+          rgb_values: [212, 165, 116],
+          depth_level: 5,
+          is_available: true,
+          created_at: new Date().toISOString(),
+          product_id: product.id
+        };
+      }
       
       const match: FoundationMatch = {
-        id: product.id,
+        id: `${product.id}-${selectedShade.id || 'default'}`,
         brand: product.brands.name,
         product: product.name,
         shade: selectedShade.shade_name,
