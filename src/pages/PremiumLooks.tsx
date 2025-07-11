@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Sparkles, Crown, Search, Calendar, Heart, Briefcase, PartyPopper, Sun, Moon } from 'lucide-react';
+import { Sparkles, Crown, Search, Calendar, Heart, Briefcase, PartyPopper, Sun, Moon, Play } from 'lucide-react';
 import AuthGuard from '../components/AuthGuard';
 import { Toaster } from '@/components/ui/toaster';
 
@@ -154,6 +154,32 @@ const PremiumLooks = () => {
                       <Search className="w-5 h-5 mr-2" />
                       Generate My Look
                     </Button>
+                  </CardContent>
+                </Card>
+
+                {/* Tutorial Videos */}
+                <Card className="max-w-4xl mx-auto mb-8">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Play className="h-5 w-5 text-rose-500" />
+                      Makeup Tutorial Videos
+                    </CardTitle>
+                    <CardDescription>
+                      Step-by-step video tutorials for your recommended looks
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="aspect-video bg-gray-200 rounded-lg flex items-center justify-center">
+                      <div className="text-center">
+                        <div className="w-16 h-16 bg-gray-300 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <Play className="h-8 w-8 text-gray-500" />
+                        </div>
+                        <p className="text-gray-600 font-medium">Tutorial Video Placeholder</p>
+                        <p className="text-sm text-gray-500 mt-2">
+                          Personalized video tutorials will appear here based on your foundation match
+                        </p>
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
 

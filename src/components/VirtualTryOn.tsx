@@ -1,7 +1,8 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Camera, Upload, X, RotateCcw, Plus, Trash2, Palette, Loader2, Eye, Grid3X3, Split } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Camera, Upload, X, RotateCcw, Plus, Trash2, Palette, Loader2, Eye, Grid3X3, Split, Flashlight, Save } from 'lucide-react';
 import { FoundationMatch } from '../types/foundation';
 import { useToast } from '@/hooks/use-toast';
 import { skinToneAnalyzer, SkinToneAnalysis } from './SkinToneAnalyzer';
@@ -35,6 +36,10 @@ const VirtualTryOn = ({ selectedMatch, onShadeRecommendations }: VirtualTryOnPro
   const [comparisonMode, setComparisonMode] = useState<'single' | 'comparison'>('single');
   const [selectedShades, setSelectedShades] = useState<FoundationMatch[]>([]);
   const [activeShadeIndex, setActiveShadeIndex] = useState(0);
+  const [hasFlash, setHasFlash] = useState(false);
+  const [flashEnabled, setFlashEnabled] = useState(false);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [pendingPhoto, setPendingPhoto] = useState<PhotoData | null>(null);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -91,7 +96,7 @@ const VirtualTryOn = ({ selectedMatch, onShadeRecommendations }: VirtualTryOnPro
           } 
         },
         { 
-          video: true 
+          video: true
         }
       ];
 
@@ -120,6 +125,13 @@ const VirtualTryOn = ({ selectedMatch, onShadeRecommendations }: VirtualTryOnPro
       
       setStream(mediaStream);
       setIsUsingCamera(true);
+      
+      // Check for flash capability
+      const videoTracks = mediaStream.getVideoTracks();
+      if (videoTracks.length > 0) {
+        const capabilities = videoTracks[0].getCapabilities() as any;
+        setHasFlash(!!(capabilities.torch || capabilities.fillLightMode));
+      }
       
       // Wait for React to render the video element
       await new Promise(resolve => setTimeout(resolve, 100));
@@ -229,6 +241,28 @@ const VirtualTryOn = ({ selectedMatch, onShadeRecommendations }: VirtualTryOnPro
     setIsUsingCamera(false);
   }, [stream]);
 
+  const toggleFlash = useCallback(async () => {
+    if (!stream || !hasFlash) return;
+    
+    const videoTracks = stream.getVideoTracks();
+    if (videoTracks.length > 0) {
+      try {
+        const constraints: any = {
+          advanced: [{ torch: !flashEnabled }]
+        };
+        await videoTracks[0].applyConstraints(constraints);
+        setFlashEnabled(!flashEnabled);
+      } catch (error) {
+        console.error('Error toggling flash:', error);
+        toast({
+          title: "Flash control failed",
+          description: "Could not toggle camera flash",
+          variant: "destructive"
+        });
+      }
+    }
+  }, [stream, hasFlash, flashEnabled, toast]);
+
   const capturePhoto = useCallback(async () => {
     if (!videoRef.current || !canvasRef.current) {
       console.log('Missing requirements for photo capture');
@@ -259,27 +293,45 @@ const VirtualTryOn = ({ selectedMatch, onShadeRecommendations }: VirtualTryOnPro
     // Draw the video frame
     ctx.drawImage(video, 0, 0);
     
-    // Convert to blob and add to photos
+    // Convert to blob and create photo
     canvas.toBlob(async (blob) => {
       if (blob) {
         const url = URL.createObjectURL(blob);
         const photoId = `photo-${Date.now()}`;
         
         const newPhoto: PhotoData = { id: photoId, url };
-        setPhotos(prev => [...prev, newPhoto]);
-        setActivePhotoIndex(photos.length);
+        setPendingPhoto(newPhoto);
+        setShowSaveDialog(true);
         stopCamera();
-        
-        toast({
-          title: "Photo captured!",
-          description: "Analyzing skin tone..."
-        });
-
-        // Analyze the photo
-        await analyzePhoto(newPhoto);
       }
     }, 'image/jpeg', 0.8);
   }, [photos.length, maxPhotos, stopCamera, toast]);
+
+  const handleSavePhoto = useCallback(async (shouldSave: boolean) => {
+    if (!pendingPhoto) return;
+    
+    if (shouldSave) {
+      setPhotos(prev => [...prev, pendingPhoto]);
+      setActivePhotoIndex(photos.length);
+      
+      toast({
+        title: "Photo saved!",
+        description: "Analyzing skin tone..."
+      });
+
+      // Analyze the photo
+      await analyzePhoto(pendingPhoto);
+    } else {
+      URL.revokeObjectURL(pendingPhoto.url);
+      toast({
+        title: "Photo discarded",
+        description: "Photo was not saved"
+      });
+    }
+    
+    setPendingPhoto(null);
+    setShowSaveDialog(false);
+  }, [pendingPhoto, photos.length, toast]);
 
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
@@ -715,7 +767,16 @@ const VirtualTryOn = ({ selectedMatch, onShadeRecommendations }: VirtualTryOnPro
                     onLoadStart={() => console.log('Video load start')}
                     onCanPlayThrough={() => console.log('Video can play through')}
                   />
-                  <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10">
+                  <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10 flex gap-2">
+                    {hasFlash && (
+                      <Button
+                        onClick={toggleFlash}
+                        variant="outline"
+                        className="bg-white text-gray-800 hover:bg-gray-100 rounded-full w-12 h-12 shadow-lg"
+                      >
+                        <Flashlight className={`w-5 h-5 ${flashEnabled ? 'text-yellow-500' : 'text-gray-500'}`} />
+                      </Button>
+                    )}
                     <Button
                       onClick={capturePhoto}
                       disabled={photos.length >= maxPhotos}
@@ -942,6 +1003,44 @@ const VirtualTryOn = ({ selectedMatch, onShadeRecommendations }: VirtualTryOnPro
           </div>
         </CardContent>
       </Card>
+
+      {/* Save Photo Dialog */}
+      <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Save className="w-5 h-5" />
+              Save this photo?
+            </DialogTitle>
+            <DialogDescription>
+              Would you like to save this photo for virtual try-on analysis? The photo will be used to match foundation shades to your skin tone.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {pendingPhoto && (
+            <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden">
+              <img 
+                src={pendingPhoto.url} 
+                alt="Captured photo preview"
+                className="w-full h-full object-cover"
+              />
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => handleSavePhoto(false)}
+            >
+              Discard
+            </Button>
+            <Button onClick={() => handleSavePhoto(true)}>
+              <Save className="w-4 h-4 mr-2" />
+              Save Photo
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
