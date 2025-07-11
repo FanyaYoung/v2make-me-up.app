@@ -11,11 +11,11 @@ import AuthGuard from '../components/AuthGuard';
 import { Toaster } from '@/components/ui/toaster';
 
 const PremiumLooks = () => {
-  const [userTier] = useState<'free' | 'weekly' | 'monthly' | 'unlimited'>('free'); // This will come from subscription context
+  const [userTier] = useState<'free' | 'premium'>('free'); // This will come from subscription context
   const [selectedOccasion, setSelectedOccasion] = useState('');
   const [selectedStyle, setSelectedStyle] = useState('');
   
-  const isPremiumUser = userTier === 'monthly' || userTier === 'unlimited';
+  const isPremiumUser = userTier === 'premium';
   
   const occasions = [
     { id: 'everyday', name: 'Everyday Casual', icon: Sun },
@@ -279,10 +279,7 @@ const PremiumLooks = () => {
                   <div className="space-y-4">
                     <Button size="lg" className="w-full">
                       <Crown className="w-5 h-5 mr-2" />
-                      Upgrade to Monthly - $X/month
-                    </Button>
-                    <Button variant="outline" size="lg" className="w-full">
-                      Upgrade to Unlimited - $X/month
+                      Upgrade to Premium - $X/month
                     </Button>
                   </div>
                 </div>

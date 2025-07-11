@@ -9,14 +9,12 @@ import AuthGuard from '../components/AuthGuard';
 import { Toaster } from '@/components/ui/toaster';
 
 const VirtualTryOnPage = () => {
-  const [userTier] = useState<'free' | 'weekly' | 'monthly' | 'unlimited'>('free'); // This will come from subscription context
+  const [userTier] = useState<'free' | 'premium'>('free'); // This will come from subscription context
   const [matchesUsed] = useState(0); // This will come from user data
   
   const tierLimits = {
-    free: 2,
-    weekly: 4,
-    monthly: 10,
-    unlimited: 20
+    free: 3,
+    premium: 20
   };
   
   const remainingMatches = tierLimits[userTier] - matchesUsed;
@@ -40,18 +38,18 @@ const VirtualTryOnPage = () => {
               
               {/* Usage Tracker */}
               <div className="inline-flex items-center gap-3 bg-white rounded-full px-6 py-3 shadow-lg">
-                <Badge variant={userTier === 'free' ? 'secondary' : userTier === 'unlimited' ? 'default' : 'outline'} className="capitalize">
-                  {userTier === 'unlimited' ? (
+                <Badge variant={userTier === 'free' ? 'secondary' : 'default'} className="capitalize">
+                  {userTier === 'premium' ? (
                     <>
                       <Crown className="w-4 h-4 mr-1" />
-                      {userTier}
+                      Premium
                     </>
                   ) : (
-                    userTier
+                    'Free'
                   )}
                 </Badge>
                 <span className="text-sm text-gray-600">
-                  {remainingMatches} matches remaining this {userTier === 'monthly' ? 'month' : userTier === 'weekly' ? 'week' : 'session'}
+                  {remainingMatches} matches remaining this {userTier === 'premium' ? 'month' : 'session'}
                 </span>
               </div>
             </div>
@@ -117,24 +115,9 @@ const VirtualTryOnPage = () => {
                   {/* Upgrade Options */}
                   <div className="space-y-4">
                     {userTier === 'free' && (
-                      <>
-                        <Button size="lg" className="w-full">
-                          Upgrade to Weekly - $X/week
-                        </Button>
-                        <Button variant="outline" size="lg" className="w-full">
-                          Upgrade to Monthly - $X/month
-                        </Button>
-                      </>
-                    )}
-                    {userTier === 'weekly' && (
-                      <Button size="lg" className="w-full">
-                        Upgrade to Monthly - $X/month
-                      </Button>
-                    )}
-                    {userTier === 'monthly' && (
                       <Button size="lg" className="w-full">
                         <Crown className="w-5 h-5 mr-2" />
-                        Upgrade to Unlimited - $X/month
+                        Upgrade to Premium - $X/month
                       </Button>
                     )}
                   </div>
