@@ -9,37 +9,51 @@ import { useToast } from '@/hooks/use-toast';
 const TIERS = [
   {
     id: 'one_time',
-    name: 'One-Time Access',
-    price: '$8',
-    description: 'Perfect for trying out premium features',
+    name: 'One-Time Match',
+    price: '$2',
+    description: 'Perfect for a single foundation match',
+    features: [
+      'One foundation match',
+      'Basic skin analysis',
+      'Product recommendations',
+      'Results saved to account',
+    ],
+    icon: Zap,
+    popular: false,
+  },
+  {
+    id: 'weekly',
+    name: 'Weekly Premium',
+    price: '$4/week',
+    description: 'Great for short-term access',
     features: [
       'Unlimited foundation matches',
       'Advanced skin analysis',
       'Premium recommendations',
       'Virtual try-on features',
     ],
-    icon: Zap,
+    icon: Calendar,
     popular: false,
   },
   {
     id: 'monthly',
     name: 'Monthly Premium',
     price: '$10/month',
-    description: 'Monthly subscription with all premium features',
+    description: 'Most popular choice for regular users',
     features: [
-      'Everything in One-Time Access',
+      'Everything in Weekly Premium',
       'Priority customer support',
       'New features first',
       'Cancel anytime',
     ],
-    icon: Calendar,
+    icon: Crown,
     popular: true,
   },
   {
     id: 'yearly',
     name: 'Yearly Premium',
     price: '$100/year',
-    description: 'Best value - save $20 per year',
+    description: 'Best value - save over $20 per year',
     features: [
       'Everything in Monthly Premium',
       'Significant savings',
@@ -56,7 +70,7 @@ export const SubscriptionManager = () => {
   const [loading, setLoading] = useState<string | null>(null);
   const subscription = useSubscription();
 
-  const handleUpgrade = async (tier: 'one_time' | 'monthly' | 'yearly') => {
+  const handleUpgrade = async (tier: 'one_time' | 'weekly' | 'monthly' | 'yearly') => {
     setLoading(tier);
     try {
       const url = await subscription.createCheckout(tier);
@@ -169,6 +183,7 @@ export const SubscriptionManager = () => {
           const isCurrentTier = subscription.subscription_tier === tier.id;
           const isUpgrade = !subscription.isPremium || 
             (subscription.subscription_tier === 'one_time' && tier.id !== 'one_time') ||
+            (subscription.subscription_tier === 'weekly' && ['monthly', 'yearly'].includes(tier.id)) ||
             (subscription.subscription_tier === 'monthly' && tier.id === 'yearly');
 
           return (

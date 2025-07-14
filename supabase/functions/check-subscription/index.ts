@@ -90,7 +90,9 @@ serve(async (req) => {
       const amount = price.unit_amount || 0;
       const interval = price.recurring?.interval;
       
-      if (interval === 'month' && amount === 1000) {
+      if (interval === 'week' && amount === 400) {
+        subscriptionTier = 'weekly';
+      } else if (interval === 'month' && amount === 1000) {
         subscriptionTier = 'monthly';
       } else if (interval === 'year' && amount === 10000) {
         subscriptionTier = 'yearly';
@@ -107,7 +109,7 @@ serve(async (req) => {
       const oneTimeSession = sessions.data.find(session => 
         session.mode === 'payment' && 
         session.payment_status === 'paid' &&
-        session.amount_total === 800 // $8.00
+        session.amount_total === 200 // $2.00
       );
       
       if (oneTimeSession) {

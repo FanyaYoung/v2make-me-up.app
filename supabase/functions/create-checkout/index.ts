@@ -26,7 +26,7 @@ serve(async (req) => {
     logStep("Function started");
 
     const { tier } = await req.json();
-    if (!tier || !['one_time', 'monthly', 'yearly'].includes(tier)) {
+    if (!tier || !['one_time', 'weekly', 'monthly', 'yearly'].includes(tier)) {
       throw new Error("Invalid subscription tier");
     }
 
@@ -52,7 +52,8 @@ serve(async (req) => {
 
     // Define pricing based on tier
     const tierConfig = {
-      one_time: { amount: 800, mode: "payment" as const }, // $8.00
+      one_time: { amount: 200, mode: "payment" as const }, // $2.00
+      weekly: { amount: 400, mode: "subscription" as const, interval: "week" as const }, // $4.00/week
       monthly: { amount: 1000, mode: "subscription" as const, interval: "month" as const }, // $10.00/month
       yearly: { amount: 10000, mode: "subscription" as const, interval: "year" as const } // $100.00/year
     };
@@ -73,7 +74,7 @@ serve(async (req) => {
         {
           price_data: {
             currency: "usd",
-            product_data: { name: "Premium Access - One Time" },
+            product_data: { name: "Premium Match - One Time" },
             unit_amount: config.amount,
           },
           quantity: 1,
@@ -85,7 +86,7 @@ serve(async (req) => {
         {
           price_data: {
             currency: "usd",
-            product_data: { name: `Premium Subscription - ${tier === 'monthly' ? 'Monthly' : 'Yearly'}` },
+            product_data: { name: `Premium Subscription - ${tier === 'monthly' ? 'Monthly' : tier === 'weekly' ? 'Weekly' : 'Yearly'}` },
             unit_amount: config.amount,
             recurring: { interval: config.interval },
           },
