@@ -21,6 +21,7 @@ interface CosmeticsProduct {
   name: string
   price?: number
   category?: string
+  subcategory?: string
   description?: string
   ingredients?: string[]
   rating?: number
@@ -28,6 +29,9 @@ interface CosmeticsProduct {
   shade_name?: string
   hex_color?: string
   undertone?: string
+  image_url?: string
+  product_url?: string
+  total_reviews?: number
 }
 
 serve(async (req) => {
@@ -52,22 +56,34 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseKey)
 
-    console.log('Searching for cosmetics datasets on Kaggle...')
+    console.log('Searching for makeup and cosmetics datasets on Kaggle...')
     
-    // Search for cosmetics datasets
-    const searchResponse = await fetch('https://www.kaggle.com/api/v1/datasets/list?search=cosmetics&page=1&pageSize=10', {
-      headers: {
-        'Authorization': `Basic ${btoa(`${kaggleUsername}:${kaggleKey}`)}`,
-        'Content-Type': 'application/json'
+    // Search for multiple makeup-related terms to get comprehensive datasets
+    const searchTerms = ['cosmetics', 'makeup', 'foundation', 'lipstick', 'eyeshadow', 'beauty', 'skincare']
+    const allDatasets: KaggleDataset[] = []
+    
+    for (const term of searchTerms) {
+      console.log(`Searching for datasets with term: ${term}`)
+      const searchResponse = await fetch(`https://www.kaggle.com/api/v1/datasets/list?search=${term}&page=1&pageSize=20`, {
+        headers: {
+          'Authorization': `Basic ${btoa(`${kaggleUsername}:${kaggleKey}`)}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (searchResponse.ok) {
+        const datasets: KaggleDataset[] = await searchResponse.json()
+        // Add datasets that aren't already in our list
+        for (const dataset of datasets) {
+          if (!allDatasets.find(d => d.ref === dataset.ref)) {
+            allDatasets.push(dataset)
+          }
+        }
       }
-    })
-
-    if (!searchResponse.ok) {
-      throw new Error(`Kaggle API error: ${searchResponse.status} ${searchResponse.statusText}`)
     }
-
-    const datasets: KaggleDataset[] = await searchResponse.json()
-    console.log(`Found ${datasets.length} cosmetics datasets`)
+    
+    const datasets = allDatasets
+    console.log(`Found ${datasets.length} total makeup and cosmetics datasets`)
 
     let totalProcessed = 0
     let totalBrands = 0
@@ -248,6 +264,33 @@ function parseCSVToProducts(csvContent: string): CosmeticsProduct[] {
             product.undertone = value.toLowerCase()
           }
           break
+        case 'image':
+        case 'image_url':
+        case 'img_url':
+        case 'picture':
+        case 'photo':
+          if (value.startsWith('http')) {
+            product.image_url = value
+          }
+          break
+        case 'url':
+        case 'product_url':
+        case 'link':
+          if (value.startsWith('http')) {
+            product.product_url = value
+          }
+          break
+        case 'subcategory':
+        case 'sub_category':
+        case 'subtype':
+          product.subcategory = value
+          break
+        case 'reviews':
+        case 'total_reviews':
+        case 'review_count':
+          const reviews = parseInt(value.replace(/[^0-9]/g, ''))
+          if (!isNaN(reviews)) product.total_reviews = reviews
+          break
       }
     })
     
@@ -305,7 +348,7 @@ async function importProductsToDatabase(supabase: any, products: CosmeticsProduc
       }
       
       // Process products for this brand
-      for (const product of brandProducts.slice(0, 10)) { // Limit products per brand
+      for (const product of brandProducts.slice(0, 15)) { // Increased limit for more variety
         try {
           // Determine if this is a foundation product
           const isFoundation = product.category?.toLowerCase().includes('foundation') ||
@@ -313,13 +356,13 @@ async function importProductsToDatabase(supabase: any, products: CosmeticsProduc
                               product.product_type?.toLowerCase().includes('foundation')
           
           if (isFoundation) {
-            // Check if product exists
+            // Handle foundation products in the foundation_products table
             let { data: existingProduct } = await supabase
               .from('foundation_products')
               .select('id')
               .eq('brand_id', brandId)
               .eq('name', product.name)
-              .single()
+              .maybeSingle()
             
             let productId = existingProduct?.id
             
@@ -335,13 +378,15 @@ async function importProductsToDatabase(supabase: any, products: CosmeticsProduc
                   coverage: 'medium', // Default value
                   finish: 'natural', // Default value
                   ingredients: product.ingredients,
+                  image_url: product.image_url,
+                  product_url: product.product_url,
                   is_active: true
                 })
                 .select('id')
                 .single()
               
               if (productError) {
-                console.error(`Error creating product ${product.name}:`, productError)
+                console.error(`Error creating foundation product ${product.name}:`, productError)
                 continue
               }
               
@@ -363,6 +408,68 @@ async function importProductsToDatabase(supabase: any, products: CosmeticsProduc
               
               if (!shadeError) {
                 shadesImported++
+              }
+            }
+          } else {
+            // Handle all other cosmetics products in the cosmetics_products table
+            let { data: existingCosmetic } = await supabase
+              .from('cosmetics_products')
+              .select('id')
+              .eq('brand_id', brandId)
+              .eq('product_name', product.name)
+              .maybeSingle()
+            
+            // Create cosmetics product if it doesn't exist
+            if (!existingCosmetic) {
+              const { error: cosmeticError } = await supabase
+                .from('cosmetics_products')
+                .insert({
+                  brand_id: brandId,
+                  product_name: product.name,
+                  product_type: product.category || product.product_type,
+                  category: product.category,
+                  subcategory: product.subcategory,
+                  description: product.description,
+                  ingredients: product.ingredients?.join(', '),
+                  price: product.price,
+                  rating: product.rating,
+                  total_reviews: product.total_reviews,
+                  image_url: product.image_url,
+                  product_url: product.product_url,
+                  dataset_name: 'kaggle_import',
+                  metadata: {
+                    shade_name: product.shade_name,
+                    hex_color: product.hex_color,
+                    undertone: product.undertone,
+                    imported_at: new Date().toISOString()
+                  }
+                })
+              
+              if (!cosmeticError) {
+                productsImported++
+                
+                // If this cosmetic has shade information, create an attribute for it
+                if (product.shade_name) {
+                  await supabase
+                    .from('cosmetics_product_attributes')
+                    .insert({
+                      product_id: existingCosmetic?.id,
+                      attribute_name: 'shade_name',
+                      attribute_value: product.shade_name
+                    })
+                }
+                
+                if (product.hex_color) {
+                  await supabase
+                    .from('cosmetics_product_attributes')
+                    .insert({
+                      product_id: existingCosmetic?.id,
+                      attribute_name: 'hex_color',
+                      attribute_value: product.hex_color
+                    })
+                }
+              } else {
+                console.error(`Error creating cosmetic product ${product.name}:`, cosmeticError)
               }
             }
           }

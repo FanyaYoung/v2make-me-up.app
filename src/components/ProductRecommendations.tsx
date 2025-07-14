@@ -65,21 +65,53 @@ const ProductRecommendations = ({ matches, onSelectMatch, currentFoundation }: P
             <CardContent className="p-6">
               <div className="flex flex-col md:flex-row gap-6">
                 <div className="flex-shrink-0">
-                  <div className="w-32 h-32 rounded-lg shadow-md overflow-hidden bg-gray-100">
-                    <div className="w-full h-full flex flex-col">
-                      {/* Foundation shade color */}
-                      <div 
-                        className="flex-1 border-b border-gray-200"
-                        style={{ backgroundColor: generateShadeColor(match.shade, match.undertone) }}
-                        title={`${match.shade} shade`}
-                      />
-                      {/* Brand/product info overlay */}
-                      <div className="h-8 bg-white/90 flex items-center justify-center">
-                        <span className="text-xs font-medium text-gray-700 truncate px-2">
-                          {match.brand}
-                        </span>
+                  <div className="w-32 h-32 rounded-lg shadow-md overflow-hidden bg-gray-100 relative">
+                    {match.imageUrl && match.imageUrl !== '/placeholder.svg' ? (
+                      <div className="w-full h-full flex flex-col">
+                        {/* Product image */}
+                        <div className="flex-1 relative">
+                          <img 
+                            src={match.imageUrl} 
+                            alt={`${match.brand} ${match.product}`}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              // Fallback to color swatch if image fails to load
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = 'none';
+                              const fallback = target.nextElementSibling as HTMLDivElement;
+                              if (fallback) fallback.style.display = 'block';
+                            }}
+                          />
+                          {/* Fallback color swatch */}
+                          <div 
+                            className="absolute inset-0 hidden"
+                            style={{ backgroundColor: generateShadeColor(match.shade, match.undertone) }}
+                            title={`${match.shade} shade`}
+                          />
+                        </div>
+                        {/* Shade color indicator bar */}
+                        <div 
+                          className="h-4 border-t border-gray-200"
+                          style={{ backgroundColor: generateShadeColor(match.shade, match.undertone) }}
+                          title={`${match.shade} color`}
+                        />
                       </div>
-                    </div>
+                    ) : (
+                      <div className="w-full h-full flex flex-col">
+                        {/* Foundation shade color when no image */}
+                        <div 
+                          className="flex-1 border-b border-gray-200"
+                          style={{ backgroundColor: generateShadeColor(match.shade, match.undertone) }}
+                          title={`${match.shade} shade`}
+                        />
+                        {/* Brand/product info overlay */}
+                        <div className="h-8 bg-white/90 flex items-center justify-center">
+                          <span className="text-xs font-medium text-gray-700 truncate px-2">
+                            {match.brand}
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
                 
