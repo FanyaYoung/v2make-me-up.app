@@ -6,6 +6,14 @@ import { Check, Crown, Zap, Calendar, CreditCard } from 'lucide-react';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useToast } from '@/hooks/use-toast';
 
+// Pre-built Stripe payment URLs
+const STRIPE_PAYMENT_URLS = {
+  one_time: 'https://buy.stripe.com/test_4gweVo6QR2XMgMw5kl',
+  weekly: 'https://buy.stripe.com/test_6oEaFY3EFeAu4cE9AC',
+  monthly: 'https://buy.stripe.com/test_cN23dwhppasmfIscMN',
+  yearly: 'https://buy.stripe.com/test_5kA29s3EF5a2fIscMO',
+} as const;
+
 const TIERS = [
   {
     id: 'one_time',
@@ -20,6 +28,7 @@ const TIERS = [
     ],
     icon: Zap,
     popular: false,
+    paymentUrl: STRIPE_PAYMENT_URLS.one_time,
   },
   {
     id: 'weekly',
@@ -34,6 +43,7 @@ const TIERS = [
     ],
     icon: Calendar,
     popular: false,
+    paymentUrl: STRIPE_PAYMENT_URLS.weekly,
   },
   {
     id: 'monthly',
@@ -48,6 +58,7 @@ const TIERS = [
     ],
     icon: Crown,
     popular: true,
+    paymentUrl: STRIPE_PAYMENT_URLS.monthly,
   },
   {
     id: 'yearly',
@@ -62,6 +73,7 @@ const TIERS = [
     ],
     icon: Crown,
     popular: false,
+    paymentUrl: STRIPE_PAYMENT_URLS.yearly,
   },
 ];
 
@@ -73,13 +85,17 @@ export const SubscriptionManager = () => {
   const handleUpgrade = async (tier: 'one_time' | 'weekly' | 'monthly' | 'yearly') => {
     setLoading(tier);
     try {
-      const url = await subscription.createCheckout(tier);
-      if (url) {
-        window.open(url, '_blank');
+      const paymentUrl = STRIPE_PAYMENT_URLS[tier];
+      if (paymentUrl) {
+        window.open(paymentUrl, '_blank');
+        toast({
+          title: "Redirecting to payment",
+          description: "You're being redirected to complete your purchase.",
+        });
       } else {
         toast({
           title: "Error",
-          description: "Failed to create checkout session. Please try again.",
+          description: "Payment URL not found. Please try again.",
           variant: "destructive",
         });
       }
