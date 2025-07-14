@@ -4,23 +4,29 @@ import VirtualTryOn from '../components/VirtualTryOn';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Camera, Upload, Zap, Crown } from 'lucide-react';
+import { Camera, Upload, Zap, Crown, CreditCard } from 'lucide-react';
 import AuthGuard from '../components/AuthGuard';
 import { Toaster } from '@/components/ui/toaster';
+import { useSubscription } from '@/hooks/useSubscription';
+import { useNavigate } from 'react-router-dom';
 
 const VirtualTryOnPage = () => {
-  const [userTier] = useState<'free' | 'weekly' | 'monthly' | 'premium'>('free'); // This will come from subscription context
+  const navigate = useNavigate();
+  const subscription = useSubscription();
   const [matchesUsed] = useState(0); // This will come from user data
   
-  const tierLimits = {
-    free: 3,
-    weekly: 7,
-    monthly: 15,
-    premium: 30
+  // Free users get 3 matches, premium users get unlimited
+  const canTryOn = subscription.isPremium || matchesUsed < 3;
+  const remainingMatches = subscription.isPremium ? Infinity : Math.max(0, 3 - matchesUsed);
+
+  const getUserTierDisplay = () => {
+    if (subscription.isPremium) {
+      return subscription.subscription_tier === 'one_time' ? 'Premium' : 
+             subscription.subscription_tier === 'monthly' ? 'Monthly' :
+             subscription.subscription_tier === 'yearly' ? 'Yearly' : 'Premium';
+    }
+    return 'Free';
   };
-  
-  const remainingMatches = tierLimits[userTier] - matchesUsed;
-  const canTryOn = remainingMatches > 0;
 
   return (
     <AuthGuard>
@@ -40,20 +46,22 @@ const VirtualTryOnPage = () => {
               
               {/* Usage Tracker */}
               <div className="inline-flex items-center gap-3 bg-white rounded-full px-6 py-3 shadow-lg">
-                <Badge variant={userTier === 'free' ? 'secondary' : 'default'} className="capitalize">
-                  {userTier === 'premium' ? (
+                <Badge variant={!subscription.isPremium ? 'secondary' : 'default'} className="capitalize">
+                  {subscription.isPremium ? (
                     <>
                       <Crown className="w-4 h-4 mr-1" />
-                      Premium
+                      {getUserTierDisplay()}
                     </>
                   ) : (
-                    userTier
+                    'Free'
                   )}
                 </Badge>
                 <span className="text-sm text-gray-600">
-                  {remainingMatches} matches remaining this {
-                    userTier === 'premium' || userTier === 'monthly' ? 'month' : 
-                    userTier === 'weekly' ? 'week' : 'session'
+                  {subscription.isPremium ? 'Unlimited' : remainingMatches} matches remaining this {
+                    subscription.isPremium ? (
+                      subscription.subscription_tier === 'yearly' ? 'year' : 
+                      subscription.subscription_tier === 'monthly' ? 'month' : 'lifetime'
+                    ) : 'session'
                   }
                 </span>
               </div>
@@ -119,37 +127,14 @@ const VirtualTryOnPage = () => {
                   
                   {/* Upgrade Options */}
                   <div className="space-y-4">
-                    {userTier === 'free' && (
-                      <>
-                        <Button size="lg" className="w-full">
-                          Upgrade to Weekly - $2/week
-                        </Button>
-                        <Button variant="outline" size="lg" className="w-full">
-                          Upgrade to Monthly - $5/month
-                        </Button>
-                        <Button size="lg" className="w-full">
-                          <Crown className="w-5 h-5 mr-2" />
-                          Upgrade to Premium - $10/month
-                        </Button>
-                      </>
-                    )}
-                    {userTier === 'weekly' && (
-                      <>
-                        <Button size="lg" className="w-full">
-                          Upgrade to Monthly - $5/month
-                        </Button>
-                        <Button size="lg" className="w-full">
-                          <Crown className="w-5 h-5 mr-2" />
-                          Upgrade to Premium - $10/month
-                        </Button>
-                      </>
-                    )}
-                    {userTier === 'monthly' && (
-                      <Button size="lg" className="w-full">
-                        <Crown className="w-5 h-5 mr-2" />
-                        Upgrade to Premium - $10/month
-                      </Button>
-                    )}
+                    <Button 
+                      size="lg" 
+                      className="w-full"
+                      onClick={() => navigate('/subscription')}
+                    >
+                      <CreditCard className="w-5 h-5 mr-2" />
+                      View Subscription Plans
+                    </Button>
                   </div>
                 </div>
               </div>
