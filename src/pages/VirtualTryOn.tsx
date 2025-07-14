@@ -9,12 +9,14 @@ import AuthGuard from '../components/AuthGuard';
 import { Toaster } from '@/components/ui/toaster';
 
 const VirtualTryOnPage = () => {
-  const [userTier] = useState<'free' | 'premium'>('free'); // This will come from subscription context
+  const [userTier] = useState<'free' | 'weekly' | 'monthly' | 'premium'>('free'); // This will come from subscription context
   const [matchesUsed] = useState(0); // This will come from user data
   
   const tierLimits = {
     free: 3,
-    premium: 20
+    weekly: 7,
+    monthly: 15,
+    premium: 30
   };
   
   const remainingMatches = tierLimits[userTier] - matchesUsed;
@@ -45,11 +47,14 @@ const VirtualTryOnPage = () => {
                       Premium
                     </>
                   ) : (
-                    'Free'
+                    userTier
                   )}
                 </Badge>
                 <span className="text-sm text-gray-600">
-                  {remainingMatches} matches remaining this {userTier === 'premium' ? 'month' : 'session'}
+                  {remainingMatches} matches remaining this {
+                    userTier === 'premium' || userTier === 'monthly' ? 'month' : 
+                    userTier === 'weekly' ? 'week' : 'session'
+                  }
                 </span>
               </div>
             </div>
@@ -115,9 +120,34 @@ const VirtualTryOnPage = () => {
                   {/* Upgrade Options */}
                   <div className="space-y-4">
                     {userTier === 'free' && (
+                      <>
+                        <Button size="lg" className="w-full">
+                          Upgrade to Weekly - $2/week
+                        </Button>
+                        <Button variant="outline" size="lg" className="w-full">
+                          Upgrade to Monthly - $5/month
+                        </Button>
+                        <Button size="lg" className="w-full">
+                          <Crown className="w-5 h-5 mr-2" />
+                          Upgrade to Premium - $10/month
+                        </Button>
+                      </>
+                    )}
+                    {userTier === 'weekly' && (
+                      <>
+                        <Button size="lg" className="w-full">
+                          Upgrade to Monthly - $5/month
+                        </Button>
+                        <Button size="lg" className="w-full">
+                          <Crown className="w-5 h-5 mr-2" />
+                          Upgrade to Premium - $10/month
+                        </Button>
+                      </>
+                    )}
+                    {userTier === 'monthly' && (
                       <Button size="lg" className="w-full">
                         <Crown className="w-5 h-5 mr-2" />
-                        Upgrade to Premium - $X/month
+                        Upgrade to Premium - $10/month
                       </Button>
                     )}
                   </div>
