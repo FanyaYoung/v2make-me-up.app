@@ -539,6 +539,33 @@ export type Database = {
           },
         ]
       }
+      user_match_usage: {
+        Row: {
+          created_at: string
+          id: string
+          match_type: string
+          metadata: Json | null
+          session_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          match_type: string
+          metadata?: Json | null
+          session_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          match_type?: string
+          metadata?: Json | null
+          session_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_reviews: {
         Row: {
           coverage_rating: number | null
@@ -669,6 +696,10 @@ export type Database = {
           avg_price: number
           avg_rating: number
         }[]
+      }
+      get_user_match_stats: {
+        Args: { user_uuid: string }
+        Returns: Json
       }
       link_foundation_products: {
         Args: Record<PropertyKey, never>

@@ -3,6 +3,7 @@ import Header from '../components/Header';
 import VirtualTryOn from '../components/VirtualTryOn';
 import EnhancedProductRecommendations from '../components/EnhancedProductRecommendations';
 import SkinToneAnalysisDisplay from '../components/SkinToneAnalysisDisplay';
+import UpgradePrompt from '../components/UpgradePrompt';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -10,13 +11,17 @@ import { Camera, Upload, Zap, Crown, CreditCard } from 'lucide-react';
 import AuthGuard from '../components/AuthGuard';
 import { Toaster } from '@/components/ui/toaster';
 import { useSubscription } from '@/hooks/useSubscription';
+import { useMatchTracking } from '@/hooks/useMatchTracking';
 import { useNavigate } from 'react-router-dom';
 import { FoundationMatch } from '../types/foundation';
+import { useToast } from '@/hooks/use-toast';
 
 const VirtualTryOnPage = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const subscription = useSubscription();
-  const [matchesUsed] = useState(0); // This will come from user data
+  const { matchUsage, recordMatch } = useMatchTracking();
+  
   const [recommendations, setRecommendations] = useState<{
     shade: FoundationMatch;
     confidence: number;
@@ -36,31 +41,77 @@ const VirtualTryOnPage = () => {
     };
   } | null>(null);
   
-  // Free users get 3 matches, premium users get unlimited
-  const canTryOn = subscription.isPremium || matchesUsed < 3;
-  const remainingMatches = subscription.isPremium ? Infinity : Math.max(0, 3 - matchesUsed);
+  // Calculate match limits and usage
+  const FREE_MATCH_LIMIT = 3;
+  const usedMatches = matchUsage.usedToday; // For free tier, count daily usage
+  const remainingMatches = subscription.isPremium ? Infinity : Math.max(0, FREE_MATCH_LIMIT - usedMatches);
+  const canTryOn = subscription.isPremium || usedMatches < FREE_MATCH_LIMIT;
+  
+  // Determine urgency level for upgrade prompts
+  const getUrgencyLevel = () => {
+    if (!subscription.isPremium) {
+      if (remainingMatches === 0) return 'critical';
+      if (remainingMatches === 1) return 'high';
+      if (remainingMatches <= 2) return 'medium';
+    }
+    return 'low';
+  };
 
-  const handleShadeRecommendations = (newRecommendations: typeof recommendations) => {
-    setRecommendations(newRecommendations);
-    // Extract skin tone analysis from the first recommendation if available
-    if (newRecommendations.length > 0) {
-      // This would typically come from the actual skin analysis in VirtualTryOn
-      // For now, we'll create a sample analysis based on the recommendations
-      const firstShade = newRecommendations[0].shade;
-      setSkinToneAnalysis({
-        dominantTone: {
-          undertone: firstShade.undertone,
-          depth: firstShade.shade.toLowerCase().includes('fair') ? 'fair' :
-                 firstShade.shade.toLowerCase().includes('light') ? 'light' :
-                 firstShade.shade.toLowerCase().includes('medium') ? 'medium' :
-                 firstShade.shade.toLowerCase().includes('deep') ? 'deep' : 'medium',
-          confidence: 0.92
-        },
-        secondaryTone: newRecommendations.length > 1 ? {
-          undertone: newRecommendations[1].shade.undertone,
-          depth: 'medium',
-          confidence: 0.75
-        } : undefined
+  const handleUpgrade = async (tier: 'one_time' | 'weekly' | 'monthly' | 'yearly') => {
+    // Use existing Stripe payment URLs from landing page
+    const STRIPE_PAYMENT_URLS = {
+      one_time: 'https://buy.stripe.com/test_4gweVo6QR2XMgMw5kl',
+      weekly: 'https://buy.stripe.com/test_6oEaFY3EFeAu4cE9AC',
+      monthly: 'https://buy.stripe.com/test_cN23dwhppasmfIscMN',
+      yearly: 'https://buy.stripe.com/test_5kA29s3EF5a2fIscMO',
+    };
+    
+    const paymentUrl = STRIPE_PAYMENT_URLS[tier];
+    if (paymentUrl) {
+      window.open(paymentUrl, '_blank');
+      toast({
+        title: "Redirecting to payment",
+        description: `Processing ${tier} subscription...`,
+      });
+    }
+  };
+
+  const handleShadeRecommendations = async (newRecommendations: typeof recommendations) => {
+    try {
+      // Record match usage when analysis is performed
+      await recordMatch('virtual_try_on', {
+        recommendations_count: newRecommendations.length,
+        skin_analysis_performed: true
+      });
+      
+      setRecommendations(newRecommendations);
+      // Extract skin tone analysis from the first recommendation if available
+      if (newRecommendations.length > 0) {
+        // This would typically come from the actual skin analysis in VirtualTryOn
+        // For now, we'll create a sample analysis based on the recommendations
+        const firstShade = newRecommendations[0].shade;
+        setSkinToneAnalysis({
+          dominantTone: {
+            undertone: firstShade.undertone,
+            depth: firstShade.shade.toLowerCase().includes('fair') ? 'fair' :
+                   firstShade.shade.toLowerCase().includes('light') ? 'light' :
+                   firstShade.shade.toLowerCase().includes('medium') ? 'medium' :
+                   firstShade.shade.toLowerCase().includes('deep') ? 'deep' : 'medium',
+            confidence: 0.92
+          },
+          secondaryTone: newRecommendations.length > 1 ? {
+            undertone: newRecommendations[1].shade.undertone,
+            depth: 'medium',
+            confidence: 0.75
+          } : undefined
+        });
+      }
+    } catch (error) {
+      console.error('Error recording match usage:', error);
+      toast({
+        title: "Error",
+        description: "Failed to record match usage",
+        variant: "destructive"
       });
     }
   };
@@ -107,13 +158,12 @@ const VirtualTryOnPage = () => {
                   )}
                 </Badge>
                 <span className="text-sm text-gray-600">
-                  {subscription.isPremium ? 'Unlimited' : remainingMatches} matches remaining this {
-                    subscription.isPremium ? (
-                      subscription.subscription_tier === 'yearly' ? 'year' : 
-                      subscription.subscription_tier === 'monthly' ? 'month' : 'lifetime'
-                    ) : 'session'
-                  }
+                  {subscription.isPremium ? 'Unlimited' : `${remainingMatches} of ${FREE_MATCH_LIMIT}`} matches remaining
+                  {!subscription.isPremium && ` today`}
                 </span>
+                {matchUsage.loading && (
+                  <div className="w-4 h-4 border-2 border-gray-300 border-t-rose-500 rounded-full animate-spin"></div>
+                )}
               </div>
             </div>
 
@@ -157,6 +207,19 @@ const VirtualTryOnPage = () => {
                     </CardContent>
                   </Card>
                 </div>
+
+                {/* Show upgrade prompt for non-premium users who are running low on matches */}
+                {!subscription.isPremium && getUrgencyLevel() !== 'low' && (
+                  <div className="mb-8">
+                    <UpgradePrompt
+                      matchUsage={matchUsage}
+                      remainingMatches={remainingMatches}
+                      maxMatches={FREE_MATCH_LIMIT}
+                      onUpgrade={handleUpgrade}
+                      urgencyLevel={getUrgencyLevel()}
+                    />
+                  </div>
+                )}
 
                 {/* Virtual Try-On Component */}
                 <div className="grid lg:grid-cols-3 gap-8">
