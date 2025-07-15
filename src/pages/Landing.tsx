@@ -103,10 +103,10 @@ const Landing = () => {
           
           <div className="grid md:grid-cols-4 gap-6 max-w-6xl mx-auto">
             {[
-              { name: 'Free', matches: '2 matches', price: 'Free', features: ['Basic shade matching', 'Foundation database access'] },
-              { name: 'Weekly', matches: '4 matches/week', price: '$X/week', features: ['Enhanced matching', 'Virtual try-on access', 'Email support'] },
-              { name: 'Monthly', matches: '10 matches/month', price: '$X/month', features: ['Premium matching', 'Unlimited try-ons', 'Look recommendations'] },
-              { name: 'Unlimited', matches: '20 matches/month', price: '$X/month', features: ['All features', 'Priority support', 'Custom consultations'], popular: true }
+              { name: 'One-Time Match', matches: 'Single match', price: '$2.00', features: ['AI shade matching', 'Foundation database access', 'Basic recommendations'] },
+              { name: 'Weekly', matches: 'Per week', price: '$4.00', features: ['Enhanced matching', 'Virtual try-on access', 'Weekly updates', 'Email support'] },
+              { name: 'Monthly Matches', matches: 'Per month', price: '$10.00', features: ['Premium matching', 'Unlimited try-ons', 'Look recommendations', 'Priority support'], popular: true },
+              { name: 'Annual', matches: 'Per year', price: '$100.00', features: ['All features', 'Custom consultations', 'Exclusive products', 'Personal beauty advisor'] }
             ].map((tier) => (
               <div key={tier.name} className={`p-6 rounded-xl border-2 ${tier.popular ? 'border-rose-500 bg-rose-50' : 'border-gray-200 bg-white'} relative`}>
                 {tier.popular && (
