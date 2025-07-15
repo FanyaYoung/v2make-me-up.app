@@ -6,6 +6,7 @@ import { Camera, Upload, X, RotateCcw, Plus, Trash2, Palette, Loader2, Eye, Grid
 import { FoundationMatch } from '../types/foundation';
 import { useToast } from '@/hooks/use-toast';
 import { skinToneAnalyzer, SkinToneAnalysis } from './SkinToneAnalyzer';
+import SkinToneAnalysisDisplay from './SkinToneAnalysisDisplay';
 import { supabase } from '@/integrations/supabase/client';
 
 interface PhotoData {

@@ -36,7 +36,7 @@ const FoundationVisual = () => {
             <Card key={pairIndex} className="p-6 bg-gradient-to-br from-rose-50 to-purple-50 border-rose-200">
               <div className="text-center mb-4">
                 <h4 className="text-lg font-semibold text-gray-800 mb-2">
-                  Your Current Shade
+                  Your skin tone
                 </h4>
                 <div className="flex justify-center items-center mb-4">
                   <div

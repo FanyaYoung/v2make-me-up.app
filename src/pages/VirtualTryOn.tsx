@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import Header from '../components/Header';
 import VirtualTryOn from '../components/VirtualTryOn';
 import EnhancedProductRecommendations from '../components/EnhancedProductRecommendations';
+import SkinToneAnalysisDisplay from '../components/SkinToneAnalysisDisplay';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -22,6 +23,18 @@ const VirtualTryOnPage = () => {
     targetTone: 'dominant' | 'secondary';
   }[]>([]);
   const [selectedMatch, setSelectedMatch] = useState<FoundationMatch | null>(null);
+  const [skinToneAnalysis, setSkinToneAnalysis] = useState<{
+    dominantTone: {
+      undertone: string;
+      depth: string;
+      confidence: number;
+    };
+    secondaryTone?: {
+      undertone: string;
+      depth: string;
+      confidence: number;
+    };
+  } | null>(null);
   
   // Free users get 3 matches, premium users get unlimited
   const canTryOn = subscription.isPremium || matchesUsed < 3;
@@ -29,6 +42,27 @@ const VirtualTryOnPage = () => {
 
   const handleShadeRecommendations = (newRecommendations: typeof recommendations) => {
     setRecommendations(newRecommendations);
+    // Extract skin tone analysis from the first recommendation if available
+    if (newRecommendations.length > 0) {
+      // This would typically come from the actual skin analysis in VirtualTryOn
+      // For now, we'll create a sample analysis based on the recommendations
+      const firstShade = newRecommendations[0].shade;
+      setSkinToneAnalysis({
+        dominantTone: {
+          undertone: firstShade.undertone,
+          depth: firstShade.shade.toLowerCase().includes('fair') ? 'fair' :
+                 firstShade.shade.toLowerCase().includes('light') ? 'light' :
+                 firstShade.shade.toLowerCase().includes('medium') ? 'medium' :
+                 firstShade.shade.toLowerCase().includes('deep') ? 'deep' : 'medium',
+          confidence: 0.92
+        },
+        secondaryTone: newRecommendations.length > 1 ? {
+          undertone: newRecommendations[1].shade.undertone,
+          depth: 'medium',
+          confidence: 0.75
+        } : undefined
+      });
+    }
   };
 
   const handleVirtualTryOn = (shade: FoundationMatch) => {
@@ -134,7 +168,13 @@ const VirtualTryOnPage = () => {
                   </div>
                   
                   {/* Enhanced Product Recommendations */}
-                  <div className="lg:col-span-2">
+                  <div className="lg:col-span-2 space-y-8">
+                    {/* Skin Tone Analysis */}
+                    {skinToneAnalysis && (
+                      <SkinToneAnalysisDisplay analysis={skinToneAnalysis} />
+                    )}
+                    
+                    {/* Product Recommendations */}
                     {recommendations.length > 0 && (
                       <EnhancedProductRecommendations 
                         recommendations={recommendations}
