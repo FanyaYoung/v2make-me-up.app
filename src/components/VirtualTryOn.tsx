@@ -443,7 +443,7 @@ const VirtualTryOn = ({ selectedMatch, onShadeRecommendations }: VirtualTryOnPro
       
       const dominantDepthLevel = getDepthLevel(analysis.dominantTone.depth);
       
-      // Query database for shades that match the analyzed undertone
+      // Query database for shades that match the analyzed undertone with brand diversity
       const { data: matchingShades, error } = await supabase
         .from('foundation_shades')
         .select(`
@@ -457,7 +457,7 @@ const VirtualTryOn = ({ selectedMatch, onShadeRecommendations }: VirtualTryOnPro
         .gte('depth_level', Math.max(1, dominantDepthLevel - 2))
         .lte('depth_level', Math.min(10, dominantDepthLevel + 2))
         .eq('is_available', true)
-        .limit(4);
+        .limit(20); // Get more results to filter for brand diversity
 
       if (error) {
         console.error('Error fetching shade recommendations:', error);
@@ -465,11 +465,21 @@ const VirtualTryOn = ({ selectedMatch, onShadeRecommendations }: VirtualTryOnPro
       }
 
       const recommendations: ShadeRecommendation[] = [];
+      const usedBrands = new Set<string>();
+      const maxPerBrand = 2;
       
-      // Process the matching shades
+      // Process the matching shades with brand diversity
       matchingShades?.forEach((shade, index) => {
         const product = shade.foundation_products;
         const brand = product.brands;
+        
+        // Limit recommendations per brand for diversity
+        const brandCount = Array.from(usedBrands).filter(b => b === brand.name).length;
+        if (brandCount >= maxPerBrand && recommendations.length >= 3) {
+          return;
+        }
+        
+        usedBrands.add(brand.name);
         
         const foundationMatch: FoundationMatch = {
           id: `${product.id}-${shade.id}`,
@@ -497,6 +507,11 @@ const VirtualTryOn = ({ selectedMatch, onShadeRecommendations }: VirtualTryOnPro
           confidence: analysis.dominantTone.confidence,
           targetTone: index === 0 ? 'dominant' : 'secondary'
         });
+        
+        // Stop when we have enough diverse recommendations
+        if (recommendations.length >= 4) {
+          return;
+        }
       });
 
       // If we didn't get enough recommendations, add some with different undertones
@@ -565,26 +580,79 @@ const VirtualTryOn = ({ selectedMatch, onShadeRecommendations }: VirtualTryOnPro
     } catch (error) {
       console.error('Error generating shade recommendations:', error);
       
-      // Fallback to basic recommendations if database query fails
+      // Fallback to diverse brand recommendations if database query fails
       const fallbackRecommendations: ShadeRecommendation[] = [
         {
           shade: {
             id: 'fallback-1',
             brand: 'Fenty Beauty',
-            product: 'Pro Filt\'r Foundation',
-            shade: '220 - Light Medium with neutral undertones',
+            product: 'Pro Filt\'r Soft Matte Foundation',
+            shade: '260 - Medium with warm undertones',
             price: 36,
             rating: 4.5,
             reviewCount: 1240,
-            availability: { online: true, inStore: true, readyForPickup: true, nearbyStores: [] },
-            matchPercentage: 85,
+            availability: { 
+              online: true, 
+              inStore: true, 
+              readyForPickup: true, 
+              nearbyStores: ['Sephora - Downtown', 'Ulta - Mall Plaza'] 
+            },
+            matchPercentage: 95,
             undertone: analysis.dominantTone.undertone,
-            coverage: 'medium',
+            coverage: 'full',
             finish: 'matte',
             imageUrl: '/placeholder.svg'
           },
           confidence: analysis.dominantTone.confidence,
           targetTone: 'dominant'
+        },
+        {
+          shade: {
+            id: 'fallback-2',
+            brand: 'Charlotte Tilbury',
+            product: 'Airbrush Flawless Foundation',
+            shade: '1 Fair',
+            price: 44,
+            rating: 4.4,
+            reviewCount: 1000,
+            availability: { 
+              online: true, 
+              inStore: true, 
+              readyForPickup: true, 
+              nearbyStores: ['Sephora - Downtown', 'Ulta - Mall Plaza'] 
+            },
+            matchPercentage: 92,
+            undertone: 'neutral',
+            coverage: 'full',
+            finish: 'natural',
+            imageUrl: '/placeholder.svg'
+          },
+          confidence: analysis.dominantTone.confidence,
+          targetTone: 'secondary'
+        },
+        {
+          shade: {
+            id: 'fallback-3',
+            brand: 'Rare Beauty',
+            product: 'Liquid Touch Weightless Foundation',
+            shade: '2W Fair',
+            price: 29,
+            rating: 4.2,
+            reviewCount: 750,
+            availability: { 
+              online: true, 
+              inStore: false, 
+              readyForPickup: false, 
+              nearbyStores: [] 
+            },
+            matchPercentage: 89,
+            undertone: 'warm',
+            coverage: 'medium',
+            finish: 'natural',
+            imageUrl: '/placeholder.svg'
+          },
+          confidence: analysis.dominantTone.confidence,
+          targetTone: 'secondary'
         }
       ];
       
@@ -699,8 +767,14 @@ const VirtualTryOn = ({ selectedMatch, onShadeRecommendations }: VirtualTryOnPro
       <Card className="bg-white/80 backdrop-blur-sm shadow-xl border-0">
         <CardHeader className="text-center">
           <CardTitle className="text-xl font-bold text-gray-800 flex items-center justify-center gap-2">
-            <Camera className="w-5 h-5" />
-            Virtual Try-On
+            <button
+              onClick={startCamera}
+              className="flex items-center gap-2 hover:text-rose-600 transition-colors"
+              disabled={isUsingCamera}
+            >
+              <Camera className="w-5 h-5" />
+              Virtual Try-On
+            </button>
             {isAnalyzing && <Loader2 className="w-4 h-4 animate-spin" />}
           </CardTitle>
           <p className="text-sm text-gray-600">

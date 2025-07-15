@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import Header from '../components/Header';
 import VirtualTryOn from '../components/VirtualTryOn';
+import EnhancedProductRecommendations from '../components/EnhancedProductRecommendations';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -9,15 +10,30 @@ import AuthGuard from '../components/AuthGuard';
 import { Toaster } from '@/components/ui/toaster';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useNavigate } from 'react-router-dom';
+import { FoundationMatch } from '../types/foundation';
 
 const VirtualTryOnPage = () => {
   const navigate = useNavigate();
   const subscription = useSubscription();
   const [matchesUsed] = useState(0); // This will come from user data
+  const [recommendations, setRecommendations] = useState<{
+    shade: FoundationMatch;
+    confidence: number;
+    targetTone: 'dominant' | 'secondary';
+  }[]>([]);
+  const [selectedMatch, setSelectedMatch] = useState<FoundationMatch | null>(null);
   
   // Free users get 3 matches, premium users get unlimited
   const canTryOn = subscription.isPremium || matchesUsed < 3;
   const remainingMatches = subscription.isPremium ? Infinity : Math.max(0, 3 - matchesUsed);
+
+  const handleShadeRecommendations = (newRecommendations: typeof recommendations) => {
+    setRecommendations(newRecommendations);
+  };
+
+  const handleVirtualTryOn = (shade: FoundationMatch) => {
+    setSelectedMatch(shade);
+  };
 
   const getUserTierDisplay = () => {
     if (subscription.isPremium) {
@@ -109,7 +125,24 @@ const VirtualTryOnPage = () => {
                 </div>
 
                 {/* Virtual Try-On Component */}
-                <VirtualTryOn selectedMatch={null} />
+                <div className="grid lg:grid-cols-3 gap-8">
+                  <div className="lg:col-span-1">
+                    <VirtualTryOn 
+                      selectedMatch={selectedMatch} 
+                      onShadeRecommendations={handleShadeRecommendations}
+                    />
+                  </div>
+                  
+                  {/* Enhanced Product Recommendations */}
+                  <div className="lg:col-span-2">
+                    {recommendations.length > 0 && (
+                      <EnhancedProductRecommendations 
+                        recommendations={recommendations}
+                        onVirtualTryOn={handleVirtualTryOn}
+                      />
+                    )}
+                  </div>
+                </div>
               </>
             ) : (
               /* Upgrade Prompt */
