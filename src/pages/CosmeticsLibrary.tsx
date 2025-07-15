@@ -79,6 +79,37 @@ const CosmeticsLibrary = () => {
     }
   };
 
+  const handleImportFromGigasheet = async () => {
+    setIsImporting(true);
+    try {
+      toast({
+        title: "Import Started",
+        description: "Importing cosmetics data from Gigasheet dataset...",
+      });
+
+      const { data, error } = await supabase.functions.invoke('import-gigasheet-cosmetics');
+
+      if (error) throw error;
+
+      toast({
+        title: "Import Successful",
+        description: `Imported ${data.imported_products || 0} products from Gigasheet dataset`,
+      });
+
+      // Refetch statistics
+      refetchStats();
+    } catch (error) {
+      console.error('Import error:', error);
+      toast({
+        title: "Import Failed",
+        description: error.message || "Failed to import data from Gigasheet",
+        variant: "destructive",
+      });
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
       <Header />
@@ -130,7 +161,7 @@ const CosmeticsLibrary = () => {
               <CardTitle className="text-sm font-medium">Import Data</CardTitle>
               <Download className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-2">
               <Button 
                 onClick={handleImportFromKaggle}
                 disabled={isImporting}
@@ -138,6 +169,15 @@ const CosmeticsLibrary = () => {
                 size="sm"
               >
                 {isImporting ? 'Importing...' : 'Import from Kaggle'}
+              </Button>
+              <Button 
+                onClick={handleImportFromGigasheet}
+                disabled={isImporting}
+                className="w-full"
+                size="sm"
+                variant="outline"
+              >
+                {isImporting ? 'Importing...' : 'Import from Gigasheet'}
               </Button>
             </CardContent>
           </Card>
