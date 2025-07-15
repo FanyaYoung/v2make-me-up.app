@@ -3,8 +3,35 @@ import Header from '../components/Header';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { Sparkles, Zap, Crown, Users } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+
+// Pre-built Stripe payment URLs
+const STRIPE_PAYMENT_URLS = {
+  one_time: 'https://buy.stripe.com/test_4gweVo6QR2XMgMw5kl',
+  weekly: 'https://buy.stripe.com/test_6oEaFY3EFeAu4cE9AC',
+  monthly: 'https://buy.stripe.com/test_cN23dwhppasmfIscMN',
+  yearly: 'https://buy.stripe.com/test_5kA29s3EF5a2fIscMO',
+} as const;
 
 const Landing = () => {
+  const { toast } = useToast();
+
+  const handlePayment = (tier: 'one_time' | 'weekly' | 'monthly' | 'yearly', tierName: string) => {
+    const paymentUrl = STRIPE_PAYMENT_URLS[tier];
+    if (paymentUrl) {
+      window.open(paymentUrl, '_blank');
+      toast({
+        title: "Redirecting to payment",
+        description: `Processing ${tierName} purchase...`,
+      });
+    } else {
+      toast({
+        title: "Error",
+        description: "Payment URL not found. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
       <Header />
@@ -103,12 +130,43 @@ const Landing = () => {
           
           <div className="grid md:grid-cols-4 gap-6 max-w-6xl mx-auto">
             {[
-              { name: 'One-Time Match', matches: 'Single match', price: '$2.00', features: ['AI shade matching', 'Foundation database access', 'Basic recommendations'] },
-              { name: 'Weekly', matches: 'Per week', price: '$4.00', features: ['Enhanced matching', 'Virtual try-on access', 'Weekly updates', 'Email support'] },
-              { name: 'Monthly Matches', matches: 'Per month', price: '$10.00', features: ['Premium matching', 'Unlimited try-ons', 'Look recommendations', 'Priority support'], popular: true },
-              { name: 'Annual', matches: 'Per year', price: '$100.00', features: ['All features', 'Custom consultations', 'Exclusive products', 'Personal beauty advisor'] }
+              { 
+                id: 'one_time' as const,
+                name: 'One-Time Match', 
+                matches: 'Single match', 
+                price: '$2.00', 
+                features: ['AI shade matching', 'Foundation database access', 'Basic recommendations'] 
+              },
+              { 
+                id: 'weekly' as const,
+                name: 'Weekly', 
+                matches: 'Per week', 
+                price: '$4.00', 
+                features: ['Enhanced matching', 'Virtual try-on access', 'Weekly updates', 'Email support'] 
+              },
+              { 
+                id: 'monthly' as const,
+                name: 'Monthly Matches', 
+                matches: 'Per month', 
+                price: '$10.00', 
+                features: ['Premium matching', 'Unlimited try-ons', 'Look recommendations', 'Priority support'], 
+                popular: true 
+              },
+              { 
+                id: 'yearly' as const,
+                name: 'Annual', 
+                matches: 'Per year', 
+                price: '$100.00', 
+                features: ['All features', 'Custom consultations', 'Exclusive products', 'Personal beauty advisor'] 
+              }
             ].map((tier) => (
-              <div key={tier.name} className={`p-6 rounded-xl border-2 ${tier.popular ? 'border-rose-500 bg-rose-50' : 'border-gray-200 bg-white'} relative`}>
+              <div 
+                key={tier.name} 
+                className={`p-6 rounded-xl border-2 cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-105 ${
+                  tier.popular ? 'border-rose-500 bg-rose-50 hover:bg-rose-100' : 'border-gray-200 bg-white hover:border-rose-300'
+                } relative`}
+                onClick={() => handlePayment(tier.id, tier.name)}
+              >
                 {tier.popular && (
                   <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
                     <span className="bg-rose-500 text-white px-3 py-1 rounded-full text-sm font-medium">Most Popular</span>
@@ -123,8 +181,15 @@ const Landing = () => {
                       <li key={index}>• {feature}</li>
                     ))}
                   </ul>
-                  <Button className="w-full" variant={tier.popular ? "default" : "outline"}>
-                    Get Started
+                  <Button 
+                    className="w-full" 
+                    variant={tier.popular ? "default" : "outline"}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handlePayment(tier.id, tier.name);
+                    }}
+                  >
+                    Choose Plan
                   </Button>
                 </div>
               </div>
