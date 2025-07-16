@@ -14,8 +14,53 @@ export type Database = {
   }
   public: {
     Tables: {
+      brand_referral_codes: {
+        Row: {
+          affiliate_code: string | null
+          brand_id: string
+          commission_rate: number | null
+          created_at: string
+          id: string
+          is_active: boolean | null
+          promo_code: string | null
+          referral_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          affiliate_code?: string | null
+          brand_id: string
+          commission_rate?: number | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          promo_code?: string | null
+          referral_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          affiliate_code?: string | null
+          brand_id?: string
+          commission_rate?: number | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          promo_code?: string | null
+          referral_url?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_referral_codes_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       brands: {
         Row: {
+          brand_tier: string | null
           created_at: string | null
           description: string | null
           id: string
@@ -25,6 +70,7 @@ export type Database = {
           website_url: string | null
         }
         Insert: {
+          brand_tier?: string | null
           created_at?: string | null
           description?: string | null
           id?: string
@@ -34,6 +80,7 @@ export type Database = {
           website_url?: string | null
         }
         Update: {
+          brand_tier?: string | null
           created_at?: string | null
           description?: string | null
           id?: string
@@ -370,6 +417,47 @@ export type Database = {
           website_url?: string | null
         }
         Relationships: []
+      }
+      purchase_options: {
+        Row: {
+          base_url: string | null
+          brand_id: string
+          created_at: string
+          id: string
+          is_active: boolean | null
+          option_name: string
+          option_type: string
+          requires_referral_code: boolean | null
+        }
+        Insert: {
+          base_url?: string | null
+          brand_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          option_name: string
+          option_type: string
+          requires_referral_code?: boolean | null
+        }
+        Update: {
+          base_url?: string | null
+          brand_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          option_name?: string
+          option_type?: string
+          requires_referral_code?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_options_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       search_history: {
         Row: {
