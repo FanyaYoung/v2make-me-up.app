@@ -294,6 +294,48 @@ export type Database = {
           },
         ]
       }
+      makeup_brands: {
+        Row: {
+          country_of_origin: string | null
+          created_at: string | null
+          description: string | null
+          founded_year: number | null
+          id: number
+          is_cruelty_free: boolean | null
+          is_vegan: boolean | null
+          logo_url: string | null
+          name: string
+          updated_at: string | null
+          website: string | null
+        }
+        Insert: {
+          country_of_origin?: string | null
+          created_at?: string | null
+          description?: string | null
+          founded_year?: number | null
+          id?: never
+          is_cruelty_free?: boolean | null
+          is_vegan?: boolean | null
+          logo_url?: string | null
+          name: string
+          updated_at?: string | null
+          website?: string | null
+        }
+        Update: {
+          country_of_origin?: string | null
+          created_at?: string | null
+          description?: string | null
+          founded_year?: number | null
+          id?: never
+          is_cruelty_free?: boolean | null
+          is_vegan?: boolean | null
+          logo_url?: string | null
+          name?: string
+          updated_at?: string | null
+          website?: string | null
+        }
+        Relationships: []
+      }
       product_availability: {
         Row: {
           id: string
@@ -348,6 +390,183 @@ export type Database = {
             columns: ["store_id"]
             isOneToOne: false
             referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_categories: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: number
+          name: string
+          parent_category_id: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: never
+          name: string
+          parent_category_id?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: never
+          name?: string
+          parent_category_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_categories_parent_category_id_fkey"
+            columns: ["parent_category_id"]
+            isOneToOne: false
+            referencedRelation: "product_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_ingredients: {
+        Row: {
+          created_at: string | null
+          id: number
+          ingredient_name: string
+          is_active_ingredient: boolean | null
+          potential_concerns: string[] | null
+          product_id: number
+          purpose: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: never
+          ingredient_name: string
+          is_active_ingredient?: boolean | null
+          potential_concerns?: string[] | null
+          product_id: number
+          purpose?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: never
+          ingredient_name?: string
+          is_active_ingredient?: boolean | null
+          potential_concerns?: string[] | null
+          product_id?: number
+          purpose?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_ingredients_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_variants: {
+        Row: {
+          additional_price: number | null
+          barcode: string | null
+          color: string | null
+          created_at: string | null
+          id: number
+          product_id: number
+          size: string | null
+          sku: string | null
+          stock_quantity: number | null
+        }
+        Insert: {
+          additional_price?: number | null
+          barcode?: string | null
+          color?: string | null
+          created_at?: string | null
+          id?: never
+          product_id: number
+          size?: string | null
+          sku?: string | null
+          stock_quantity?: number | null
+        }
+        Update: {
+          additional_price?: number | null
+          barcode?: string | null
+          color?: string | null
+          created_at?: string | null
+          id?: never
+          product_id?: number
+          size?: string | null
+          sku?: string | null
+          stock_quantity?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_variants_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          average_rating: number | null
+          brand_id: number
+          category_id: number
+          created_at: string | null
+          currency: string | null
+          description: string | null
+          id: number
+          is_bestseller: boolean | null
+          is_new_arrival: boolean | null
+          name: string
+          price: number | null
+          total_reviews: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          average_rating?: number | null
+          brand_id: number
+          category_id: number
+          created_at?: string | null
+          currency?: string | null
+          description?: string | null
+          id?: never
+          is_bestseller?: boolean | null
+          is_new_arrival?: boolean | null
+          name: string
+          price?: number | null
+          total_reviews?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          average_rating?: number | null
+          brand_id?: number
+          category_id?: number
+          created_at?: string | null
+          currency?: string | null
+          description?: string | null
+          id?: never
+          is_bestseller?: boolean | null
+          is_new_arrival?: boolean | null
+          name?: string
+          price?: number | null
+          total_reviews?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "makeup_brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "product_categories"
             referencedColumns: ["id"]
           },
         ]
@@ -633,6 +852,120 @@ export type Database = {
           name?: string | null
           updated_at?: string | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      "Ulta Makeup Reviews": {
+        Row: {
+          average_rating: number | null
+          best_uses: string | null
+          brand: string
+          category: string
+          cons: string | null
+          describe_yourself: string | null
+          description: string | null
+          faceoff_negative: Json | null
+          faceoff_positive: Json | null
+          item_id: string
+          native_community_content_review_count: string | null
+          native_review_count: string | null
+          native_sampling_review_count: string | null
+          num_reviews: number | null
+          num_shades: string | null
+          price: string | null
+          product_link: string
+          product_link_id: number
+          product_name: string
+          pros: string | null
+          rating: string | null
+          rating_count: number | null
+          rating_star_1: string | null
+          rating_star_2: number | null
+          rating_star_3: number | null
+          rating_star_4: string | null
+          rating_star_5: number | null
+          recommended_ratio: string | null
+          review_count: number | null
+          review_star_1: string | null
+          review_star_2: number | null
+          review_star_3: number | null
+          review_star_4: string | null
+          review_star_5: number | null
+          syndicated_review_count: string | null
+        }
+        Insert: {
+          average_rating?: number | null
+          best_uses?: string | null
+          brand: string
+          category: string
+          cons?: string | null
+          describe_yourself?: string | null
+          description?: string | null
+          faceoff_negative?: Json | null
+          faceoff_positive?: Json | null
+          item_id: string
+          native_community_content_review_count?: string | null
+          native_review_count?: string | null
+          native_sampling_review_count?: string | null
+          num_reviews?: number | null
+          num_shades?: string | null
+          price?: string | null
+          product_link: string
+          product_link_id: number
+          product_name: string
+          pros?: string | null
+          rating?: string | null
+          rating_count?: number | null
+          rating_star_1?: string | null
+          rating_star_2?: number | null
+          rating_star_3?: number | null
+          rating_star_4?: string | null
+          rating_star_5?: number | null
+          recommended_ratio?: string | null
+          review_count?: number | null
+          review_star_1?: string | null
+          review_star_2?: number | null
+          review_star_3?: number | null
+          review_star_4?: string | null
+          review_star_5?: number | null
+          syndicated_review_count?: string | null
+        }
+        Update: {
+          average_rating?: number | null
+          best_uses?: string | null
+          brand?: string
+          category?: string
+          cons?: string | null
+          describe_yourself?: string | null
+          description?: string | null
+          faceoff_negative?: Json | null
+          faceoff_positive?: Json | null
+          item_id?: string
+          native_community_content_review_count?: string | null
+          native_review_count?: string | null
+          native_sampling_review_count?: string | null
+          num_reviews?: number | null
+          num_shades?: string | null
+          price?: string | null
+          product_link?: string
+          product_link_id?: number
+          product_name?: string
+          pros?: string | null
+          rating?: string | null
+          rating_count?: number | null
+          rating_star_1?: string | null
+          rating_star_2?: number | null
+          rating_star_3?: number | null
+          rating_star_4?: string | null
+          rating_star_5?: number | null
+          recommended_ratio?: string | null
+          review_count?: number | null
+          review_star_1?: string | null
+          review_star_2?: number | null
+          review_star_3?: number | null
+          review_star_4?: string | null
+          review_star_5?: number | null
+          syndicated_review_count?: string | null
         }
         Relationships: []
       }
@@ -998,6 +1331,54 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_makeup_brand: {
+        Args: {
+          p_name: string
+          p_country?: string
+          p_founded_year?: number
+          p_description?: string
+          p_website?: string
+          p_is_cruelty_free?: boolean
+          p_is_vegan?: boolean
+        }
+        Returns: {
+          country_of_origin: string | null
+          created_at: string | null
+          description: string | null
+          founded_year: number | null
+          id: number
+          is_cruelty_free: boolean | null
+          is_vegan: boolean | null
+          logo_url: string | null
+          name: string
+          updated_at: string | null
+          website: string | null
+        }
+      }
+      add_product: {
+        Args: {
+          p_brand_name: string
+          p_category_name: string
+          p_name: string
+          p_description?: string
+          p_price?: number
+        }
+        Returns: {
+          average_rating: number | null
+          brand_id: number
+          category_id: number
+          created_at: string | null
+          currency: string | null
+          description: string | null
+          id: number
+          is_bestseller: boolean | null
+          is_new_arrival: boolean | null
+          name: string
+          price: number | null
+          total_reviews: number | null
+          updated_at: string | null
+        }
+      }
       get_cosmetics_import_stats: {
         Args: Record<PropertyKey, never>
         Returns: {
