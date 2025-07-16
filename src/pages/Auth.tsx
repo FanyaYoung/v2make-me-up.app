@@ -212,7 +212,16 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50 flex items-center justify-center p-4 relative">
+      {/* Background Model Image */}
+      <div className="absolute inset-0 z-0">
+        <img 
+          src="/lovable-uploads/96e38bce-dd97-4a30-88f2-2e7af8efe738.png"
+          alt="Beauty model"
+          className="w-full h-full object-cover opacity-20"
+        />
+      </div>
+      <div className="relative z-10 w-full flex items-center justify-center">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl bg-gradient-to-r from-rose-600 to-purple-600 bg-clip-text text-transparent">
@@ -440,6 +449,7 @@ const Auth = () => {
           </div>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 };

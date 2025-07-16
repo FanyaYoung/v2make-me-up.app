@@ -136,15 +136,24 @@ const VirtualTryOnPage = () => {
         
         <div className="py-8">
           <div className="container mx-auto px-4">
-            {/* Header Section */}
+            {/* Hero Image Section */}
+            <div className="relative rounded-lg overflow-hidden mb-8 max-w-4xl mx-auto">
+              <img 
+                src="/lovable-uploads/a68d3215-f709-4f7d-8787-82bf8d454614.png"
+                alt="Virtual try-on model"
+                className="w-full h-64 object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end">
+                <div className="p-6 text-white">
+                  <h1 className="text-4xl font-bold mb-2">Virtual Foundation Try-On</h1>
+                  <p className="text-lg text-gray-200">
+                    See how different foundations look on you before you buy
+                  </p>
+                </div>
+              </div>
+            </div>
+            
             <div className="text-center mb-8">
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-rose-600 via-pink-600 to-purple-600 bg-clip-text text-transparent mb-4">
-                Virtual Foundation Try-On
-              </h1>
-              <p className="text-lg text-gray-600 max-w-2xl mx-auto mb-6">
-                See how different foundations look on you before you buy. Upload a photo or use your camera for instant results.
-              </p>
-              
               {/* Usage Tracker */}
               <div className="inline-flex items-center gap-3 bg-white rounded-full px-6 py-3 shadow-lg">
                 <Badge variant={!subscription.isPremium ? 'secondary' : 'default'} className="capitalize">

@@ -115,6 +115,22 @@ const CosmeticsLibrary = () => {
       <Header />
       
       <div className="container mx-auto px-4 py-8">
+        {/* Hero Image Section */}
+        <div className="relative rounded-lg overflow-hidden mb-8 max-w-4xl mx-auto">
+          <img 
+            src="/lovable-uploads/85b7b25a-dc58-4496-afbd-3d128c5bce59.png"
+            alt="Cosmetics library model"
+            className="w-full h-64 object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end">
+            <div className="p-6 text-white">
+              <h1 className="text-4xl font-bold mb-2">Cosmetics Library</h1>
+              <p className="text-lg text-gray-200">
+                Explore thousands of beauty products from top brands
+              </p>
+            </div>
+          </div>
+        </div>
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <Card>

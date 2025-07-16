@@ -15,8 +15,8 @@ const HeroSection = () => {
       {/* Hero Image */}
       <div className="absolute inset-0 z-0">
         <img 
-          src="https://images.unsplash.com/photo-1594824694996-8cc1b2b5c6a8?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
-          alt="Foundation matching"
+          src="/lovable-uploads/e9396d75-6096-42d1-be67-284c69bf9453.png"
+          alt="Foundation matching with diverse models"
           className="w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-rose-900/80 via-purple-900/70 to-rose-900/80"></div>

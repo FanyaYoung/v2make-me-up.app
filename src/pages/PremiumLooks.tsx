@@ -75,15 +75,24 @@ const PremiumLooks = () => {
         
         <div className="py-8">
           <div className="container mx-auto px-4">
-            {/* Header Section */}
+            {/* Hero Image Section */}
+            <div className="relative rounded-lg overflow-hidden mb-8 max-w-4xl mx-auto">
+              <img 
+                src="/lovable-uploads/b7f78823-7566-40da-8231-db2bfe83f2a7.png"
+                alt="Premium makeup model"
+                className="w-full h-64 object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end">
+                <div className="p-6 text-white">
+                  <h1 className="text-4xl font-bold mb-2">Premium Makeup Looks</h1>
+                  <p className="text-lg text-gray-200">
+                    Get personalized makeup recommendations for any occasion
+                  </p>
+                </div>
+              </div>
+            </div>
+            
             <div className="text-center mb-8">
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-rose-600 via-pink-600 to-purple-600 bg-clip-text text-transparent mb-4">
-                Premium Makeup Looks
-              </h1>
-              <p className="text-lg text-gray-600 max-w-2xl mx-auto mb-6">
-                Get personalized makeup recommendations based on your foundation match and skin tone for any occasion.
-              </p>
-              
               {/* Premium Badge */}
               <div className="inline-flex items-center gap-3 bg-white rounded-full px-6 py-3 shadow-lg">
                 <Badge variant={isPremiumUser ? 'default' : 'secondary'} className="capitalize">
