@@ -19,40 +19,10 @@ export default function RetailUpgradePrompt({ onUpgrade }: RetailUpgradePromptPr
   // For now, retail access is available to any premium users (paying subscribers)
   const hasRetailAccess = subscription.isPremium;
 
-  const handleRetailUpgrade = async () => {
-    if (!user) {
-      toast({
-        title: "Authentication Required",
-        description: "Please log in to upgrade to retail features",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    try {
-      const { data, error } = await supabase.functions.invoke('create-checkout', {
-        body: { 
-          priceId: 'retail_upgrade_price',
-          amount: 100, // $1.00 in cents
-          productName: 'Retail Shopping Access',
-          mode: 'payment' // One-time payment
-        }
-      });
-
-      if (error) throw error;
-      
-      if (data?.url) {
-        window.open(data.url, '_blank');
-        if (onUpgrade) onUpgrade();
-      }
-    } catch (error) {
-      console.error('Error creating checkout:', error);
-      toast({
-        title: "Error",
-        description: "Failed to process upgrade. Please try again.",
-        variant: "destructive"
-      });
-    }
+  const handleRetailUpgrade = () => {
+    // Open Stripe checkout in a new tab
+    window.open('https://buy.stripe.com/fZu14n8nibVk7AKbeednW08', '_blank');
+    if (onUpgrade) onUpgrade();
   };
 
   if (hasRetailAccess) return null;
