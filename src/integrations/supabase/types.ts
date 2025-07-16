@@ -307,40 +307,67 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_url: string | null
+          bio: string | null
+          birth_date: string | null
           created_at: string | null
           email: string | null
           first_name: string | null
           id: string
+          language: string | null
           last_name: string | null
+          location: string | null
+          notification_preferences: Json | null
+          phone: string | null
           preferences: Json | null
           skin_tone: string | null
           skin_type: Database["public"]["Enums"]["skin_type"] | null
+          timezone: string | null
           undertone: Database["public"]["Enums"]["skin_undertone"] | null
           updated_at: string | null
+          website_url: string | null
         }
         Insert: {
+          avatar_url?: string | null
+          bio?: string | null
+          birth_date?: string | null
           created_at?: string | null
           email?: string | null
           first_name?: string | null
           id: string
+          language?: string | null
           last_name?: string | null
+          location?: string | null
+          notification_preferences?: Json | null
+          phone?: string | null
           preferences?: Json | null
           skin_tone?: string | null
           skin_type?: Database["public"]["Enums"]["skin_type"] | null
+          timezone?: string | null
           undertone?: Database["public"]["Enums"]["skin_undertone"] | null
           updated_at?: string | null
+          website_url?: string | null
         }
         Update: {
+          avatar_url?: string | null
+          bio?: string | null
+          birth_date?: string | null
           created_at?: string | null
           email?: string | null
           first_name?: string | null
           id?: string
+          language?: string | null
           last_name?: string | null
+          location?: string | null
+          notification_preferences?: Json | null
+          phone?: string | null
           preferences?: Json | null
           skin_tone?: string | null
           skin_type?: Database["public"]["Enums"]["skin_type"] | null
+          timezone?: string | null
           undertone?: Database["public"]["Enums"]["skin_undertone"] | null
           updated_at?: string | null
+          website_url?: string | null
         }
         Relationships: []
       }
@@ -497,6 +524,69 @@ export type Database = {
         }
         Relationships: []
       }
+      user_activity: {
+        Row: {
+          activity_data: Json | null
+          activity_type: string
+          created_at: string
+          id: string
+          ip_address: unknown | null
+          session_id: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          activity_data?: Json | null
+          activity_type: string
+          created_at?: string
+          id?: string
+          ip_address?: unknown | null
+          session_id?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          activity_data?: Json | null
+          activity_type?: string
+          created_at?: string
+          id?: string
+          ip_address?: unknown | null
+          session_id?: string | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_analytics: {
+        Row: {
+          created_at: string
+          date_recorded: string
+          id: string
+          metric_data: Json | null
+          metric_name: string
+          metric_value: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date_recorded?: string
+          id?: string
+          metric_data?: Json | null
+          metric_name: string
+          metric_value: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          date_recorded?: string
+          id?: string
+          metric_data?: Json | null
+          metric_name?: string
+          metric_value?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_favorites: {
         Row: {
           created_at: string | null
@@ -539,6 +629,48 @@ export type Database = {
           },
         ]
       }
+      user_ideas: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          image_url: string | null
+          inspiration_source: string | null
+          is_public: boolean | null
+          products_used: Json | null
+          tags: string[] | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          inspiration_source?: string | null
+          is_public?: boolean | null
+          products_used?: Json | null
+          tags?: string[] | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          inspiration_source?: string | null
+          is_public?: boolean | null
+          products_used?: Json | null
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_match_usage: {
         Row: {
           created_at: string
@@ -562,6 +694,36 @@ export type Database = {
           match_type?: string
           metadata?: Json | null
           session_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_preferences: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          preference_key: string
+          preference_value: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          id?: string
+          preference_key: string
+          preference_value: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          preference_key?: string
+          preference_value?: Json
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
@@ -628,6 +790,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_social_profiles: {
+        Row: {
+          created_at: string
+          follower_count: number | null
+          id: string
+          is_public: boolean | null
+          is_verified: boolean | null
+          platform: string
+          profile_url: string | null
+          updated_at: string
+          user_id: string
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          follower_count?: number | null
+          id?: string
+          is_public?: boolean | null
+          is_verified?: boolean | null
+          platform: string
+          profile_url?: string | null
+          updated_at?: string
+          user_id: string
+          username: string
+        }
+        Update: {
+          created_at?: string
+          follower_count?: number | null
+          id?: string
+          is_public?: boolean | null
+          is_verified?: boolean | null
+          platform?: string
+          profile_url?: string | null
+          updated_at?: string
+          user_id?: string
+          username?: string
+        }
+        Relationships: []
       }
       virtual_try_on_sessions: {
         Row: {
