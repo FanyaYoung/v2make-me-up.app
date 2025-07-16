@@ -2,8 +2,9 @@ import React from 'react';
 import Header from '../components/Header';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
-import { Sparkles, Zap, Crown, Users } from 'lucide-react';
+import { Sparkles, Zap, Crown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import ImageSlideshow from '../components/ImageSlideshow';
 
 // Pre-built Stripe payment URLs
 const STRIPE_PAYMENT_URLS = {
@@ -57,15 +58,18 @@ const Landing = () => {
               </div>
             </div>
             
-            {/* Video/Image Placeholder */}
+            {/* Foundation Models Slideshow */}
             <div className="relative">
-              <div className="aspect-video bg-gradient-to-br from-rose-100 to-purple-100 rounded-2xl border-2 border-white shadow-xl flex items-center justify-center">
-                <div className="text-center space-y-4">
-                  <Users className="h-16 w-16 text-rose-500 mx-auto" />
-                  <p className="text-gray-600 font-medium">Video: Women Trying Foundation</p>
-                  <p className="text-sm text-gray-500">Placeholder for hero video</p>
-                </div>
-              </div>
+              <ImageSlideshow
+                images={[
+                  '/lovable-uploads/e9396d75-6096-42d1-be67-284c69bf9453.png',
+                  '/lovable-uploads/b7f78823-7566-40da-8231-db2bfe83f2a7.png',
+                  '/lovable-uploads/a68d3215-f709-4f7d-8787-82bf8d454614.png',
+                  '/lovable-uploads/96e38bce-dd97-4a30-88f2-2e7af8efe738.png'
+                ]}
+                duration={8000}
+                className="aspect-video rounded-2xl border-2 border-white shadow-xl"
+              />
             </div>
           </div>
         </div>
