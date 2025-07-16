@@ -67,7 +67,7 @@ const Landing = () => {
                   '/lovable-uploads/a68d3215-f709-4f7d-8787-82bf8d454614.png',
                   '/lovable-uploads/96e38bce-dd97-4a30-88f2-2e7af8efe738.png'
                 ]}
-                duration={8000}
+                duration={15000}
                 className="aspect-video rounded-2xl border-2 border-white shadow-xl"
               />
             </div>
