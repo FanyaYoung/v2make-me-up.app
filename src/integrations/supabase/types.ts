@@ -618,18 +618,21 @@ export type Database = {
           id: number
           name: string | null
           updated_at: string | null
+          user_id: string | null
         }
         Insert: {
           created_at?: string | null
           id?: never
           name?: string | null
           updated_at?: string | null
+          user_id?: string | null
         }
         Update: {
           created_at?: string | null
           id?: never
           name?: string | null
           updated_at?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
