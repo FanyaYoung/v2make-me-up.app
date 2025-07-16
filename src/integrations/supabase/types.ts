@@ -524,6 +524,27 @@ export type Database = {
         }
         Relationships: []
       }
+      test_updated_at: {
+        Row: {
+          created_at: string | null
+          id: number
+          name: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: never
+          name?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: never
+          name?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       user_activity: {
         Row: {
           activity_data: Json | null
