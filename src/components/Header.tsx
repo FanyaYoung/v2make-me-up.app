@@ -24,10 +24,10 @@ const Header = () => {
               <Palette className="w-5 h-5 text-white" />
             </div>
             <span className="text-2xl font-bold bg-gradient-to-r from-rose-600 to-purple-600 bg-clip-text text-transparent">
-              FoundationMatch
+              Make Me Up
             </span>
           </Link>
-          <nav className="hidden md:flex items-center space-x-6">
+          <nav className="hidden md:flex items-center space-x-8">
             <Link to="/" className="text-gray-600 hover:text-rose-600 transition-colors font-medium">Home</Link>
             <Link to="/shade-matcher" className="text-gray-600 hover:text-rose-600 transition-colors font-medium flex items-center gap-1">
               <Palette className="w-4 h-4" />
