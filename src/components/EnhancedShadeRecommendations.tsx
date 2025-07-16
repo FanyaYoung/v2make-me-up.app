@@ -8,6 +8,8 @@ import { Label } from '@/components/ui/label';
 import { ShoppingBag, Store, Truck, Globe, Copy, Check } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useSubscription } from '@/hooks/useSubscription';
+import RetailUpgradePrompt from './RetailUpgradePrompt';
 
 interface BrandWithShades {
   brand_id: string;
@@ -70,6 +72,9 @@ export default function EnhancedShadeRecommendations({ matchedShades }: Enhanced
   const [selectedPurchaseMethod, setSelectedPurchaseMethod] = useState<string>('');
   const [copiedPromo, setCopiedPromo] = useState<string>('');
   const { toast } = useToast();
+  const subscription = useSubscription();
+  // For now, retail access is available to any premium users (paying subscribers)
+  const hasRetailAccess = subscription.isPremium;
 
   useEffect(() => {
     fetchEnhancedRecommendations();
@@ -233,6 +238,8 @@ export default function EnhancedShadeRecommendations({ matchedShades }: Enhanced
         <p className="text-muted-foreground">Curated recommendations across quality tiers</p>
       </div>
 
+      {!hasRetailAccess && <RetailUpgradePrompt />}
+
       {brandRecommendations.map((brand) => (
         <Card key={brand.brand_id} className="overflow-hidden">
           <CardContent className="p-6">
@@ -287,13 +294,14 @@ export default function EnhancedShadeRecommendations({ matchedShades }: Enhanced
 
                 {/* Purchase Options */}
                 <div className="flex flex-wrap gap-2">
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button size="sm" className="gap-2">
-                        <ShoppingBag className="w-4 h-4" />
-                        Buy Now
-                      </Button>
-                    </DialogTrigger>
+                  {hasRetailAccess ? (
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button size="sm" className="gap-2">
+                          <ShoppingBag className="w-4 h-4" />
+                          Buy Now
+                        </Button>
+                      </DialogTrigger>
                     <DialogContent className="max-w-md">
                       <DialogHeader>
                         <DialogTitle>How would you like to purchase?</DialogTitle>
@@ -358,8 +366,14 @@ export default function EnhancedShadeRecommendations({ matchedShades }: Enhanced
                       </Button>
                     </DialogContent>
                   </Dialog>
+                  ) : (
+                    <Button size="sm" className="gap-2" disabled>
+                      <ShoppingBag className="w-4 h-4" />
+                      Retail Access Required
+                    </Button>
+                  )}
 
-                  {brand.referral_info?.promo_code && (
+                  {brand.referral_info?.promo_code && hasRetailAccess && (
                     <Button 
                       variant="outline" 
                       size="sm"

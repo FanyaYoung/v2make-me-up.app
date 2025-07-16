@@ -86,8 +86,23 @@ const FoundationMatcher = () => {
       product.brands.name.toLowerCase() !== brand.toLowerCase()
     );
     
-    // Take first 3 products and use their actual shade data
-    otherBrandProducts.slice(0, 3).forEach((product, index) => {
+    // Group by brand and limit to 1 product per brand, then take up to 3 brands
+    const brandGroups: { [key: string]: typeof otherBrandProducts } = {};
+    otherBrandProducts.forEach(product => {
+      const brandName = product.brands.name;
+      if (!brandGroups[brandName]) {
+        brandGroups[brandName] = [];
+      }
+      brandGroups[brandName].push(product);
+    });
+    
+    // Take first product from each brand, limit to 3 different brands
+    const selectedProducts = Object.values(brandGroups)
+      .slice(0, 3)
+      .map(brandProducts => brandProducts[0]);
+    
+    // Generate matches using selected products (1 per brand max)
+    selectedProducts.forEach((product, index) => {
       const availableShades = product.foundation_shades || [];
       
       // Find a shade that closely matches the input shade
