@@ -5,7 +5,7 @@
 
 console.log("Premium account setup:");
 console.log("Email: fanya.uxd@gmail.com");
-console.log("Password: test");
+console.log("Password: test123");
 console.log("This account will be automatically upgraded to yearly premium on first login");
 
 export const PREMIUM_TEST_EMAIL = "fanya.uxd@gmail.com";
