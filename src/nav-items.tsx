@@ -1,5 +1,5 @@
 
-import { Home, User, Palette, Camera, Crown, Package, CreditCard } from "lucide-react";
+import { Home, User, Palette, Camera, Crown, Package, CreditCard, Sparkles } from "lucide-react";
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import ShadeMatcher from "./pages/ShadeMatcher";
@@ -9,6 +9,7 @@ import CosmeticsLibrary from "./pages/CosmeticsLibrary";
 import Subscription from "./pages/Subscription";
 import SubscriptionSuccess from "./pages/SubscriptionSuccess";
 import SubscriptionCanceled from "./pages/SubscriptionCanceled";
+import TrueMatchAI from "./pages/TrueMatchAI";
 
 export const navItems = [
   {
@@ -16,6 +17,12 @@ export const navItems = [
     to: "/",
     icon: <Home className="h-4 w-4" />,
     page: <Landing />,
+  },
+  {
+    title: "TrueMatch AI",
+    to: "/truematch-ai",
+    icon: <Sparkles className="h-4 w-4" />,
+    page: <TrueMatchAI />,
   },
   {
     title: "Shade Matcher", 

@@ -191,6 +191,127 @@ export type Database = {
           },
         ]
       }
+      face_regions: {
+        Row: {
+          avg_lab_values: Json | null
+          avg_rgb_values: Json | null
+          confidence_score: number | null
+          created_at: string | null
+          depth_level: number | null
+          hex_color: string | null
+          id: string
+          region_coordinates: Json | null
+          region_name: string
+          session_id: string | null
+          undertone: string | null
+        }
+        Insert: {
+          avg_lab_values?: Json | null
+          avg_rgb_values?: Json | null
+          confidence_score?: number | null
+          created_at?: string | null
+          depth_level?: number | null
+          hex_color?: string | null
+          id?: string
+          region_coordinates?: Json | null
+          region_name: string
+          session_id?: string | null
+          undertone?: string | null
+        }
+        Update: {
+          avg_lab_values?: Json | null
+          avg_rgb_values?: Json | null
+          confidence_score?: number | null
+          created_at?: string | null
+          depth_level?: number | null
+          hex_color?: string | null
+          id?: string
+          region_coordinates?: Json | null
+          region_name?: string
+          session_id?: string | null
+          undertone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "face_regions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "scan_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      foundation_matches: {
+        Row: {
+          confidence_score: number | null
+          created_at: string | null
+          delta_e_value: number | null
+          id: string
+          match_type: string | null
+          price: number | null
+          product_id: string | null
+          purchase_url: string | null
+          region_id: string | null
+          session_id: string | null
+          shade_id: string | null
+        }
+        Insert: {
+          confidence_score?: number | null
+          created_at?: string | null
+          delta_e_value?: number | null
+          id?: string
+          match_type?: string | null
+          price?: number | null
+          product_id?: string | null
+          purchase_url?: string | null
+          region_id?: string | null
+          session_id?: string | null
+          shade_id?: string | null
+        }
+        Update: {
+          confidence_score?: number | null
+          created_at?: string | null
+          delta_e_value?: number | null
+          id?: string
+          match_type?: string | null
+          price?: number | null
+          product_id?: string | null
+          purchase_url?: string | null
+          region_id?: string | null
+          session_id?: string | null
+          shade_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "foundation_matches_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "foundation_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "foundation_matches_region_id_fkey"
+            columns: ["region_id"]
+            isOneToOne: false
+            referencedRelation: "face_regions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "foundation_matches_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "scan_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "foundation_matches_shade_id_fkey"
+            columns: ["shade_id"]
+            isOneToOne: false
+            referencedRelation: "foundation_shades"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       foundation_products: {
         Row: {
           brand_id: string | null
@@ -573,19 +694,27 @@ export type Database = {
       }
       profiles: {
         Row: {
+          age_range: string | null
           avatar_url: string | null
           bio: string | null
           birth_date: string | null
           created_at: string | null
           email: string | null
+          ethnicity: Json | null
+          face_shape: string | null
           first_name: string | null
+          gender: string | null
           id: string
           language: string | null
           last_name: string | null
+          lineage: Json | null
           location: string | null
           notification_preferences: Json | null
           phone: string | null
           preferences: Json | null
+          preferred_coverage: string | null
+          preferred_finish: string | null
+          skin_concerns: string[] | null
           skin_tone: string | null
           skin_type: Database["public"]["Enums"]["skin_type"] | null
           timezone: string | null
@@ -594,19 +723,27 @@ export type Database = {
           website_url: string | null
         }
         Insert: {
+          age_range?: string | null
           avatar_url?: string | null
           bio?: string | null
           birth_date?: string | null
           created_at?: string | null
           email?: string | null
+          ethnicity?: Json | null
+          face_shape?: string | null
           first_name?: string | null
+          gender?: string | null
           id: string
           language?: string | null
           last_name?: string | null
+          lineage?: Json | null
           location?: string | null
           notification_preferences?: Json | null
           phone?: string | null
           preferences?: Json | null
+          preferred_coverage?: string | null
+          preferred_finish?: string | null
+          skin_concerns?: string[] | null
           skin_tone?: string | null
           skin_type?: Database["public"]["Enums"]["skin_type"] | null
           timezone?: string | null
@@ -615,19 +752,27 @@ export type Database = {
           website_url?: string | null
         }
         Update: {
+          age_range?: string | null
           avatar_url?: string | null
           bio?: string | null
           birth_date?: string | null
           created_at?: string | null
           email?: string | null
+          ethnicity?: Json | null
+          face_shape?: string | null
           first_name?: string | null
+          gender?: string | null
           id?: string
           language?: string | null
           last_name?: string | null
+          lineage?: Json | null
           location?: string | null
           notification_preferences?: Json | null
           phone?: string | null
           preferences?: Json | null
+          preferred_coverage?: string | null
+          preferred_finish?: string | null
+          skin_concerns?: string[] | null
           skin_tone?: string | null
           skin_type?: Database["public"]["Enums"]["skin_type"] | null
           timezone?: string | null
@@ -677,6 +822,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      scan_sessions: {
+        Row: {
+          analysis_complete: boolean | null
+          analysis_data: Json | null
+          calibration_completed: boolean | null
+          calibration_data: Json | null
+          created_at: string | null
+          environment_lighting: string | null
+          id: string
+          photo_urls: string[] | null
+          session_date: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          analysis_complete?: boolean | null
+          analysis_data?: Json | null
+          calibration_completed?: boolean | null
+          calibration_data?: Json | null
+          created_at?: string | null
+          environment_lighting?: string | null
+          id?: string
+          photo_urls?: string[] | null
+          session_date?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          analysis_complete?: boolean | null
+          analysis_data?: Json | null
+          calibration_completed?: boolean | null
+          calibration_data?: Json | null
+          created_at?: string | null
+          environment_lighting?: string | null
+          id?: string
+          photo_urls?: string[] | null
+          session_date?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
       }
       search_history: {
         Row: {
