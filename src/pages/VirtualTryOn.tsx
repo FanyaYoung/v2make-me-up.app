@@ -243,7 +243,29 @@ const VirtualTryOnPage = () => {
                   <div className="lg:col-span-2 space-y-8">
                     {/* Skin Tone Analysis */}
                     {skinToneAnalysis && (
-                      <SkinToneAnalysisDisplay analysis={skinToneAnalysis} />
+                      <SkinToneAnalysisDisplay analysis={{
+                        faceRegions: [],
+                        dominantTone: {
+                          hexColor: '#E8C5A0',
+                          undertone: skinToneAnalysis.dominantTone.undertone,
+                          depthLevel: skinToneAnalysis.dominantTone.depth === 'fair' ? 2 : 
+                                    skinToneAnalysis.dominantTone.depth === 'light' ? 4 :
+                                    skinToneAnalysis.dominantTone.depth === 'medium' ? 6 : 8,
+                          confidence: skinToneAnalysis.dominantTone.confidence
+                        },
+                        secondaryTone: skinToneAnalysis.secondaryTone ? {
+                          hexColor: '#D4B896',
+                          undertone: skinToneAnalysis.secondaryTone.undertone,
+                          depthLevel: 6,
+                          confidence: skinToneAnalysis.secondaryTone.confidence
+                        } : {
+                          hexColor: '#D4B896',
+                          undertone: 'neutral',
+                          depthLevel: 6,
+                          confidence: 0.7
+                        },
+                        overallConfidence: skinToneAnalysis.dominantTone.confidence
+                      }} />
                     )}
                     
                     {/* Product Recommendations */}

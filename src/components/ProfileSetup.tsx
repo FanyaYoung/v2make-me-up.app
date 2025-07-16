@@ -20,7 +20,7 @@ interface ProfileData {
   gender: string;
   ethnicity: Record<string, boolean>;
   lineage: Record<string, boolean>;
-  skinType: 'dry' | 'oily' | 'combination' | 'sensitive' | 'normal' | '';
+  skinType: 'dry' | 'oily' | 'combination' | 'sensitive' | 'normal' | null;
   skinConcerns: string[];
   faceShape: string;
   preferredCoverage: string;
@@ -36,7 +36,7 @@ const ProfileSetup: React.FC<ProfileSetupProps> = ({ onComplete }) => {
     gender: '',
     ethnicity: {},
     lineage: {},
-    skinType: '',
+    skinType: null,
     skinConcerns: [],
     faceShape: '',
     preferredCoverage: 'medium',
@@ -222,7 +222,7 @@ const ProfileSetup: React.FC<ProfileSetupProps> = ({ onComplete }) => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="skinType">Skin Type</Label>
-          <Select value={profileData.skinType} onValueChange={(value: 'dry' | 'oily' | 'combination' | 'sensitive' | 'normal') => 
+          <Select value={profileData.skinType || undefined} onValueChange={(value: 'dry' | 'oily' | 'combination' | 'sensitive' | 'normal') => 
             setProfileData(prev => ({ ...prev, skinType: value }))
           }>
             <SelectTrigger>

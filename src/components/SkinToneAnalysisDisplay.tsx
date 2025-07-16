@@ -210,7 +210,6 @@ const SkinToneAnalysisDisplay: React.FC<SkinToneAnalysisDisplayProps> = ({
                   <div className="flex justify-between text-sm">
                     <span>Undertone:</span>
                     <Badge 
-                      size="sm" 
                       className={getUndertoneColor(region.undertone)}
                     >
                       {region.undertone}
