@@ -8,10 +8,10 @@ import ImageSlideshow from '../components/ImageSlideshow';
 
 // Pre-built Stripe payment URLs
 const STRIPE_PAYMENT_URLS = {
-  one_time: 'https://buy.stripe.com/test_4gweVo6QR2XMgMw5kl',
-  weekly: 'https://buy.stripe.com/test_6oEaFY3EFeAu4cE9AC',
-  monthly: 'https://buy.stripe.com/test_cN23dwhppasmfIscMN',
-  yearly: 'https://buy.stripe.com/test_5kA29s3EF5a2fIscMO',
+  one_time: 'https://buy.stripe.com/eVq14n5b68J87AK822dnW04',
+  weekly: 'https://buy.stripe.com/28EfZh0UQ5wW08iciidnW05',
+  monthly: 'https://buy.stripe.com/bJefZhbzu7F4dZ80zAdnW06',
+  yearly: 'https://buy.stripe.com/4gM4gzgTO0cC5sCaaadnW07',
 } as const;
 
 const Landing = () => {
