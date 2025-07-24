@@ -7,6 +7,7 @@ import VirtualTryOnPage from "./pages/VirtualTryOn";
 import PremiumLooks from "./pages/PremiumLooks";
 import CosmeticsLibrary from "./pages/CosmeticsLibrary";
 import Subscription from "./pages/Subscription";
+import SubscriptionPlans from "./pages/SubscriptionPlans";
 import SubscriptionSuccess from "./pages/SubscriptionSuccess";
 import SubscriptionCanceled from "./pages/SubscriptionCanceled";
 import TrueMatchAI from "./pages/TrueMatchAI";
@@ -60,6 +61,12 @@ export const navItems = [
     to: "/subscription",
     icon: <CreditCard className="h-4 w-4" />,
     page: <Subscription />,
+  },
+  {
+    title: "Subscription Plans",
+    to: "/subscription-plans",
+    icon: <CreditCard className="h-4 w-4" />,
+    page: <SubscriptionPlans />,
   },
   {
     title: "Subscription Success",
