@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import FoundationInput from './FoundationInput';
 import VirtualTryOn from './VirtualTryOn';
 import PhotoAnalysisDemo from './PhotoAnalysisDemo';
-import SubscriptionOptions from './SubscriptionOptions';
+
 import OptionalUserInfo from './OptionalUserInfo';
 import { FoundationMatch } from '../types/foundation';
 
@@ -218,10 +218,8 @@ const FoundationMatcher = () => {
             brands={brands || []}
           />
           
-          {/* Analysis Demo and Options */}
+          {/* Analysis Demo and User Info */}
           <PhotoAnalysisDemo />
-          
-          <SubscriptionOptions />
           
           <OptionalUserInfo />
         </div>
