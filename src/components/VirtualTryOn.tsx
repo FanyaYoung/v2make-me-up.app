@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Camera, Upload, X, RotateCcw, Plus, Trash2, Palette, Loader2, Eye, Grid3X3, Split, Flashlight, Save } from 'lucide-react';
 import { FoundationMatch } from '../types/foundation';
 import { useToast } from '@/hooks/use-toast';
+import FoundationFeedback from './FoundationFeedback';
 import { skinToneAnalyzer, SkinToneAnalysis } from './SkinToneAnalyzer';
 import SkinToneAnalysisDisplay from './SkinToneAnalysisDisplay';
 import { supabase } from '@/integrations/supabase/client';
@@ -763,6 +764,21 @@ const VirtualTryOn = ({ selectedMatch, onShadeRecommendations }: VirtualTryOnPro
     }
   };
 
+  const handleFoundationFeedback = (foundationId: string, feedback: {
+    rating: 'positive' | 'negative';
+    comment?: string;
+  }) => {
+    console.log('Foundation feedback received:', { foundationId, feedback });
+    
+    toast({
+      title: "Thank you for your feedback!",
+      description: "This helps us improve our recommendations for you and others.",
+    });
+
+    // Here you would send the feedback to your backend
+    // You could also update local state to reflect the feedback
+  };
+
   return (
     <div className="sticky top-8">
       <Card className="bg-white/80 backdrop-blur-sm shadow-xl border-0">
@@ -1048,20 +1064,26 @@ const VirtualTryOn = ({ selectedMatch, onShadeRecommendations }: VirtualTryOnPro
 
             {/* Shade Recommendations */}
             {shadeRecommendations.length > 0 && (
-              <div className="space-y-2 pt-4 border-t border-gray-200">
+              <div className="space-y-3 pt-4 border-t border-gray-200">
                 <h4 className="font-semibold text-gray-800 text-sm">Recommended Shades</h4>
                 {shadeRecommendations.map((rec, index) => (
-                  <div key={index} className="bg-gray-50 p-3 rounded-lg">
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <p className="font-medium text-sm">{rec.shade.brand}</p>
-                        <p className="text-xs text-gray-600">{rec.shade.shade}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm font-semibold">{rec.shade.matchPercentage}%</p>
-                        <p className="text-xs text-gray-500 capitalize">{rec.targetTone}</p>
+                  <div key={index} className="space-y-2">
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <p className="font-medium text-sm">{rec.shade.brand}</p>
+                          <p className="text-xs text-gray-600">{rec.shade.shade}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-semibold">{rec.shade.matchPercentage}%</p>
+                          <p className="text-xs text-gray-500 capitalize">{rec.targetTone}</p>
+                        </div>
                       </div>
                     </div>
+                    <FoundationFeedback 
+                      foundation={rec.shade}
+                      onFeedback={handleFoundationFeedback}
+                    />
                   </div>
                 ))}
               </div>
