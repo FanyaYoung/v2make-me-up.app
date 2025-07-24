@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Star, Eye, MapPin } from 'lucide-react';
 import { FoundationMatch } from '../types/foundation';
-import FoundationFeedback from './FoundationFeedback';
+import EnhancedFoundationFeedback from './EnhancedFoundationFeedback';
 
 interface FoundationResultsProps {
   matches: FoundationMatch[];
@@ -14,6 +14,8 @@ interface FoundationResultsProps {
   onFeedback: (foundationId: string, feedback: {
     rating: 'positive' | 'negative';
     comment?: string;
+    category?: string;
+    feedbackType?: string;
   }) => void;
 }
 
@@ -100,14 +102,37 @@ const FoundationResults = ({
                     <div>
                       <h3 className="text-lg font-bold text-gray-800">{match.brand}</h3>
                       <p className="text-gray-600 mb-1">{match.product}</p>
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-red-600 font-semibold">
-                          {match.shade}
-                        </span>
-                        <div 
-                          className="w-4 h-4 rounded-full border"
-                          style={{ backgroundColor: getShadeColor(match.shade, match.undertone) }}
-                        />
+                      
+                      {/* Dual shade recommendations */}
+                      <div className="space-y-2 mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-gray-500">Face center:</span>
+                          <span className="text-red-600 font-semibold">
+                            {match.primaryShade?.name || match.shade}
+                          </span>
+                          <div 
+                            className="w-4 h-4 rounded-full border"
+                            style={{ backgroundColor: getShadeColor(match.primaryShade?.name || match.shade, match.undertone) }}
+                          />
+                        </div>
+                        
+                        {match.contourShade && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-gray-500">Face sides:</span>
+                            <span className="text-red-600 font-semibold">
+                              {match.contourShade.name}
+                            </span>
+                            <div 
+                              className="w-4 h-4 rounded-full border"
+                              style={{ backgroundColor: getShadeColor(match.contourShade.name, match.undertone) }}
+                            />
+                            {match.contourShade.mixable && (
+                              <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                                Mixable
+                              </Badge>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                     
@@ -138,7 +163,7 @@ const FoundationResults = ({
                       {renderStars(match.rating)}
                     </div>
                     <span className="text-sm text-gray-600">
-                      {match.rating} ({match.reviewCount.toLocaleString()} reviews)
+                      {parseFloat(match.rating.toString()).toFixed(1)} ({match.reviewCount.toLocaleString()} reviews)
                     </span>
                   </div>
 
@@ -190,7 +215,7 @@ const FoundationResults = ({
 
               {/* Feedback Section */}
               <div className="mt-4 pt-4 border-t border-gray-100">
-                <FoundationFeedback 
+                <EnhancedFoundationFeedback 
                   foundation={match}
                   onFeedback={onFeedback}
                 />

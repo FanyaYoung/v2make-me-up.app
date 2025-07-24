@@ -241,6 +241,39 @@ export type Database = {
           },
         ]
       }
+      foundation_feedback: {
+        Row: {
+          comment: string | null
+          created_at: string
+          feedback_category: string | null
+          feedback_type: string
+          foundation_id: string
+          id: string
+          rating: string
+          user_id: string | null
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          feedback_category?: string | null
+          feedback_type: string
+          foundation_id: string
+          id?: string
+          rating: string
+          user_id?: string | null
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          feedback_category?: string | null
+          feedback_type?: string
+          foundation_id?: string
+          id?: string
+          rating?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       foundation_matches: {
         Row: {
           confidence_score: number | null
