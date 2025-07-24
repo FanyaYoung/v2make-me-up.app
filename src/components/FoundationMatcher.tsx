@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import FoundationInput from './FoundationInput';
-import EnhancedShadeRecommendations from './EnhancedShadeRecommendations';
+import VisualFoundationMatches from './VisualFoundationMatches';
 import VirtualTryOn from './VirtualTryOn';
 import { FoundationMatch } from '../types/foundation';
 
@@ -240,16 +240,10 @@ const FoundationMatcher = () => {
             </div>
           </div>
 
-          {matches.length > 0 && (
-            <EnhancedShadeRecommendations 
-              matchedShades={matches.map(match => ({
-                shade_id: match.id,
-                shade_name: match.shade,
-                hex_color: '#D4A574', // Will be fetched from database
-                brand_name: match.brand,
-                product_name: match.product,
-                match_percentage: match.matchPercentage
-              }))}
+          {currentFoundation && (
+            <VisualFoundationMatches 
+              originalShade={currentFoundation.shade}
+              originalBrand={currentFoundation.brand}
             />
           )}
         </div>
