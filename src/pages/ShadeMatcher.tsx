@@ -2,7 +2,6 @@ import React from 'react';
 import Header from '../components/Header';
 import FoundationMatcher from '../components/FoundationMatcher';
 import FoundationVisual from '../components/FoundationVisual';
-import ShadeComparison from '../components/ShadeComparison';
 import { Toaster } from '@/components/ui/toaster';
 import AuthGuard from '../components/AuthGuard';
 
@@ -26,8 +25,6 @@ const ShadeMatcher = () => {
           <main className="container mx-auto px-4 py-8">
             <FoundationMatcher />
           </main>
-          
-          <ShadeComparison />
         </div>
         <Toaster />
       </div>

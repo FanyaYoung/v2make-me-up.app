@@ -6,6 +6,7 @@ import VirtualTryOn from './VirtualTryOn';
 import PhotoAnalysisDemo from './PhotoAnalysisDemo';
 
 import OptionalUserInfo from './OptionalUserInfo';
+import FoundationResults from './FoundationResults';
 import { FoundationMatch } from '../types/foundation';
 
 const FoundationMatcher = () => {
@@ -209,6 +210,24 @@ const FoundationMatcher = () => {
     setMatches(realMatches);
   };
 
+  const handleFoundationFeedback = (foundationId: string, feedback: {
+    rating: 'positive' | 'negative';
+    comment?: string;
+  }) => {
+    console.log('Foundation feedback received:', { foundationId, feedback });
+    // Here you would send the feedback to your backend
+  };
+
+  const handleTryVirtual = (match: FoundationMatch) => {
+    setSelectedMatch(match);
+    console.log('Setting virtual try-on for:', match);
+  };
+
+  const handleViewDetails = (match: FoundationMatch) => {
+    console.log('View details for:', match);
+    // Here you could open a modal or navigate to a details page
+  };
+
   return (
     <div className="max-w-7xl mx-auto">
       <div className="grid lg:grid-cols-3 gap-8">
@@ -222,6 +241,17 @@ const FoundationMatcher = () => {
           <PhotoAnalysisDemo />
           
           <OptionalUserInfo />
+
+          {/* Foundation Results */}
+          {matches.length > 0 && (
+            <FoundationResults
+              matches={matches}
+              currentFoundation={currentFoundation}
+              onTryVirtual={handleTryVirtual}
+              onViewDetails={handleViewDetails}
+              onFeedback={handleFoundationFeedback}
+            />
+          )}
         </div>
         <div className="lg:col-span-1">
           <VirtualTryOn 
