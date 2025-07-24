@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import FoundationInput from './FoundationInput';
-import VisualFoundationMatches from './VisualFoundationMatches';
 import VirtualTryOn from './VirtualTryOn';
+import PhotoAnalysisDemo from './PhotoAnalysisDemo';
+import SubscriptionOptions from './SubscriptionOptions';
+import OptionalUserInfo from './OptionalUserInfo';
 import { FoundationMatch } from '../types/foundation';
 
 const FoundationMatcher = () => {
@@ -216,36 +218,12 @@ const FoundationMatcher = () => {
             brands={brands || []}
           />
           
-          {/* Complete Shade Range Section */}
-          <div className="mb-8">
-            <div className="text-center mb-8">
-              <h3 className="text-2xl font-semibold mb-4 text-gray-800">
-                Complete Shade Range
-              </h3>
-              <p className="text-gray-600 mb-6">
-                Our AI analyzes undertones, depth, and color properties to find your perfect matches across all major brands
-              </p>
-            </div>
-            <div className="flex justify-center items-center flex-wrap gap-4">
-              {foundationShades.map((shade, index) => (
-                <div key={index} className="text-center">
-                  <div
-                    className="w-16 h-16 rounded-full shadow-lg border-2 border-white mx-auto mb-2"
-                    style={{ backgroundColor: shade.color }}
-                  ></div>
-                  <p className="text-xs font-medium text-gray-700">{shade.name}</p>
-                  <p className="text-xs text-gray-500">{shade.brand}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {currentFoundation && (
-            <VisualFoundationMatches 
-              originalShade={currentFoundation.shade}
-              originalBrand={currentFoundation.brand}
-            />
-          )}
+          {/* Analysis Demo and Options */}
+          <PhotoAnalysisDemo />
+          
+          <SubscriptionOptions />
+          
+          <OptionalUserInfo />
         </div>
         <div className="lg:col-span-1">
           <VirtualTryOn 

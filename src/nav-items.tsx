@@ -1,5 +1,5 @@
 
-import { Home, User, Palette, Camera, Crown, Package, CreditCard, Sparkles } from "lucide-react";
+import { Home, User, Palette, Camera, Crown, Package, CreditCard, Sparkles, Star } from "lucide-react";
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import ShadeMatcher from "./pages/ShadeMatcher";
@@ -10,6 +10,7 @@ import Subscription from "./pages/Subscription";
 import SubscriptionSuccess from "./pages/SubscriptionSuccess";
 import SubscriptionCanceled from "./pages/SubscriptionCanceled";
 import TrueMatchAI from "./pages/TrueMatchAI";
+import PerfectMatches from "./pages/PerfectMatches";
 
 export const navItems = [
   {
@@ -35,6 +36,12 @@ export const navItems = [
     to: "/virtual-try-on", 
     icon: <Camera className="h-4 w-4" />,
     page: <VirtualTryOnPage />,
+  },
+  {
+    title: "Perfect Matches",
+    to: "/perfect-matches",
+    icon: <Star className="h-4 w-4" />,
+    page: <PerfectMatches />,
   },
   {
     title: "Premium Looks",
