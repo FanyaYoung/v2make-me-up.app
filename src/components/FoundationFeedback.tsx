@@ -4,6 +4,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { ThumbsUp, ThumbsDown, MessageSquare } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { FoundationMatch } from '@/types/foundation';
+import { sanitizeText, validateInputLength, validateSafeInput } from '@/utils/sanitization';
+import { useToast } from '@/hooks/use-toast';
 
 interface FoundationFeedbackProps {
   foundation: FoundationMatch;
@@ -18,6 +20,7 @@ const FoundationFeedback = ({ foundation, onFeedback }: FoundationFeedbackProps)
   const [showComment, setShowComment] = useState(false);
   const [comment, setComment] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const { toast } = useToast();
 
   const handleFeedbackSelect = (feedback: 'positive' | 'negative') => {
     setSelectedFeedback(feedback);
@@ -25,13 +28,35 @@ const FoundationFeedback = ({ foundation, onFeedback }: FoundationFeedbackProps)
   };
 
   const handleSubmitFeedback = () => {
-    if (selectedFeedback) {
-      onFeedback(foundation.id, {
-        rating: selectedFeedback,
-        comment: comment.trim() || undefined
+    if (!selectedFeedback) return;
+
+    // Validate and sanitize comment input
+    const trimmedComment = comment.trim();
+    if (trimmedComment && !validateInputLength(trimmedComment, 1000)) {
+      toast({
+        title: "Error",
+        description: "Comment is too long. Please keep it under 1000 characters.",
+        variant: "destructive"
       });
-      setSubmitted(true);
+      return;
     }
+
+    if (trimmedComment && !validateSafeInput(trimmedComment)) {
+      toast({
+        title: "Error",
+        description: "Comment contains invalid content. Please remove any script tags or unsafe content.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const sanitizedComment = trimmedComment ? sanitizeText(trimmedComment) : undefined;
+
+    onFeedback(foundation.id, {
+      rating: selectedFeedback,
+      comment: sanitizedComment
+    });
+    setSubmitted(true);
   };
 
   if (submitted) {
@@ -86,7 +111,11 @@ const FoundationFeedback = ({ foundation, onFeedback }: FoundationFeedbackProps)
               onChange={(e) => setComment(e.target.value)}
               className="text-sm"
               rows={2}
+              maxLength={1000}
             />
+            <div className="text-xs text-gray-500 text-right">
+              {comment.length}/1000 characters
+            </div>
             <div className="flex gap-2">
               <Button
                 onClick={handleSubmitFeedback}

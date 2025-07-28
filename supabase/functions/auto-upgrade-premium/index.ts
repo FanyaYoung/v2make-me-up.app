@@ -78,7 +78,7 @@ serve(async (req) => {
   } catch (error) {
     console.error("Error in auto-upgrade:", error);
     return new Response(JSON.stringify({ 
-      error: error.message 
+      error: 'Unable to process upgrade request' 
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,

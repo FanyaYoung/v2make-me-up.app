@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { FoundationMatch, FEEDBACK_CATEGORIES, FeedbackCategory } from '@/types/foundation';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { sanitizeText, validateInputLength, validateSafeInput } from '@/utils/sanitization';
 
 interface EnhancedFoundationFeedbackProps {
   foundation: FoundationMatch;
@@ -45,6 +46,28 @@ const EnhancedFoundationFeedback = ({ foundation, onFeedback }: EnhancedFoundati
   const handleSubmitFeedback = async () => {
     if (!selectedFeedback) return;
 
+    // Validate and sanitize comment input
+    const trimmedComment = comment.trim();
+    if (trimmedComment && !validateInputLength(trimmedComment, 1000)) {
+      toast({
+        title: "Error",
+        description: "Comment is too long. Please keep it under 1000 characters.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (trimmedComment && !validateSafeInput(trimmedComment)) {
+      toast({
+        title: "Error",
+        description: "Comment contains invalid content. Please remove any script tags or unsafe content.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const sanitizedComment = trimmedComment ? sanitizeText(trimmedComment) : null;
+
     setIsSubmitting(true);
     
     try {
@@ -57,7 +80,7 @@ const EnhancedFoundationFeedback = ({ foundation, onFeedback }: EnhancedFoundati
           foundation_id: foundation.id,
           feedback_type: category?.type || 'other',
           feedback_category: selectedCategory,
-          comment: comment.trim() || null,
+          comment: sanitizedComment,
           rating: selectedFeedback
         });
 
@@ -184,7 +207,11 @@ const EnhancedFoundationFeedback = ({ foundation, onFeedback }: EnhancedFoundati
               onChange={(e) => setComment(e.target.value)}
               className="text-sm"
               rows={2}
+              maxLength={1000}
             />
+            <div className="text-xs text-gray-500 text-right">
+              {comment.length}/1000 characters
+            </div>
             <div className="flex gap-2">
               <Button
                 onClick={handleSubmitFeedback}

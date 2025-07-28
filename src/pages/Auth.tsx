@@ -8,6 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { toast } from 'sonner';
 import { User, Session } from '@supabase/supabase-js';
 import { Eye, EyeOff } from 'lucide-react';
+import { checkRateLimit, getRateLimitKey, SECURITY_CONFIG } from '@/utils/security';
+import { validateEmail, validateInputLength } from '@/utils/sanitization';
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -65,6 +67,25 @@ const Auth = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate inputs
+    if (!validateEmail(email)) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
+    
+    if (!validateInputLength(password, 100)) {
+      toast.error('Password is too long');
+      return;
+    }
+
+    // Check rate limiting
+    const rateLimitKey = getRateLimitKey('login', email);
+    if (!checkRateLimit(rateLimitKey, SECURITY_CONFIG.MAX_LOGIN_ATTEMPTS, SECURITY_CONFIG.LOGIN_COOLDOWN_MS)) {
+      toast.error('Too many login attempts. Please wait 5 minutes before trying again.');
+      return;
+    }
+    
     setLoading(true);
 
     try {
@@ -87,6 +108,30 @@ const Auth = () => {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate inputs
+    if (!validateEmail(email)) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
+    
+    if (!validateInputLength(password, 100) || !validateInputLength(firstName, 50) || !validateInputLength(lastName, 50)) {
+      toast.error('Input values are too long');
+      return;
+    }
+
+    if (password.length < 6) {
+      toast.error('Password must be at least 6 characters long');
+      return;
+    }
+
+    // Check rate limiting
+    const rateLimitKey = getRateLimitKey('signup', email);
+    if (!checkRateLimit(rateLimitKey, SECURITY_CONFIG.FORM_SUBMISSION_LIMIT, SECURITY_CONFIG.FORM_SUBMISSION_WINDOW_MS)) {
+      toast.error('Too many signup attempts. Please wait a minute before trying again.');
+      return;
+    }
+    
     setLoading(true);
 
     try {
