@@ -21,7 +21,7 @@ interface Face3DGuideProps {
   };
 }
 
-// 3D Face Model Component
+// 3D Face Model Component with realistic wireframe
 const FaceModel = ({ 
   primaryColor = '#F5DEB3', 
   contourColor = '#D2B48C',
@@ -39,47 +39,106 @@ const FaceModel = ({
 
   useFrame((state) => {
     if (faceRef.current) {
-      faceRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.5) * 0.1;
+      faceRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.3) * 0.2;
     }
   });
 
+  // Create wireframe face geometry
+  const createFaceWireframe = () => {
+    const geometry = new THREE.BufferGeometry();
+    
+    // Define face outline points (front view)
+    const faceOutline = [
+      // Forehead curve
+      [-1.2, 2.0, 0], [-0.8, 2.1, 0], [-0.4, 2.15, 0], [0, 2.2, 0], [0.4, 2.15, 0], [0.8, 2.1, 0], [1.2, 2.0, 0],
+      // Temple area
+      [1.4, 1.5, 0], [1.5, 1.0, 0], [1.5, 0.5, 0], [1.5, 0, 0],
+      // Jawline
+      [1.4, -0.5, 0], [1.3, -1.0, 0], [1.1, -1.4, 0], [0.8, -1.7, 0], [0.4, -1.9, 0], [0, -2.0, 0],
+      [-0.4, -1.9, 0], [-0.8, -1.7, 0], [-1.1, -1.4, 0], [-1.3, -1.0, 0], [-1.4, -0.5, 0],
+      // Left temple area
+      [-1.5, 0, 0], [-1.5, 0.5, 0], [-1.5, 1.0, 0], [-1.4, 1.5, 0]
+    ];
+
+    // Nose outline
+    const noseOutline = [
+      [0, 0.8, 0.3], [-0.15, 0.6, 0.35], [-0.2, 0.3, 0.4], [-0.15, 0, 0.35], [0, -0.2, 0.3],
+      [0.15, 0, 0.35], [0.2, 0.3, 0.4], [0.15, 0.6, 0.35]
+    ];
+
+    // Eyes outline
+    const leftEye = [
+      [-0.6, 0.6, 0.2], [-0.4, 0.7, 0.25], [-0.2, 0.6, 0.2], [-0.4, 0.5, 0.2]
+    ];
+    
+    const rightEye = [
+      [0.6, 0.6, 0.2], [0.4, 0.7, 0.25], [0.2, 0.6, 0.2], [0.4, 0.5, 0.2]
+    ];
+
+    // Lips outline
+    const lips = [
+      [-0.3, -0.8, 0.15], [-0.15, -0.7, 0.2], [0, -0.75, 0.2], [0.15, -0.7, 0.2], [0.3, -0.8, 0.15],
+      [0.15, -0.9, 0.18], [0, -0.95, 0.18], [-0.15, -0.9, 0.18]
+    ];
+
+    // Combine all points
+    const allPoints = [
+      ...faceOutline,
+      ...noseOutline,
+      ...leftEye,
+      ...rightEye,
+      ...lips
+    ];
+
+    const vertices = new Float32Array(allPoints.flat());
+    geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+
+    return geometry;
+  };
+
   return (
     <group ref={faceRef}>
-      {/* Base face shape */}
-      <mesh position={[0, 0, 0]}>
-        <sphereGeometry args={[2, 32, 32]} />
-        <meshPhongMaterial color="#F5DEB3" />
+      {/* Wireframe face structure */}
+      <points>
+        <bufferGeometry attach="geometry" {...createFaceWireframe()} />
+        <pointsMaterial attach="material" color="#666" size={0.05} />
+      </points>
+
+      {/* Face outline wireframe */}
+      <mesh>
+        <sphereGeometry args={[1.8, 16, 20, 0, Math.PI * 2, 0, Math.PI * 0.85]} />
+        <meshBasicMaterial color="#ddd" wireframe transparent opacity={0.3} />
       </mesh>
 
       {/* Primary foundation areas */}
       {showPrimary && (
         <>
-          {/* Forehead */}
-          <mesh position={[0, 1.2, 1.8]}>
-            <sphereGeometry args={[0.8, 16, 16]} />
-            <meshPhongMaterial color={primaryColor} transparent opacity={0.7} />
+          {/* T-Zone - Forehead */}
+          <mesh position={[0, 1.0, 0.1]}>
+            <planeGeometry args={[1.5, 0.8]} />
+            <meshBasicMaterial color={primaryColor} transparent opacity={0.6} side={THREE.DoubleSide} />
           </mesh>
           
-          {/* Cheeks */}
-          <mesh position={[-1, 0.2, 1.6]}>
-            <sphereGeometry args={[0.6, 16, 16]} />
-            <meshPhongMaterial color={primaryColor} transparent opacity={0.7} />
-          </mesh>
-          <mesh position={[1, 0.2, 1.6]}>
-            <sphereGeometry args={[0.6, 16, 16]} />
-            <meshPhongMaterial color={primaryColor} transparent opacity={0.7} />
+          {/* T-Zone - Nose bridge */}
+          <mesh position={[0, 0.2, 0.3]} rotation={[0, 0, 0]}>
+            <planeGeometry args={[0.3, 0.8]} />
+            <meshBasicMaterial color={primaryColor} transparent opacity={0.6} side={THREE.DoubleSide} />
           </mesh>
 
-          {/* Nose */}
-          <mesh position={[0, 0.2, 1.9]}>
-            <sphereGeometry args={[0.3, 16, 16]} />
-            <meshPhongMaterial color={primaryColor} transparent opacity={0.7} />
+          {/* Center of cheeks */}
+          <mesh position={[-0.7, 0.2, 0.15]} rotation={[0, 0.3, 0]}>
+            <circleGeometry args={[0.4, 16]} />
+            <meshBasicMaterial color={primaryColor} transparent opacity={0.6} side={THREE.DoubleSide} />
+          </mesh>
+          <mesh position={[0.7, 0.2, 0.15]} rotation={[0, -0.3, 0]}>
+            <circleGeometry args={[0.4, 16]} />
+            <meshBasicMaterial color={primaryColor} transparent opacity={0.6} side={THREE.DoubleSide} />
           </mesh>
 
           {/* Chin */}
-          <mesh position={[0, -1, 1.6]}>
-            <sphereGeometry args={[0.5, 16, 16]} />
-            <meshPhongMaterial color={primaryColor} transparent opacity={0.7} />
+          <mesh position={[0, -1.2, 0.1]}>
+            <circleGeometry args={[0.4, 16]} />
+            <meshBasicMaterial color={primaryColor} transparent opacity={0.6} side={THREE.DoubleSide} />
           </mesh>
         </>
       )}
@@ -88,33 +147,43 @@ const FaceModel = ({
       {showContour && (
         <>
           {/* Temples */}
-          <mesh position={[-1.5, 0.8, 1.2]}>
-            <sphereGeometry args={[0.4, 16, 16]} />
-            <meshPhongMaterial color={contourColor} transparent opacity={0.6} />
+          <mesh position={[-1.1, 1.2, 0.05]} rotation={[0, 0.5, 0]}>
+            <planeGeometry args={[0.6, 0.8]} />
+            <meshBasicMaterial color={contourColor} transparent opacity={0.5} side={THREE.DoubleSide} />
           </mesh>
-          <mesh position={[1.5, 0.8, 1.2]}>
-            <sphereGeometry args={[0.4, 16, 16]} />
-            <meshPhongMaterial color={contourColor} transparent opacity={0.6} />
+          <mesh position={[1.1, 1.2, 0.05]} rotation={[0, -0.5, 0]}>
+            <planeGeometry args={[0.6, 0.8]} />
+            <meshBasicMaterial color={contourColor} transparent opacity={0.5} side={THREE.DoubleSide} />
           </mesh>
 
           {/* Jawline */}
-          <mesh position={[-1.2, -0.8, 1.2]}>
-            <sphereGeometry args={[0.5, 16, 16]} />
-            <meshPhongMaterial color={contourColor} transparent opacity={0.6} />
+          <mesh position={[-1.0, -0.8, 0.05]} rotation={[0, 0.4, 0]}>
+            <planeGeometry args={[0.5, 1.0]} />
+            <meshBasicMaterial color={contourColor} transparent opacity={0.5} side={THREE.DoubleSide} />
           </mesh>
-          <mesh position={[1.2, -0.8, 1.2]}>
-            <sphereGeometry args={[0.5, 16, 16]} />
-            <meshPhongMaterial color={contourColor} transparent opacity={0.6} />
+          <mesh position={[1.0, -0.8, 0.05]} rotation={[0, -0.4, 0]}>
+            <planeGeometry args={[0.5, 1.0]} />
+            <meshBasicMaterial color={contourColor} transparent opacity={0.5} side={THREE.DoubleSide} />
           </mesh>
 
           {/* Nose sides */}
-          <mesh position={[-0.3, 0.1, 1.8]}>
-            <sphereGeometry args={[0.2, 16, 16]} />
-            <meshPhongMaterial color={contourColor} transparent opacity={0.6} />
+          <mesh position={[-0.2, 0.1, 0.25]} rotation={[0, 0.8, 0]}>
+            <planeGeometry args={[0.15, 0.6]} />
+            <meshBasicMaterial color={contourColor} transparent opacity={0.5} side={THREE.DoubleSide} />
           </mesh>
-          <mesh position={[0.3, 0.1, 1.8]}>
-            <sphereGeometry args={[0.2, 16, 16]} />
-            <meshPhongMaterial color={contourColor} transparent opacity={0.6} />
+          <mesh position={[0.2, 0.1, 0.25]} rotation={[0, -0.8, 0]}>
+            <planeGeometry args={[0.15, 0.6]} />
+            <meshBasicMaterial color={contourColor} transparent opacity={0.5} side={THREE.DoubleSide} />
+          </mesh>
+
+          {/* Under cheekbones */}
+          <mesh position={[-0.8, -0.1, 0.1]} rotation={[0, 0.3, 0]}>
+            <planeGeometry args={[0.8, 0.3]} />
+            <meshBasicMaterial color={contourColor} transparent opacity={0.5} side={THREE.DoubleSide} />
+          </mesh>
+          <mesh position={[0.8, -0.1, 0.1]} rotation={[0, -0.3, 0]}>
+            <planeGeometry args={[0.8, 0.3]} />
+            <meshBasicMaterial color={contourColor} transparent opacity={0.5} side={THREE.DoubleSide} />
           </mesh>
         </>
       )}
@@ -122,48 +191,91 @@ const FaceModel = ({
       {/* Blending zones */}
       {showBlending && (
         <>
-          {/* Blend zones between primary and contour */}
-          <mesh position={[-0.8, 0.5, 1.7]}>
-            <sphereGeometry args={[0.3, 16, 16]} />
-            <meshPhongMaterial 
+          {/* Blend areas between primary and contour */}
+          <mesh position={[-0.5, 0.6, 0.12]} rotation={[0, 0.2, 0]}>
+            <planeGeometry args={[0.4, 0.4]} />
+            <meshBasicMaterial 
               color={new THREE.Color(primaryColor).lerp(new THREE.Color(contourColor), 0.5)} 
               transparent 
-              opacity={0.5} 
+              opacity={0.4} 
+              side={THREE.DoubleSide}
             />
           </mesh>
-          <mesh position={[0.8, 0.5, 1.7]}>
-            <sphereGeometry args={[0.3, 16, 16]} />
-            <meshPhongMaterial 
+          <mesh position={[0.5, 0.6, 0.12]} rotation={[0, -0.2, 0]}>
+            <planeGeometry args={[0.4, 0.4]} />
+            <meshBasicMaterial 
               color={new THREE.Color(primaryColor).lerp(new THREE.Color(contourColor), 0.5)} 
               transparent 
-              opacity={0.5} 
+              opacity={0.4} 
+              side={THREE.DoubleSide}
+            />
+          </mesh>
+
+          {/* Jawline blending */}
+          <mesh position={[-0.6, -1.0, 0.08]} rotation={[0, 0.3, 0]}>
+            <planeGeometry args={[0.3, 0.5]} />
+            <meshBasicMaterial 
+              color={new THREE.Color(primaryColor).lerp(new THREE.Color(contourColor), 0.5)} 
+              transparent 
+              opacity={0.4} 
+              side={THREE.DoubleSide}
+            />
+          </mesh>
+          <mesh position={[0.6, -1.0, 0.08]} rotation={[0, -0.3, 0]}>
+            <planeGeometry args={[0.3, 0.5]} />
+            <meshBasicMaterial 
+              color={new THREE.Color(primaryColor).lerp(new THREE.Color(contourColor), 0.5)} 
+              transparent 
+              opacity={0.4} 
+              side={THREE.DoubleSide}
             />
           </mesh>
         </>
       )}
 
-      {/* Labels */}
+      {/* Anatomical guidelines */}
+      <lineSegments>
+        <bufferGeometry>
+          <bufferAttribute
+            attach="attributes-position"
+            array={new Float32Array([
+              // Vertical center line
+              0, 2.2, 0, 0, -2.0, 0,
+              // Horizontal guidelines
+              -1.5, 0.6, 0, 1.5, 0.6, 0,  // Eye line
+              -1.5, -0.8, 0, 1.5, -0.8, 0, // Mouth line
+            ])}
+            count={6}
+            itemSize={3}
+          />
+        </bufferGeometry>
+        <lineBasicMaterial color="#999" opacity={0.3} transparent />
+      </lineSegments>
+
+      {/* Labels with better positioning */}
       {showPrimary && (
         <Text
           position={[0, 2.8, 0]}
-          fontSize={0.3}
+          fontSize={0.25}
           color="#333"
           anchorX="center"
           anchorY="middle"
+          font="/fonts/Inter-Bold.woff"
         >
-          Primary Foundation Areas
+          Foundation Application Areas
         </Text>
       )}
 
       {showContour && (
         <Text
           position={[0, -2.8, 0]}
-          fontSize={0.3}
+          fontSize={0.25}
           color="#333"
           anchorX="center"
           anchorY="middle"
+          font="/fonts/Inter-Bold.woff"
         >
-          Contour Areas
+          Contour & Sculpting Areas
         </Text>
       )}
     </group>
