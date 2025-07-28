@@ -278,16 +278,15 @@ const EnhancedFoundationMatcher = () => {
     <div className="max-w-7xl mx-auto">
       <div className="grid lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
-          {/* Three Methods to Find Your Perfect Foundation */}
+          {/* Brand Search - Always Visible */}
+          <FoundationSearchInput onMatchFound={handleSearchResults} />
+
+          {/* Find Your Skin Tone Methods */}
           <Card className="p-6">
-            <h2 className="text-2xl font-bold mb-6 text-center">Find Your Perfect Foundation</h2>
+            <h2 className="text-2xl font-bold mb-6 text-center">Find Your Skin Tone</h2>
             
-            <Tabs defaultValue="search" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="search" className="flex items-center gap-2">
-                  <Search className="w-4 h-4" />
-                  Search Product
-                </TabsTrigger>
+            <Tabs defaultValue="slider" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="slider" className="flex items-center gap-2">
                   <Palette className="w-4 h-4" />
                   Skin Tone Slider
@@ -297,10 +296,6 @@ const EnhancedFoundationMatcher = () => {
                   AI Analysis
                 </TabsTrigger>
               </TabsList>
-              
-              <TabsContent value="search" className="mt-6">
-                <FoundationSearchInput onMatchFound={handleSearchResults} />
-              </TabsContent>
               
               <TabsContent value="slider" className="mt-6">
                 <div className="space-y-6">
