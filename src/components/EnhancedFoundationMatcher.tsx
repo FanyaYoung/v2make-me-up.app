@@ -7,6 +7,7 @@ import FoundationPairResults from './FoundationPairResults';
 import QuestionnaireFlow from './QuestionnaireFlow';
 import FoundationSearchInput from './FoundationSearchInput';
 import FulfillmentOptions from './FulfillmentOptions';
+import FlexiblePurchaseOptions from './FlexiblePurchaseOptions';
 import { FoundationMatch } from '../types/foundation';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -381,8 +382,16 @@ const EnhancedFoundationMatcher = () => {
             />
           )}
 
-          {/* Fulfillment Options */}
-          {showFulfillment && selectedProducts.length > 0 && (
+          {/* Flexible Purchase Options with Fulfillment */}
+          {foundationPairs.length > 0 && (
+            <FlexiblePurchaseOptions
+              recommendations={foundationPairs.flat()}
+              onPurchase={handlePurchase}
+            />
+          )}
+
+          {/* Legacy Fulfillment Options for Search Results */}
+          {showFulfillment && selectedProducts.length > 0 && searchResults.length > 0 && (
             <FulfillmentOptions
               products={selectedProducts}
               onPurchase={handlePurchase}

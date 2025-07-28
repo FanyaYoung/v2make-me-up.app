@@ -2,6 +2,7 @@ import React from 'react';
 import Header from '../components/Header';
 import EnhancedFoundationMatcher from '../components/EnhancedFoundationMatcher';
 import FoundationVisual from '../components/FoundationVisual';
+import Face3DGuide from '../components/Face3DGuide';
 import { Toaster } from '@/components/ui/toaster';
 import AuthGuard from '../components/AuthGuard';
 
@@ -22,7 +23,21 @@ const ShadeMatcher = () => {
           
           <FoundationVisual />
           
-          <main className="container mx-auto px-4 py-8">
+          <main className="container mx-auto px-4 py-8 space-y-8">
+            {/* 3D Application Guide */}
+            <Face3DGuide 
+              primaryShade={{
+                name: "Foundation Shade",
+                color: "#F5DEB3",
+                brand: "Your Match"
+              }}
+              contourShade={{
+                name: "Contour Shade", 
+                color: "#D2B48C",
+                brand: "Your Match"
+              }}
+            />
+            
             <EnhancedFoundationMatcher />
           </main>
         </div>
