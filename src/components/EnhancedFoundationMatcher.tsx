@@ -406,6 +406,11 @@ const EnhancedFoundationMatcher = () => {
             onShadeRecommendations={(recommendations) => {
               console.log('New shade recommendations:', recommendations);
             }}
+            suggestedShades={
+              searchResults.length > 0 
+                ? searchResults 
+                : foundationPairs.flat()
+            } // Pass search results if available, otherwise use foundation pairs
           />
         </div>
       </div>
