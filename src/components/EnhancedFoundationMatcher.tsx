@@ -7,6 +7,7 @@ import FoundationPairResults from './FoundationPairResults';
 import QuestionnaireFlow from './QuestionnaireFlow';
 import FoundationSearchInput from './FoundationSearchInput';
 import FulfillmentOptions from './FulfillmentOptions';
+import InclusiveShadeMatchingInterface from './InclusiveShadeMatchingInterface';
 import { FoundationMatch } from '../types/foundation';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -36,6 +37,7 @@ const EnhancedFoundationMatcher = () => {
   const [searchResults, setSearchResults] = useState<FoundationMatch[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<FoundationMatch[]>([]);
   const [showFulfillment, setShowFulfillment] = useState(false);
+  const [inclusiveAnalysis, setInclusiveAnalysis] = useState<any>(null);
 
   // Fetch cosmetics products
   const { data: cosmeticsProducts } = useQuery({
@@ -83,6 +85,29 @@ const EnhancedFoundationMatcher = () => {
     setUserAnswers(answers);
     if (skinTone) {
       generateFoundationPairs(skinTone, answers);
+    }
+  };
+
+  const handleInclusiveAnalysis = (analysis: any) => {
+    setInclusiveAnalysis(analysis);
+    // Convert inclusive analysis to skin tone data for compatibility
+    const depthMap: Record<string, number> = {
+      'fair': 2,
+      'light': 3,
+      'medium': 5,
+      'tan': 7,
+      'deep': 8,
+      'very-deep': 9
+    };
+    
+    const skinToneData: SkinToneData = {
+      hexColor: analysis.dominantTone.hex,
+      depth: depthMap[analysis.dominantTone.depth] || 5,
+      undertone: analysis.dominantTone.undertone
+    };
+    setSkinTone(skinToneData);
+    if (userAnswers && Object.keys(userAnswers).length > 0) {
+      generateFoundationPairs(skinToneData, userAnswers);
     }
   };
 
@@ -318,27 +343,10 @@ const EnhancedFoundationMatcher = () => {
               </TabsContent>
               
               <TabsContent value="ai" className="mt-6">
-                <Card className="p-6 text-center">
-                  <div className="space-y-4">
-                    <Sparkles className="w-12 h-12 mx-auto text-primary" />
-                    <div>
-                      <h3 className="text-lg font-semibold mb-2">AI Skin Analysis</h3>
-                      <p className="text-muted-foreground mb-4">
-                        Get a comprehensive skin analysis including undertones, depth, and personalized recommendations
-                      </p>
-                      <Button 
-                        onClick={() => setShowQuestionnaire(true)}
-                        className="flex items-center gap-2"
-                      >
-                        <Camera className="w-4 h-4" />
-                        Start AI Analysis
-                      </Button>
-                      <p className="text-xs text-muted-foreground mt-2">
-                        Premium feature - includes saveable profile and detailed report
-                      </p>
-                    </div>
-                  </div>
-                </Card>
+                <InclusiveShadeMatchingInterface
+                  onAnalysisComplete={handleInclusiveAnalysis}
+                  onUpgradeClick={() => window.open('/subscription-plans', '_blank')}
+                />
               </TabsContent>
             </Tabs>
           </Card>
