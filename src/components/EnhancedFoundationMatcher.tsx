@@ -201,6 +201,7 @@ const EnhancedFoundationMatcher = () => {
     // 3. Handle payment processing
   };
 
+  // Helper functions
   const getBrandName = (product: any): string => {
     return product.brands?.name || product.brand?.name || 'Unknown Brand';
   };
@@ -376,12 +377,12 @@ const EnhancedFoundationMatcher = () => {
             <FoundationPairResults
               pairs={foundationPairs}
               onTryVirtual={handleTryVirtual}
-              onPurchase={handlePurchase}
+              onSelectPair={handleProductSelection}
             />
           )}
 
-          {/* Legacy Fulfillment Options for Search Results */}
-          {showFulfillment && selectedProducts.length > 0 && searchResults.length > 0 && (
+          {/* Fulfillment Options */}
+          {showFulfillment && selectedProducts.length > 0 && (
             <FulfillmentOptions
               products={selectedProducts}
               onPurchase={handlePurchase}

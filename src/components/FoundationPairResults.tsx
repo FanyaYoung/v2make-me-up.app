@@ -1,239 +1,184 @@
-
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Separator } from '@/components/ui/separator';
-import { Eye, ShoppingCart, Star, CheckCircle } from 'lucide-react';
+import { Star, ShoppingCart, Eye, Palette, Blend } from 'lucide-react';
 import { FoundationMatch } from '../types/foundation';
 
 interface FoundationPairResultsProps {
   pairs: FoundationMatch[][];
   onTryVirtual: (match: FoundationMatch) => void;
-  onPurchase: (fulfillmentMethod: string, products: FoundationMatch[]) => void;
+  onSelectPair?: (pair: FoundationMatch[]) => void;
 }
 
-interface CartItem {
-  id: string;
-  match: FoundationMatch;
-  selected: boolean;
-}
-
-const FoundationPairResults: React.FC<FoundationPairResultsProps> = ({
-  pairs,
-  onTryVirtual,
-  onPurchase
-}) => {
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
-
-  // Initialize cart with all items selected by default
-  useEffect(() => {
-    const initialCart: CartItem[] = [];
-    pairs.forEach((pair) => {
-      pair.forEach((match) => {
-        initialCart.push({
-          id: match.id,
-          match,
-          selected: true
-        });
-      });
-    });
-    setCartItems(initialCart);
-  }, [pairs]);
-
-  const handleCheckboxChange = (itemId: string, checked: boolean) => {
-    setCartItems(prev => 
-      prev.map(item => 
-        item.id === itemId ? { ...item, selected: checked } : item
-      )
-    );
-  };
-
-  const selectedItems = cartItems.filter(item => item.selected);
-  const cartTotal = selectedItems.reduce((sum, item) => sum + (item.match.price || 0), 0);
-
-  const handlePurchase = () => {
-    const selectedMatches = selectedItems.map(item => item.match);
-    onPurchase('shipping', selectedMatches);
-  };
-
-  const generateShadeColor = (shade: string, undertone: string) => {
-    const undertoneColors = {
-      warm: { r: 210, g: 180, b: 140 },
-      cool: { r: 240, g: 220, b: 200 },
-      neutral: { r: 220, g: 190, b: 160 },
-      yellow: { r: 200, g: 170, b: 120 },
-      pink: { r: 230, g: 200, b: 180 },
-      red: { r: 190, g: 150, b: 120 },
-      olive: { r: 180, g: 160, b: 120 }
-    };
-
-    const baseColor = undertoneColors[undertone.toLowerCase() as keyof typeof undertoneColors] || undertoneColors.neutral;
-    
-    const shadeLower = shade.toLowerCase();
-    let multiplier = 1;
-    
-    if (shadeLower.includes('fair') || shadeLower.includes('light')) {
-      multiplier = 1.1;
-    } else if (shadeLower.includes('medium') || shadeLower.includes('med')) {
-      multiplier = 0.85;
-    } else if (shadeLower.includes('deep') || shadeLower.includes('dark') || shadeLower.includes('tan')) {
-      multiplier = 0.6;
-    } else if (shadeLower.includes('rich') || shadeLower.includes('espresso')) {
-      multiplier = 0.4;
-    }
-
-    const adjustedColor = {
-      r: Math.round(baseColor.r * multiplier),
-      g: Math.round(baseColor.g * multiplier),
-      b: Math.round(baseColor.b * multiplier)
-    };
-
-    return `rgb(${adjustedColor.r}, ${adjustedColor.g}, ${adjustedColor.b})`;
+const FoundationPairResults = ({ pairs, onTryVirtual, onSelectPair }: FoundationPairResultsProps) => {
+  const handlePurchase = (match: FoundationMatch) => {
+    // Implementation for purchase logic
+    console.log('Purchase:', match);
   };
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-center">Perfect Foundation Pairs</CardTitle>
-          <p className="text-center text-muted-foreground">
-            Complete foundation and contour combinations for flawless coverage
-          </p>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-6">
-            {pairs.map((pair, pairIndex) => (
-              <div key={pairIndex} className="border rounded-lg p-6">
-                <h3 className="text-lg font-semibold mb-4 text-center">
-                  {pair[0]?.brand} Complete Set
-                </h3>
-                
-                <div className="grid md:grid-cols-2 gap-4">
-                  {pair.map((match, matchIndex) => {
-                    const cartItem = cartItems.find(item => item.id === match.id);
-                    const isSelected = cartItem?.selected || false;
-                    
-                    return (
-                      <div 
-                        key={match.id} 
-                        className={`border rounded-lg p-4 transition-all ${
-                          isSelected ? 'border-primary bg-primary/5' : 'border-border'
-                        }`}
-                      >
-                        <div className="flex items-start gap-3">
-                          <Checkbox
-                            id={match.id}
-                            checked={isSelected}
-                            onCheckedChange={(checked) => 
-                              handleCheckboxChange(match.id, checked as boolean)
-                            }
-                            className="mt-1"
-                          />
-                          
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              <div
-                                className="w-6 h-6 rounded-full border-2 border-white shadow-sm"
-                                style={{ backgroundColor: generateShadeColor(match.shade, match.undertone) }}
-                              />
-                              <span className="font-medium">{match.shade}</span>
-                              <Badge variant={match.primaryShade ? 'default' : 'secondary'}>
-                                {match.primaryShade ? 'Foundation' : 'Contour'}
-                              </Badge>
-                            </div>
-                            
-                            <p className="text-sm text-muted-foreground mb-2">{match.product}</p>
-                            
-                            <div className="flex items-center gap-2 mb-2">
-                              <div className="flex items-center gap-1">
-                                <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                                <span className="text-sm">{match.rating.toFixed(1)}</span>
-                              </div>
-                              <span className="text-sm text-muted-foreground">
-                                ({match.reviewCount} reviews)
-                              </span>
-                            </div>
-                            
-                            <div className="flex items-center justify-between">
-                              <span className="font-semibold">${match.price?.toFixed(2)}</span>
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                onClick={() => onTryVirtual(match)}
-                              >
-                                <Eye className="w-3 h-3 mr-1" />
-                                Try
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      <div className="text-center">
+        <h2 className="text-2xl font-bold mb-2">Your Perfect Foundation Pairs</h2>
+        <p className="text-muted-foreground">
+          Each pair includes a main shade for your face center and a contour shade for depth and dimension
+        </p>
+      </div>
 
-      {/* Cart Summary */}
-      {cartItems.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ShoppingCart className="w-5 h-5" />
-              Cart Summary
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {selectedItems.length > 0 ? (
-                <>
-                  <div className="space-y-2">
-                    {selectedItems.map((item) => (
-                      <div key={item.id} className="flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-2">
-                          <CheckCircle className="w-4 h-4 text-green-500" />
-                          <span>{item.match.brand} - {item.match.shade}</span>
-                        </div>
-                        <span>${item.match.price?.toFixed(2)}</span>
-                      </div>
-                    ))}
+      <div className="grid gap-6">
+        {pairs.map((pair, pairIndex) => {
+          const [primaryMatch, contourMatch] = pair;
+          return (
+            <Card key={pairIndex} className="overflow-hidden">
+              <CardHeader className="pb-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-lg bg-gradient-to-r from-rose-500 to-purple-500 flex items-center justify-center text-white font-bold">
+                      {pairIndex + 1}
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">{primaryMatch.brand}</CardTitle>
+                      <p className="text-sm text-muted-foreground">{primaryMatch.product}</p>
+                    </div>
                   </div>
-                  
-                  <Separator />
-                  
-                  <div className="flex items-center justify-between font-semibold text-lg">
-                    <span>Total ({selectedItems.length} items):</span>
-                    <span>${cartTotal.toFixed(2)}</span>
-                  </div>
-                  
-                  <Button 
-                    onClick={handlePurchase}
-                    className="w-full"
-                    size="lg"
-                    disabled={selectedItems.length === 0}
-                  >
-                    <ShoppingCart className="w-4 h-4 mr-2" />
-                    Purchase Selected Items - ${cartTotal.toFixed(2)}
-                  </Button>
-                </>
-              ) : (
-                <div className="text-center py-4 text-muted-foreground">
-                  <ShoppingCart className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                  <p>No items selected</p>
-                  <p className="text-sm">Check the boxes above to add items to your cart</p>
+                  <Badge variant="secondary" className="flex items-center gap-1">
+                    <Blend className="w-3 h-3" />
+                    Perfect Pair
+                  </Badge>
                 </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+              </CardHeader>
+              
+              <CardContent className="space-y-4">
+                <div className="grid md:grid-cols-2 gap-4">
+                  {/* Primary Shade Card */}
+                  <div className="border rounded-lg p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Badge variant="outline" className="text-xs">Main Shade</Badge>
+                      <div className="flex items-center gap-1 text-sm">
+                        <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                        <span>{primaryMatch.rating.toFixed(1)}</span>
+                        <span className="text-muted-foreground">({primaryMatch.reviewCount})</span>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <h4 className="font-semibold">{primaryMatch.shade}</h4>
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-8 h-8 rounded-full border-2 border-gray-200"
+                          style={{ backgroundColor: generateColorFromShade(primaryMatch.shade) }}
+                        />
+                        <div className="text-sm">
+                          <p className="font-medium">{primaryMatch.undertone} undertone</p>
+                          <p className="text-muted-foreground">{primaryMatch.coverage} coverage</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-lg">${primaryMatch.price.toFixed(2)}</span>
+                      <Badge 
+                        variant={primaryMatch.matchPercentage >= 90 ? "default" : "secondary"}
+                        className="text-xs"
+                      >
+                        {primaryMatch.matchPercentage.toFixed(0)}% match
+                      </Badge>
+                    </div>
+                  </div>
+
+                  {/* Contour Shade Card */}
+                  <div className="border rounded-lg p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Badge variant="outline" className="text-xs">Contour Shade</Badge>
+                      <div className="flex items-center gap-1 text-sm">
+                        <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                        <span>{contourMatch.rating.toFixed(1)}</span>
+                        <span className="text-muted-foreground">({contourMatch.reviewCount})</span>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <h4 className="font-semibold">{contourMatch.shade}</h4>
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-8 h-8 rounded-full border-2 border-gray-200"
+                          style={{ backgroundColor: generateColorFromShade(contourMatch.shade) }}
+                        />
+                        <div className="text-sm">
+                          <p className="font-medium">{contourMatch.undertone} undertone</p>
+                          <p className="text-muted-foreground">Blends seamlessly</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-lg">${contourMatch.price.toFixed(2)}</span>
+                      <Badge 
+                        variant={contourMatch.matchPercentage >= 85 ? "default" : "secondary"}
+                        className="text-xs"
+                      >
+                        {contourMatch.matchPercentage.toFixed(0)}% match
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex flex-wrap gap-2 pt-2">
+                  <Button 
+                    onClick={() => onTryVirtual(primaryMatch)}
+                    variant="outline" 
+                    size="sm"
+                    className="flex items-center gap-2"
+                  >
+                    <Eye className="w-4 h-4" />
+                    Try Primary Shade
+                  </Button>
+                  <Button 
+                    onClick={() => onTryVirtual(contourMatch)}
+                    variant="outline" 
+                    size="sm"
+                    className="flex items-center gap-2"
+                  >
+                    <Palette className="w-4 h-4" />
+                    Try Contour Shade
+                  </Button>
+                  <Button 
+                    onClick={() => onSelectPair && onSelectPair([primaryMatch, contourMatch])}
+                    size="sm"
+                    className="flex items-center gap-2 ml-auto"
+                  >
+                    <ShoppingCart className="w-4 h-4" />
+                    Buy Pair - ${(primaryMatch.price + contourMatch.price).toFixed(2)}
+                  </Button>
+                </div>
+
+                {/* Availability Info */}
+                {primaryMatch.availability.nearbyStores.length > 0 && (
+                  <div className="text-xs text-muted-foreground pt-2 border-t">
+                    Available at: {primaryMatch.availability.nearbyStores.join(', ')}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
     </div>
   );
+};
+
+// Helper function to generate colors from shade names
+const generateColorFromShade = (shadeName: string): string => {
+  const nameLower = shadeName.toLowerCase();
+  if (nameLower.includes('porcelain') || nameLower.includes('fair')) return '#F5DCC4';
+  if (nameLower.includes('light')) return '#F0D0A6';
+  if (nameLower.includes('medium light')) return '#E8C2A0';
+  if (nameLower.includes('medium')) return '#D4A574';
+  if (nameLower.includes('deep') || nameLower.includes('dark')) return '#A0835C';
+  if (nameLower.includes('very deep')) return '#8B6F56';
+  return '#D4A574'; // Default medium
 };
 
 export default FoundationPairResults;
