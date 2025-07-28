@@ -72,104 +72,94 @@ const FoundationMatcher = () => {
     },
   });
 
-  const handleFoundationSubmit = (brand: string, shade: string) => {
+  const handleFoundationSubmit = async (brand: string, shade: string) => {
     console.log('Foundation submitted:', { brand, shade });
     setCurrentFoundation({ brand, shade });
     
-    if (!products || products.length === 0) {
-      console.log('No products available for matching');
-      return;
-    }
-
-    // Create realistic matches from available products with their actual shades
+    // Now leverage the comprehensive cosmetics database
+    const { data: cosmeticsProducts } = await supabase
+      .from('cosmetics_products')
+      .select(`
+        *,
+        brand:brands(name, logo_url, brand_tier)
+      `)
+      .eq('product_type', 'foundation')
+      .not('brand_id', 'is', null)
+      .limit(20);
+    
     const realMatches: FoundationMatch[] = [];
     
-    // Get products from different brands (exclude the current brand for variety)
-    const otherBrandProducts = products.filter(product => 
-      product.brands.name.toLowerCase() !== brand.toLowerCase()
-    );
+    // Enhanced matching using both foundation products and cosmetics data
+    const allSources = [
+      ...(products || []),
+      ...(cosmeticsProducts || [])
+    ];
     
-    // Group by brand and limit to 1 product per brand, then take up to 3 brands
-    const brandGroups: { [key: string]: typeof otherBrandProducts } = {};
-    otherBrandProducts.forEach(product => {
-      const brandName = product.brands.name;
-      if (!brandGroups[brandName]) {
-        brandGroups[brandName] = [];
-      }
-      brandGroups[brandName].push(product);
-    });
+    // Create matches using improved algorithm
+    const processedBrands = new Set<string>();
     
-    // Take first product from each brand, limit to 3 different brands
-    const selectedProducts = Object.values(brandGroups)
-      .slice(0, 3)
-      .map(brandProducts => brandProducts[0]);
-    
-    // Generate matches using selected products (1 per brand max)
-    selectedProducts.forEach((product, index) => {
-      const availableShades = product.foundation_shades || [];
+    for (const source of allSources) {
+      if (realMatches.length >= 6) break; // Limit to 6 high-quality matches
       
-      // Find a shade that closely matches the input shade
-      let selectedShade = availableShades.find(s => 
-        s.shade_name.toLowerCase().includes(shade.toLowerCase()) ||
-        s.shade_code?.toLowerCase().includes(shade.toLowerCase())
-      );
+      let productData, brandName, availableShades;
       
-      // If no direct match, pick a shade based on shade keywords
-      if (!selectedShade && availableShades.length > 0) {
-        const shadeLower = shade.toLowerCase();
-        if (shadeLower.includes('fair') || shadeLower.includes('light')) {
-          selectedShade = availableShades.find(s => s.depth_level && s.depth_level <= 3);
-        } else if (shadeLower.includes('medium')) {
-          selectedShade = availableShades.find(s => s.depth_level && s.depth_level >= 4 && s.depth_level <= 7);
-        } else if (shadeLower.includes('deep') || shadeLower.includes('dark')) {
-          selectedShade = availableShades.find(s => s.depth_level && s.depth_level >= 8);
-        }
+      if ('foundation_shades' in source) {
+        // Foundation product
+        productData = source;
+        brandName = source.brands.name;
+        availableShades = source.foundation_shades || [];
+      } else {
+        // Cosmetics product
+        productData = source;
+        brandName = source.brand?.name || 'Unknown';
+        availableShades = []; // Generate from product data
       }
       
-      // Fallback to first available shade
-      if (!selectedShade && availableShades.length > 0) {
-        selectedShade = availableShades[Math.floor(availableShades.length / 2)]; // Pick middle shade
+      // Skip if we already have a match from this brand
+      if (processedBrands.has(brandName.toLowerCase())) continue;
+      processedBrands.add(brandName.toLowerCase());
+      
+      let selectedShade;
+      
+      if (availableShades.length > 0) {
+        // Find best matching shade from foundation_shades
+        selectedShade = findBestMatchingShade(availableShades, shade, brand);
+      } else {
+        // Generate shade info from cosmetics product metadata
+        selectedShade = generateShadeFromCosmetics(productData, shade);
       }
       
-      // Final fallback
-      if (!selectedShade) {
-        selectedShade = {
-          id: 'fallback',
-          shade_name: 'Universal Match',
-          shade_code: 'UM',
-          undertone: 'neutral' as const,
-          hex_color: '#D4A574',
-          rgb_values: [212, 165, 116],
-          depth_level: 5,
-          is_available: true,
-          created_at: new Date().toISOString(),
-          product_id: product.id
-        };
-      }
+      const matchPercentage = calculateMatchPercentage(shade, selectedShade.shade_name, brandName, brand);
       
       const match: FoundationMatch = {
-        id: `${product.id}-${selectedShade.id || 'default'}`,
-        brand: product.brands.name,
-        product: product.name,
+        id: `${productData.id}-${selectedShade.id || 'generated'}`,
+        brand: brandName,
+        product: productData.name || productData.product_name,
         shade: selectedShade.shade_name,
-        price: product.price || 42.00,
-        rating: 4.2 + (index * 0.2),
-        reviewCount: 800 + (index * 200),
+        price: productData.price || (35 + Math.random() * 30),
+        rating: productData.rating || (4.0 + Math.random() * 0.8),
+        reviewCount: productData.total_reviews || Math.floor(Math.random() * 500) + 100,
         availability: {
           online: true,
-          inStore: index < 2,
-          readyForPickup: index < 2,
-          nearbyStores: index < 2 ? ['Sephora - Downtown', 'Ulta - Mall Plaza'] : []
+          inStore: Math.random() > 0.3,
+          readyForPickup: Math.random() > 0.5,
+          nearbyStores: Math.random() > 0.5 ? ['Sephora', 'Ulta Beauty', 'Target'] : []
         },
-        matchPercentage: 95 - (index * 3),
-        undertone: selectedShade.undertone || 'neutral',
-        coverage: product.coverage || 'medium',
-        finish: product.finish || 'natural',
-        imageUrl: product.image_url || '/placeholder.svg'
+        matchPercentage,
+        undertone: selectedShade.undertone || inferUndertoneFromShade(shade),
+        coverage: selectedShade.coverage || productData.coverage || inferCoverageFromProduct(productData),
+        finish: selectedShade.finish || productData.finish || 'natural',
+        imageUrl: productData.image_url || '/placeholder.svg',
+        // Enhanced dual-shade recommendation
+        primaryShade: {
+          name: selectedShade.shade_name,
+          purpose: 'face_center' as const
+        },
+        contourShade: generateContourShade(selectedShade, matchPercentage > 90)
       };
       
       realMatches.push(match);
-    });
+    }
     
     // If we don't have enough products, create some mock matches
     if (realMatches.length < 3) {
@@ -208,6 +198,147 @@ const FoundationMatcher = () => {
     
     console.log('Generated matches:', realMatches);
     setMatches(realMatches);
+  };
+
+  // Helper functions for enhanced matching
+  const findBestMatchingShade = (shades: any[], targetShade: string, targetBrand: string) => {
+    // Find shade with closest name match
+    let bestMatch = shades.find(s => 
+      s.shade_name.toLowerCase().includes(targetShade.toLowerCase()) ||
+      s.shade_code?.toLowerCase().includes(targetShade.toLowerCase())
+    );
+
+    // If no direct match, use depth level matching
+    if (!bestMatch) {
+      const targetDepth = getShadeDepth(targetShade);
+      bestMatch = shades.find(s => Math.abs((s.depth_level || 5) - targetDepth) <= 2);
+    }
+
+    // Fallback to middle shade
+    return bestMatch || shades[Math.floor(shades.length / 2)] || shades[0];
+  };
+
+  const generateShadeFromCosmetics = (product: any, targetShade: string) => {
+    // Extract shade info from cosmetics product metadata
+    const shadeName = product.metadata?.shade_name || 
+                     extractShadeFromProductName(product.product_name) || 
+                     `${targetShade} Match`;
+    
+    return {
+      id: 'generated',
+      shade_name: shadeName,
+      undertone: extractUndertoneFromText(product.description || product.product_name),
+      hex_color: generateColorFromShade(shadeName),
+      coverage: extractCoverageFromText(product.category || product.description),
+      finish: extractFinishFromText(product.description || product.product_name)
+    };
+  };
+
+  const calculateMatchPercentage = (targetShade: string, matchShade: string, matchBrand: string, targetBrand: string): number => {
+    let percentage = 85; // Base percentage
+    
+    // Boost for exact shade name matches
+    if (matchShade.toLowerCase().includes(targetShade.toLowerCase())) {
+      percentage += 10;
+    }
+    
+    // Boost for same brand
+    if (matchBrand.toLowerCase() === targetBrand.toLowerCase()) {
+      percentage += 5;
+    }
+    
+    // Boost for similar depth
+    const targetDepth = getShadeDepth(targetShade);
+    const matchDepth = getShadeDepth(matchShade);
+    if (Math.abs(targetDepth - matchDepth) <= 1) {
+      percentage += 5;
+    }
+    
+    return Math.min(98, percentage);
+  };
+
+  const inferUndertoneFromShade = (shade: string): string => {
+    const shadeLower = shade.toLowerCase();
+    if (shadeLower.includes('warm') || shadeLower.includes('golden') || shadeLower.includes('yellow')) return 'warm';
+    if (shadeLower.includes('cool') || shadeLower.includes('pink') || shadeLower.includes('rose')) return 'cool';
+    if (shadeLower.includes('olive') || shadeLower.includes('green')) return 'olive';
+    return 'neutral';
+  };
+
+  const inferCoverageFromProduct = (product: any): string => {
+    const text = (product.description || product.product_name || '').toLowerCase();
+    if (text.includes('light') || text.includes('sheer')) return 'light';
+    if (text.includes('full') || text.includes('heavy')) return 'full';
+    if (text.includes('buildable')) return 'buildable';
+    return 'medium';
+  };
+
+  const generateColorFromShade = (shadeName: string): string => {
+    const nameLower = shadeName.toLowerCase();
+    if (nameLower.includes('fair') || nameLower.includes('porcelain')) return '#F5DCC4';
+    if (nameLower.includes('light')) return '#F0D0A6';
+    if (nameLower.includes('medium light')) return '#E8C2A0';
+    if (nameLower.includes('medium')) return '#D4A574';
+    if (nameLower.includes('deep') || nameLower.includes('dark')) return '#A0835C';
+    if (nameLower.includes('very deep')) return '#8B6F56';
+    return '#D4A574'; // Default medium
+  };
+
+  const generateContourShade = (primaryShade: any, isExactMatch: boolean) => {
+    if (!isExactMatch) return undefined;
+    
+    return {
+      name: `${primaryShade.shade_name} Deep`,
+      purpose: 'face_sides' as const,
+      mixable: true
+    };
+  };
+
+  const getShadeDepth = (shadeName: string): number => {
+    const nameLower = shadeName.toLowerCase();
+    if (nameLower.includes('fair') || nameLower.includes('porcelain')) return 1;
+    if (nameLower.includes('light')) return 3;
+    if (nameLower.includes('medium light')) return 4;
+    if (nameLower.includes('medium')) return 5;
+    if (nameLower.includes('medium deep')) return 7;
+    if (nameLower.includes('deep')) return 8;
+    if (nameLower.includes('very deep')) return 9;
+    return 5; // Default medium
+  };
+
+  const extractShadeFromProductName = (productName: string): string => {
+    const words = productName.split(' ');
+    // Look for shade-like words at the end
+    const lastWords = words.slice(-2).join(' ');
+    if (lastWords.match(/\b(fair|light|medium|deep|dark)\b/i)) {
+      return lastWords;
+    }
+    return words[words.length - 1];
+  };
+
+  const extractUndertoneFromText = (text: string): string => {
+    const textLower = text.toLowerCase();
+    if (textLower.includes('warm') || textLower.includes('golden')) return 'warm';
+    if (textLower.includes('cool') || textLower.includes('pink')) return 'cool';
+    if (textLower.includes('olive')) return 'olive';
+    return 'neutral';
+  };
+
+  const extractCoverageFromText = (text: string): string => {
+    const textLower = text.toLowerCase();
+    if (textLower.includes('light') || textLower.includes('sheer')) return 'light';
+    if (textLower.includes('full') || textLower.includes('heavy')) return 'full';
+    if (textLower.includes('buildable')) return 'buildable';
+    return 'medium';
+  };
+
+  const extractFinishFromText = (text: string): string => {
+    const textLower = text.toLowerCase();
+    if (textLower.includes('matte')) return 'matte';
+    if (textLower.includes('dewy') || textLower.includes('glowy')) return 'dewy';
+    if (textLower.includes('satin')) return 'satin';
+    if (textLower.includes('radiant') || textLower.includes('luminous')) return 'radiant';
+    return 'natural';
   };
 
   const handleFoundationFeedback = (foundationId: string, feedback: {
