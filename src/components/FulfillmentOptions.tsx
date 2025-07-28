@@ -4,7 +4,12 @@ import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Truck, ShoppingCart, Clock } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { MapPin, Truck, ShoppingCart, Clock, User, Mail } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 
 interface FulfillmentOptionsProps {
   products: any[];
@@ -15,6 +20,22 @@ type FulfillmentMethod = 'pickup' | 'shipping' | 'delivery';
 
 const FulfillmentOptions: React.FC<FulfillmentOptionsProps> = ({ products, onPurchase }) => {
   const [selectedMethod, setSelectedMethod] = useState<FulfillmentMethod>('shipping');
+  const [showOrderDialog, setShowOrderDialog] = useState(false);
+  const [customerInfo, setCustomerInfo] = useState({
+    name: '',
+    email: '',
+    address: {
+      line1: '',
+      line2: '',
+      city: '',
+      state: '',
+      postal_code: '',
+      country: 'US'
+    }
+  });
+  const [processingOrder, setProcessingOrder] = useState(false);
+  const { user } = useAuth();
+  const { toast } = useToast();
 
   const fulfillmentOptions = [
     {
@@ -46,8 +67,73 @@ const FulfillmentOptions: React.FC<FulfillmentOptionsProps> = ({ products, onPur
     }
   ];
 
+  const processOrder = async () => {
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to place an order",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setProcessingOrder(true);
+    try {
+      const orderItems = products.map(product => ({
+        product_id: product.id,
+        product_name: product.product || product.name,
+        product_brand: product.brand,
+        shade_name: product.shade,
+        quantity: 1,
+        unit_price: product.price || 0
+      }));
+
+      const { data, error } = await supabase.functions.invoke('process-order', {
+        body: {
+          items: orderItems,
+          customer_email: customerInfo.email,
+          customer_name: customerInfo.name,
+          shipping_address: customerInfo.address,
+          affiliate_id: 'MU-AFFILIATE-001' // Your affiliate ID
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Order Placed Successfully!",
+        description: `Order ${data.order.order_number} has been created. You'll receive tracking information via email.`
+      });
+
+      setShowOrderDialog(false);
+      setCustomerInfo({
+        name: '',
+        email: '',
+        address: {
+          line1: '',
+          line2: '',
+          city: '',
+          state: '',
+          postal_code: '',
+          country: 'US'
+        }
+      });
+
+      // Call the original onPurchase callback if needed
+      onPurchase(selectedMethod, products);
+    } catch (error) {
+      toast({
+        title: "Order Failed",
+        description: "Failed to process your order. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setProcessingOrder(false);
+    }
+  };
+
   const handlePurchase = () => {
-    onPurchase(selectedMethod, products);
+    setShowOrderDialog(true);
   };
 
   const totalPrice = products.reduce((sum, product) => sum + (product.price || 0), 0);
@@ -117,6 +203,113 @@ const FulfillmentOptions: React.FC<FulfillmentOptionsProps> = ({ products, onPur
         <p className="text-xs text-muted-foreground text-center">
           Your purchase includes our affiliate code for the best available pricing and exclusive offers.
         </p>
+
+        {/* Order Dialog */}
+        <Dialog open={showOrderDialog} onOpenChange={setShowOrderDialog}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Complete Your Order</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="customer-name">Full Name</Label>
+                <div className="relative">
+                  <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="customer-name"
+                    value={customerInfo.name}
+                    onChange={(e) => setCustomerInfo({...customerInfo, name: e.target.value})}
+                    placeholder="Enter your full name"
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="customer-email">Email Address</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="customer-email"
+                    type="email"
+                    value={customerInfo.email}
+                    onChange={(e) => setCustomerInfo({...customerInfo, email: e.target.value})}
+                    placeholder="Enter your email"
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Shipping Address</Label>
+                <Input
+                  value={customerInfo.address.line1}
+                  onChange={(e) => setCustomerInfo({
+                    ...customerInfo,
+                    address: {...customerInfo.address, line1: e.target.value}
+                  })}
+                  placeholder="Street address"
+                />
+                <Input
+                  value={customerInfo.address.line2}
+                  onChange={(e) => setCustomerInfo({
+                    ...customerInfo,
+                    address: {...customerInfo.address, line2: e.target.value}
+                  })}
+                  placeholder="Apartment, suite, etc. (optional)"
+                />
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    value={customerInfo.address.city}
+                    onChange={(e) => setCustomerInfo({
+                      ...customerInfo,
+                      address: {...customerInfo.address, city: e.target.value}
+                    })}
+                    placeholder="City"
+                  />
+                  <Input
+                    value={customerInfo.address.state}
+                    onChange={(e) => setCustomerInfo({
+                      ...customerInfo,
+                      address: {...customerInfo.address, state: e.target.value}
+                    })}
+                    placeholder="State"
+                  />
+                </div>
+                <Input
+                  value={customerInfo.address.postal_code}
+                  onChange={(e) => setCustomerInfo({
+                    ...customerInfo,
+                    address: {...customerInfo.address, postal_code: e.target.value}
+                  })}
+                  placeholder="ZIP code"
+                />
+              </div>
+
+              <div className="border-t pt-4">
+                <div className="flex justify-between font-semibold">
+                  <span>Total: ${finalTotal.toFixed(2)}</span>
+                </div>
+              </div>
+
+              <Button 
+                onClick={processOrder} 
+                className="w-full" 
+                disabled={
+                  processingOrder || 
+                  !customerInfo.name || 
+                  !customerInfo.email || 
+                  !customerInfo.address.line1 || 
+                  !customerInfo.address.city || 
+                  !customerInfo.address.state || 
+                  !customerInfo.address.postal_code
+                }
+              >
+                {processingOrder ? "Processing..." : "Place Order"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </Card>
   );
