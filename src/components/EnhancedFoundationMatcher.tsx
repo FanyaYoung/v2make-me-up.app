@@ -5,10 +5,13 @@ import SkinToneSlider from './SkinToneSlider';
 import VirtualTryOn from './VirtualTryOn';
 import FoundationPairResults from './FoundationPairResults';
 import QuestionnaireFlow from './QuestionnaireFlow';
+import FoundationSearchInput from './FoundationSearchInput';
+import FulfillmentOptions from './FulfillmentOptions';
 import { FoundationMatch } from '../types/foundation';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Palette, Camera } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Palette, Camera, Search, Sparkles } from 'lucide-react';
 
 interface SkinToneData {
   hexColor: string;
@@ -30,6 +33,9 @@ const EnhancedFoundationMatcher = () => {
   const [selectedMatch, setSelectedMatch] = useState<FoundationMatch | null>(null);
   const [showQuestionnaire, setShowQuestionnaire] = useState(false);
   const [userAnswers, setUserAnswers] = useState<UserQuestionnaireData | null>(null);
+  const [searchResults, setSearchResults] = useState<FoundationMatch[]>([]);
+  const [selectedProducts, setSelectedProducts] = useState<FoundationMatch[]>([]);
+  const [showFulfillment, setShowFulfillment] = useState(false);
 
   // Fetch cosmetics products
   const { data: cosmeticsProducts } = useQuery({
@@ -177,6 +183,24 @@ const EnhancedFoundationMatcher = () => {
     setSelectedMatch(match);
   };
 
+  const handleSearchResults = (matches: FoundationMatch[]) => {
+    setSearchResults(matches);
+    setFoundationPairs([]); // Clear pairs when using search
+  };
+
+  const handleProductSelection = (products: FoundationMatch[]) => {
+    setSelectedProducts(products);
+    setShowFulfillment(true);
+  };
+
+  const handlePurchase = (fulfillmentMethod: string, products: FoundationMatch[]) => {
+    console.log('Processing purchase:', { fulfillmentMethod, products });
+    // Here you would integrate with your backend to:
+    // 1. Apply affiliate codes
+    // 2. Process the order through the selected fulfillment method
+    // 3. Handle payment processing
+  };
+
   // Helper functions
   const getBrandName = (product: any): string => {
     return product.brands?.name || product.brand?.name || 'Unknown Brand';
@@ -254,38 +278,119 @@ const EnhancedFoundationMatcher = () => {
     <div className="max-w-7xl mx-auto">
       <div className="grid lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
-          {/* Skin Tone Analysis Section */}
-          <div className="space-y-6">
-            <SkinToneSlider onSkinToneSelect={handleSkinToneSelect} />
+          {/* Three Methods to Find Your Perfect Foundation */}
+          <Card className="p-6">
+            <h2 className="text-2xl font-bold mb-6 text-center">Find Your Perfect Foundation</h2>
             
-            {!skinTone && (
-              <Card className="p-6 text-center">
-                <div className="space-y-4">
-                  <Camera className="w-12 h-12 mx-auto text-muted-foreground" />
-                  <div>
-                    <h3 className="text-lg font-semibold mb-2">Don't know your shade?</h3>
-                    <p className="text-muted-foreground mb-4">
-                      Answer a few questions about your coloring to get personalized recommendations
-                    </p>
-                    <Button 
-                      onClick={() => setShowQuestionnaire(true)}
-                      variant="outline"
-                      className="flex items-center gap-2"
-                    >
-                      <Palette className="w-4 h-4" />
-                      Take Color Quiz
-                    </Button>
-                  </div>
+            <Tabs defaultValue="search" className="w-full">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="search" className="flex items-center gap-2">
+                  <Search className="w-4 h-4" />
+                  Search Product
+                </TabsTrigger>
+                <TabsTrigger value="slider" className="flex items-center gap-2">
+                  <Palette className="w-4 h-4" />
+                  Skin Tone Slider
+                </TabsTrigger>
+                <TabsTrigger value="ai" className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4" />
+                  AI Analysis
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="search" className="mt-6">
+                <FoundationSearchInput onMatchFound={handleSearchResults} />
+              </TabsContent>
+              
+              <TabsContent value="slider" className="mt-6">
+                <div className="space-y-6">
+                  <SkinToneSlider onSkinToneSelect={handleSkinToneSelect} />
+                  
+                  {!skinTone && (
+                    <Card className="p-6 text-center">
+                      <div className="space-y-4">
+                        <Palette className="w-12 h-12 mx-auto text-muted-foreground" />
+                        <div>
+                          <h3 className="text-lg font-semibold mb-2">Visual Shade Matching</h3>
+                          <p className="text-muted-foreground">
+                            Use the slider above to match your skin tone visually and get instant recommendations
+                          </p>
+                        </div>
+                      </div>
+                    </Card>
+                  )}
                 </div>
-              </Card>
-            )}
-          </div>
+              </TabsContent>
+              
+              <TabsContent value="ai" className="mt-6">
+                <Card className="p-6 text-center">
+                  <div className="space-y-4">
+                    <Sparkles className="w-12 h-12 mx-auto text-primary" />
+                    <div>
+                      <h3 className="text-lg font-semibold mb-2">AI Skin Analysis</h3>
+                      <p className="text-muted-foreground mb-4">
+                        Get a comprehensive skin analysis including undertones, depth, and personalized recommendations
+                      </p>
+                      <Button 
+                        onClick={() => setShowQuestionnaire(true)}
+                        className="flex items-center gap-2"
+                      >
+                        <Camera className="w-4 h-4" />
+                        Start AI Analysis
+                      </Button>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Premium feature - includes saveable profile and detailed report
+                      </p>
+                    </div>
+                  </div>
+                </Card>
+              </TabsContent>
+            </Tabs>
+          </Card>
+
+          {/* Search Results */}
+          {searchResults.length > 0 && (
+            <Card className="p-6">
+              <h3 className="text-lg font-semibold mb-4">Search Results</h3>
+              <div className="space-y-4">
+                {searchResults.map((match) => (
+                  <div key={match.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <img src={match.imageUrl} alt={match.product} className="w-12 h-12 rounded" />
+                      <div>
+                        <h4 className="font-medium">{match.brand} {match.product}</h4>
+                        <p className="text-sm text-muted-foreground">Shade: {match.shade}</p>
+                        <p className="text-sm font-medium">${match.price}</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => handleTryVirtual(match)}>
+                        Try Virtual
+                      </Button>
+                      <Button size="sm" onClick={() => handleProductSelection([match])}>
+                        Purchase
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
 
           {/* Foundation Pair Results */}
           {foundationPairs.length > 0 && (
             <FoundationPairResults
               pairs={foundationPairs}
               onTryVirtual={handleTryVirtual}
+              onSelectPair={handleProductSelection}
+            />
+          )}
+
+          {/* Fulfillment Options */}
+          {showFulfillment && selectedProducts.length > 0 && (
+            <FulfillmentOptions
+              products={selectedProducts}
+              onPurchase={handlePurchase}
             />
           )}
         </div>

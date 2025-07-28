@@ -8,9 +8,10 @@ import { FoundationMatch } from '../types/foundation';
 interface FoundationPairResultsProps {
   pairs: FoundationMatch[][];
   onTryVirtual: (match: FoundationMatch) => void;
+  onSelectPair?: (pair: FoundationMatch[]) => void;
 }
 
-const FoundationPairResults = ({ pairs, onTryVirtual }: FoundationPairResultsProps) => {
+const FoundationPairResults = ({ pairs, onTryVirtual, onSelectPair }: FoundationPairResultsProps) => {
   const handlePurchase = (match: FoundationMatch) => {
     // Implementation for purchase logic
     console.log('Purchase:', match);
@@ -144,7 +145,7 @@ const FoundationPairResults = ({ pairs, onTryVirtual }: FoundationPairResultsPro
                     Try Contour Shade
                   </Button>
                   <Button 
-                    onClick={() => handlePurchase(primaryMatch)}
+                    onClick={() => onSelectPair && onSelectPair([primaryMatch, contourMatch])}
                     size="sm"
                     className="flex items-center gap-2 ml-auto"
                   >
