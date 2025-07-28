@@ -102,7 +102,7 @@ const SkinToneSlider = ({ onSkinToneSelect }: SkinToneSliderProps) => {
               Adjust until this color matches your skin:
             </label>
             <div 
-              className="w-full h-24 rounded-lg border-2 shadow-inner"
+              className="w-full h-40 rounded-lg border-2 shadow-inner"
               style={{ backgroundColor: currentTone.hsl }}
             />
           </div>
