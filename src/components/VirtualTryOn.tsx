@@ -24,10 +24,11 @@ interface ShadeRecommendation {
 
 interface VirtualTryOnProps {
   selectedMatch: FoundationMatch | null;
+  skinTone?: { hexColor: string; depth: number; undertone: string } | null;
   onShadeRecommendations?: (recommendations: ShadeRecommendation[]) => void;
 }
 
-const VirtualTryOn = ({ selectedMatch, onShadeRecommendations }: VirtualTryOnProps) => {
+const VirtualTryOn = ({ selectedMatch, skinTone, onShadeRecommendations }: VirtualTryOnProps) => {
   const [isUsingCamera, setIsUsingCamera] = useState(false);
   const [photos, setPhotos] = useState<PhotoData[]>([]);
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);

@@ -1,6 +1,6 @@
 import React from 'react';
 import Header from '../components/Header';
-import FoundationMatcher from '../components/FoundationMatcher';
+import EnhancedFoundationMatcher from '../components/EnhancedFoundationMatcher';
 import FoundationVisual from '../components/FoundationVisual';
 import { Toaster } from '@/components/ui/toaster';
 import AuthGuard from '../components/AuthGuard';
@@ -16,14 +16,14 @@ const ShadeMatcher = () => {
               AI Foundation Shade Matcher
             </h1>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Find your perfect foundation match from thousands of products using our advanced AI technology.
+              Find your perfect foundation pair using advanced color science and our comprehensive product database.
             </p>
           </div>
           
           <FoundationVisual />
           
           <main className="container mx-auto px-4 py-8">
-            <FoundationMatcher />
+            <EnhancedFoundationMatcher />
           </main>
         </div>
         <Toaster />
