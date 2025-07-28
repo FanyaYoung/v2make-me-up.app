@@ -7,7 +7,6 @@ import FoundationPairResults from './FoundationPairResults';
 import QuestionnaireFlow from './QuestionnaireFlow';
 import FoundationSearchInput from './FoundationSearchInput';
 import FulfillmentOptions from './FulfillmentOptions';
-import FlexiblePurchaseOptions from './FlexiblePurchaseOptions';
 import { FoundationMatch } from '../types/foundation';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -202,7 +201,6 @@ const EnhancedFoundationMatcher = () => {
     // 3. Handle payment processing
   };
 
-  // Helper functions
   const getBrandName = (product: any): string => {
     return product.brands?.name || product.brand?.name || 'Unknown Brand';
   };
@@ -378,14 +376,6 @@ const EnhancedFoundationMatcher = () => {
             <FoundationPairResults
               pairs={foundationPairs}
               onTryVirtual={handleTryVirtual}
-              onSelectPair={handleProductSelection}
-            />
-          )}
-
-          {/* Flexible Purchase Options with Fulfillment */}
-          {foundationPairs.length > 0 && (
-            <FlexiblePurchaseOptions
-              recommendations={foundationPairs.flat()}
               onPurchase={handlePurchase}
             />
           )}
