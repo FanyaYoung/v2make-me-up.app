@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Combobox } from '@/components/ui/combobox';
 import { Search, Package } from 'lucide-react';
 import { FoundationMatch } from '../types/foundation';
 
@@ -58,7 +59,7 @@ const FoundationSearchInput: React.FC<FoundationSearchInputProps> = ({ onMatchFo
     if (!selectedBrand || !productName) return;
 
     const matchingProduct = products?.find(p => 
-      p.name.toLowerCase().includes(productName.toLowerCase())
+      p.name === productName
     );
 
     if (matchingProduct) {
@@ -127,11 +128,15 @@ const FoundationSearchInput: React.FC<FoundationSearchInputProps> = ({ onMatchFo
 
           <div>
             <Label htmlFor="product-name">Product Name</Label>
-            <Input
-              id="product-name"
+            <Combobox
               value={productName}
-              onChange={(e) => setProductName(e.target.value)}
-              placeholder="e.g., Fenty Beauty Pro Filt'r"
+              onValueChange={setProductName}
+              placeholder="Select a product"
+              emptyText="No products found."
+              options={products?.map(product => ({
+                value: product.name,
+                label: product.name
+              })) || []}
             />
           </div>
 
