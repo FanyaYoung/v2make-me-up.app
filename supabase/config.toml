@@ -9,3 +9,9 @@ max_rows = 1000
 
 [functions.import-kaggle-cosmetics]
 verify_jwt = false
+
+[functions.gcs-file-manager]
+verify_jwt = false
+
+[functions.import-gcs-dataset]
+verify_jwt = false
