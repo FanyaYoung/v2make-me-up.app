@@ -91,6 +91,120 @@ export type Database = {
         }
         Relationships: []
       }
+      "cleaned makeup products": {
+        Row: {
+          average_rating: number | null
+          best_uses: string | null
+          brand: string | null
+          category: string | null
+          cons: string | null
+          describe_yourself: string | null
+          description: string | null
+          faceoff_negative: Json | null
+          faceoff_positive: Json | null
+          item_id: string | null
+          native_community_content_review_count: string | null
+          native_review_count: string | null
+          native_sampling_review_count: string | null
+          num_reviews: number | null
+          num_shades: string | null
+          price: string | null
+          product_link: string | null
+          product_link_id: number | null
+          product_name: string | null
+          pros: string | null
+          rating: string | null
+          rating_count: number | null
+          rating_star_1: string | null
+          rating_star_2: number | null
+          rating_star_3: number | null
+          rating_star_4: string | null
+          rating_star_5: number | null
+          recommended_ratio: string | null
+          review_count: number | null
+          review_star_1: string | null
+          review_star_2: number | null
+          review_star_3: number | null
+          review_star_4: string | null
+          review_star_5: number | null
+          syndicated_review_count: string | null
+        }
+        Insert: {
+          average_rating?: number | null
+          best_uses?: string | null
+          brand?: string | null
+          category?: string | null
+          cons?: string | null
+          describe_yourself?: string | null
+          description?: string | null
+          faceoff_negative?: Json | null
+          faceoff_positive?: Json | null
+          item_id?: string | null
+          native_community_content_review_count?: string | null
+          native_review_count?: string | null
+          native_sampling_review_count?: string | null
+          num_reviews?: number | null
+          num_shades?: string | null
+          price?: string | null
+          product_link?: string | null
+          product_link_id?: number | null
+          product_name?: string | null
+          pros?: string | null
+          rating?: string | null
+          rating_count?: number | null
+          rating_star_1?: string | null
+          rating_star_2?: number | null
+          rating_star_3?: number | null
+          rating_star_4?: string | null
+          rating_star_5?: number | null
+          recommended_ratio?: string | null
+          review_count?: number | null
+          review_star_1?: string | null
+          review_star_2?: number | null
+          review_star_3?: number | null
+          review_star_4?: string | null
+          review_star_5?: number | null
+          syndicated_review_count?: string | null
+        }
+        Update: {
+          average_rating?: number | null
+          best_uses?: string | null
+          brand?: string | null
+          category?: string | null
+          cons?: string | null
+          describe_yourself?: string | null
+          description?: string | null
+          faceoff_negative?: Json | null
+          faceoff_positive?: Json | null
+          item_id?: string | null
+          native_community_content_review_count?: string | null
+          native_review_count?: string | null
+          native_sampling_review_count?: string | null
+          num_reviews?: number | null
+          num_shades?: string | null
+          price?: string | null
+          product_link?: string | null
+          product_link_id?: number | null
+          product_name?: string | null
+          pros?: string | null
+          rating?: string | null
+          rating_count?: number | null
+          rating_star_1?: string | null
+          rating_star_2?: number | null
+          rating_star_3?: number | null
+          rating_star_4?: string | null
+          rating_star_5?: number | null
+          recommended_ratio?: string | null
+          review_count?: number | null
+          review_star_1?: string | null
+          review_star_2?: number | null
+          review_star_3?: number | null
+          review_star_4?: string | null
+          review_star_5?: number | null
+          syndicated_review_count?: string | null
+        }
+        Relationships: []
+      }
       cosmetics_product_attributes: {
         Row: {
           attribute_name: string
@@ -448,6 +562,24 @@ export type Database = {
           },
         ]
       }
+      "golden_and_adversarial_mst-e_image_ids": {
+        Row: {
+          golden_image_id: string | null
+          not_ideal_image_id: string | null
+          subject: string | null
+        }
+        Insert: {
+          golden_image_id?: string | null
+          not_ideal_image_id?: string | null
+          subject?: string | null
+        }
+        Update: {
+          golden_image_id?: string | null
+          not_ideal_image_id?: string | null
+          subject?: string | null
+        }
+        Relationships: []
+      }
       makeup_brands: {
         Row: {
           country_of_origin: string | null
@@ -487,6 +619,33 @@ export type Database = {
           name?: string
           updated_at?: string | null
           website?: string | null
+        }
+        Relationships: []
+      }
+      "mst-e_image_details": {
+        Row: {
+          image_ID: string | null
+          lighting: string | null
+          mask: string | null
+          MST: number | null
+          pose: string | null
+          subject_name: string | null
+        }
+        Insert: {
+          image_ID?: string | null
+          lighting?: string | null
+          mask?: string | null
+          MST?: number | null
+          pose?: string | null
+          subject_name?: string | null
+        }
+        Update: {
+          image_ID?: string | null
+          lighting?: string | null
+          mask?: string | null
+          MST?: number | null
+          pose?: string | null
+          subject_name?: string | null
         }
         Relationships: []
       }
