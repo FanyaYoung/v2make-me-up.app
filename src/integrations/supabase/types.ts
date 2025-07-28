@@ -649,6 +649,119 @@ export type Database = {
         }
         Relationships: []
       }
+      order_items: {
+        Row: {
+          created_at: string
+          id: string
+          order_id: string
+          product_brand: string
+          product_id: string | null
+          product_name: string
+          quantity: number
+          shade_name: string | null
+          total_price: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          order_id: string
+          product_brand: string
+          product_id?: string | null
+          product_name: string
+          quantity?: number
+          shade_name?: string | null
+          total_price: number
+          unit_price: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          order_id?: string
+          product_brand?: string
+          product_id?: string | null
+          product_name?: string
+          quantity?: number
+          shade_name?: string | null
+          total_price?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orders: {
+        Row: {
+          affiliate_id: string
+          billing_address: Json | null
+          created_at: string
+          currency: string | null
+          customer_email: string
+          customer_name: string
+          delivered_at: string | null
+          id: string
+          notes: string | null
+          order_number: string
+          shipped_at: string | null
+          shipping_address: Json
+          shipping_carrier: string | null
+          status: string
+          total_amount: number
+          tracking_number: string | null
+          tracking_url: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          affiliate_id: string
+          billing_address?: Json | null
+          created_at?: string
+          currency?: string | null
+          customer_email: string
+          customer_name: string
+          delivered_at?: string | null
+          id?: string
+          notes?: string | null
+          order_number: string
+          shipped_at?: string | null
+          shipping_address: Json
+          shipping_carrier?: string | null
+          status?: string
+          total_amount: number
+          tracking_number?: string | null
+          tracking_url?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          affiliate_id?: string
+          billing_address?: Json | null
+          created_at?: string
+          currency?: string | null
+          customer_email?: string
+          customer_name?: string
+          delivered_at?: string | null
+          id?: string
+          notes?: string | null
+          order_number?: string
+          shipped_at?: string | null
+          shipping_address?: Json
+          shipping_carrier?: string | null
+          status?: string
+          total_amount?: number
+          tracking_number?: string | null
+          tracking_url?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       product_availability: {
         Row: {
           id: string
@@ -1757,6 +1870,10 @@ export type Database = {
           total_reviews: number | null
           updated_at: string | null
         }
+      }
+      generate_order_number: {
+        Args: Record<PropertyKey, never>
+        Returns: string
       }
       get_cosmetics_import_stats: {
         Args: Record<PropertyKey, never>
