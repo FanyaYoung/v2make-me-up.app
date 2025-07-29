@@ -178,45 +178,6 @@ const VirtualTryOnPage = () => {
 
             {canTryOn ? (
               <>
-                {/* Quick Start Options */}
-                <div className="grid md:grid-cols-2 gap-6 mb-8 max-w-4xl mx-auto">
-                  <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-                    <CardHeader className="text-center">
-                      <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Camera className="h-8 w-8 text-purple-600" />
-                      </div>
-                      <CardTitle>Use Camera</CardTitle>
-                      <CardDescription>
-                        Take a photo with your device camera for instant try-on
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <Button className="w-full" size="lg">
-                        <Camera className="w-5 h-5 mr-2" />
-                        Start Camera
-                      </Button>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-                    <CardHeader className="text-center">
-                      <div className="w-16 h-16 bg-rose-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Upload className="h-8 w-8 text-rose-600" />
-                      </div>
-                      <CardTitle>Upload Photo</CardTitle>
-                      <CardDescription>
-                        Upload an existing photo from your device
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <Button variant="outline" className="w-full" size="lg">
-                        <Upload className="w-5 h-5 mr-2" />
-                        Choose File
-                      </Button>
-                    </CardContent>
-                  </Card>
-                </div>
-
                 {/* Show upgrade prompt for non-premium users who are running low on matches */}
                 {!subscription.isPremium && getUrgencyLevel() !== 'low' && (
                   <div className="mb-8">
