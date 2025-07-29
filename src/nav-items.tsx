@@ -1,5 +1,5 @@
 
-import { Home, User, Palette, Camera, Crown, Package, CreditCard, Sparkles, Star, ShoppingCart, Cloud } from "lucide-react";
+import { Home, User, Palette, Camera, Crown, Package, CreditCard, Sparkles, Star, ShoppingCart, Cloud, Receipt } from "lucide-react";
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import ShadeMatcher from "./pages/ShadeMatcher";
@@ -13,6 +13,7 @@ import SubscriptionCanceled from "./pages/SubscriptionCanceled";
 import TrueMatchAI from "./pages/TrueMatchAI";
 import PerfectMatches from "./pages/PerfectMatches";
 import Cart from "./pages/Cart";
+import Order from "./pages/Order";
 import GoogleStorageFoundations from "./pages/GoogleStorageFoundations";
 
 export const navItems = [
@@ -63,6 +64,12 @@ export const navItems = [
     to: "/cart",
     icon: <ShoppingCart className="h-4 w-4" />,
     page: <Cart />,
+  },
+  {
+    title: "Order",
+    to: "/order",
+    icon: <Receipt className="h-4 w-4" />,
+    page: <Order />,
   },
   {
     title: "GCS Foundations",
