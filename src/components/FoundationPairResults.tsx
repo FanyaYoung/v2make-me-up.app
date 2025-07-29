@@ -2,8 +2,10 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Star, ShoppingCart, Eye, Palette, Blend } from 'lucide-react';
+import { Star, ShoppingCart, Eye, Palette, Blend, Plus } from 'lucide-react';
 import { FoundationMatch } from '../types/foundation';
+import { useCart } from '@/contexts/CartContext';
+import { toast } from '@/hooks/use-toast';
 
 interface FoundationPairResultsProps {
   pairs: FoundationMatch[][];
@@ -12,9 +14,26 @@ interface FoundationPairResultsProps {
 }
 
 const FoundationPairResults = ({ pairs, onTryVirtual, onSelectPair }: FoundationPairResultsProps) => {
-  const handlePurchase = (match: FoundationMatch) => {
-    // Implementation for purchase logic
-    console.log('Purchase:', match);
+  const { addToCart } = useCart();
+
+  const handleAddToCart = (match: FoundationMatch, selectedShade?: 'primary' | 'contour') => {
+    addToCart(match, selectedShade);
+    const shadeName = selectedShade === 'contour' 
+      ? match.contourShade?.name 
+      : match.primaryShade?.name || match.shade;
+    toast({
+      title: "Added to Cart",
+      description: `${match.brand} ${shadeName} has been added to your cart.`,
+    });
+  };
+
+  const handleAddBothToCart = (primaryMatch: FoundationMatch, contourMatch: FoundationMatch) => {
+    handleAddToCart(primaryMatch, 'primary');
+    handleAddToCart(contourMatch, 'contour');
+    toast({
+      title: "Pair Added to Cart",
+      description: `Both foundation shades have been added to your cart.`,
+    });
   };
 
   return (
@@ -144,13 +163,35 @@ const FoundationPairResults = ({ pairs, onTryVirtual, onSelectPair }: Foundation
                     <Palette className="w-4 h-4" />
                     Try Contour Shade
                   </Button>
+                  
+                  {/* Individual Add to Cart Buttons */}
                   <Button 
-                    onClick={() => onSelectPair && onSelectPair([primaryMatch, contourMatch])}
+                    onClick={() => handleAddToCart(primaryMatch, 'primary')}
+                    variant="outline"
                     size="sm"
-                    className="flex items-center gap-2 ml-auto"
+                    className="flex items-center gap-2 border-rose-300 text-rose-600 hover:bg-rose-50"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Primary
+                  </Button>
+                  <Button 
+                    onClick={() => handleAddToCart(contourMatch, 'contour')}
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-2 border-rose-300 text-rose-600 hover:bg-rose-50"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Contour
+                  </Button>
+                  
+                  {/* Buy Both Button */}
+                  <Button 
+                    onClick={() => handleAddBothToCart(primaryMatch, contourMatch)}
+                    size="sm"
+                    className="flex items-center gap-2 ml-auto bg-gradient-to-r from-rose-500 to-purple-500 text-white"
                   >
                     <ShoppingCart className="w-4 h-4" />
-                    Buy Pair - ${(primaryMatch.price + contourMatch.price).toFixed(2)}
+                    Add Both - ${(primaryMatch.price + contourMatch.price).toFixed(2)}
                   </Button>
                 </div>
 

@@ -1,8 +1,10 @@
 
 import React from 'react';
-import { Palette, User, LogOut, Camera, Crown } from 'lucide-react';
+import { Palette, User, LogOut, Camera, Crown, ShoppingCart } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useCart } from '@/contexts/CartContext';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   DropdownMenu,
@@ -13,7 +15,9 @@ import {
 
 const Header = () => {
   const { user, signOut, isAuthenticated } = useAuth();
+  const { getTotalItems } = useCart();
   const navigate = useNavigate();
+  const totalItems = getTotalItems();
 
   return (
     <header className="bg-white/80 backdrop-blur-sm shadow-sm border-b border-rose-100">
@@ -40,6 +44,18 @@ const Header = () => {
             <Link to="/premium-looks" className="text-gray-600 hover:text-rose-600 transition-colors font-medium flex items-center gap-1">
               <Crown className="w-4 h-4" />
               Premium Looks
+            </Link>
+            
+            {/* Cart Icon */}
+            <Link to="/cart" className="relative text-gray-600 hover:text-rose-600 transition-colors">
+              <ShoppingCart className="w-5 h-5" />
+              {totalItems > 0 && (
+                <Badge 
+                  className="absolute -top-2 -right-2 w-5 h-5 flex items-center justify-center p-0 text-xs bg-rose-500 text-white rounded-full"
+                >
+                  {totalItems}
+                </Badge>
+              )}
             </Link>
             
             {isAuthenticated ? (

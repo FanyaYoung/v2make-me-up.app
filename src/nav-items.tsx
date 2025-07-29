@@ -1,5 +1,5 @@
 
-import { Home, User, Palette, Camera, Crown, Package, CreditCard, Sparkles, Star } from "lucide-react";
+import { Home, User, Palette, Camera, Crown, Package, CreditCard, Sparkles, Star, ShoppingCart } from "lucide-react";
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import ShadeMatcher from "./pages/ShadeMatcher";
@@ -12,6 +12,7 @@ import SubscriptionSuccess from "./pages/SubscriptionSuccess";
 import SubscriptionCanceled from "./pages/SubscriptionCanceled";
 import TrueMatchAI from "./pages/TrueMatchAI";
 import PerfectMatches from "./pages/PerfectMatches";
+import Cart from "./pages/Cart";
 
 export const navItems = [
   {
@@ -55,6 +56,12 @@ export const navItems = [
     to: "/cosmetics-library",
     icon: <Package className="h-4 w-4" />,
     page: <CosmeticsLibrary />,
+  },
+  {
+    title: "Cart",
+    to: "/cart",
+    icon: <ShoppingCart className="h-4 w-4" />,
+    page: <Cart />,
   },
   {
     title: "Subscription",

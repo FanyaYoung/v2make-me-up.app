@@ -2,8 +2,10 @@ import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Star, Eye, MapPin } from 'lucide-react';
+import { Star, Eye, MapPin, ShoppingCart, Plus } from 'lucide-react';
 import { FoundationMatch } from '../types/foundation';
+import { useCart } from '@/contexts/CartContext';
+import { toast } from '@/hooks/use-toast';
 import EnhancedFoundationFeedback from './EnhancedFoundationFeedback';
 
 interface FoundationResultsProps {
@@ -26,7 +28,20 @@ const FoundationResults = ({
   onViewDetails,
   onFeedback 
 }: FoundationResultsProps) => {
+  const { addToCart } = useCart();
+  
   if (matches.length === 0) return null;
+
+  const handleAddToCart = (match: FoundationMatch, selectedShade?: 'primary' | 'contour') => {
+    addToCart(match, selectedShade);
+    const shadeName = selectedShade === 'contour' 
+      ? match.contourShade?.name 
+      : match.primaryShade?.name || match.shade;
+    toast({
+      title: "Added to Cart",
+      description: `${match.brand} ${shadeName} has been added to your cart.`,
+    });
+  };
 
   const renderStars = (rating: number) => {
     const fullStars = Math.floor(rating);
@@ -195,7 +210,7 @@ const FoundationResults = ({
                   )}
 
                   {/* Action Buttons */}
-                  <div className="flex gap-3">
+                  <div className="flex flex-wrap gap-3">
                     <Button 
                       className="bg-gradient-to-r from-pink-500 to-purple-600 text-white"
                       onClick={() => onTryVirtual?.(match)}
@@ -209,6 +224,26 @@ const FoundationResults = ({
                     >
                       View Details
                     </Button>
+                    
+                    {/* Add to Cart Buttons */}
+                    <Button 
+                      className="bg-gradient-to-r from-rose-500 to-purple-500 text-white"
+                      onClick={() => handleAddToCart(match, 'primary')}
+                    >
+                      <ShoppingCart className="w-4 h-4 mr-2" />
+                      Add Main Shade
+                    </Button>
+                    
+                    {match.contourShade && (
+                      <Button 
+                        variant="outline"
+                        className="border-rose-300 text-rose-600 hover:bg-rose-50"
+                        onClick={() => handleAddToCart(match, 'contour')}
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add Contour
+                      </Button>
+                    )}
                   </div>
                 </div>
               </div>
