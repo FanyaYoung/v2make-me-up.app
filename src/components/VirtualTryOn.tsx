@@ -26,10 +26,9 @@ interface VirtualTryOnProps {
   selectedMatch: FoundationMatch | null;
   skinTone?: { hexColor: string; depth: number; undertone: string } | null;
   onShadeRecommendations?: (recommendations: ShadeRecommendation[]) => void;
-  suggestedShades?: FoundationMatch[]; // Add prop for suggested shades from shade finder
 }
 
-const VirtualTryOn = ({ selectedMatch, skinTone, onShadeRecommendations, suggestedShades = [] }: VirtualTryOnProps) => {
+const VirtualTryOn = ({ selectedMatch, skinTone, onShadeRecommendations }: VirtualTryOnProps) => {
   const [isUsingCamera, setIsUsingCamera] = useState(false);
   const [photos, setPhotos] = useState<PhotoData[]>([]);
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
@@ -64,20 +63,6 @@ const VirtualTryOn = ({ selectedMatch, skinTone, onShadeRecommendations, suggest
       });
     };
   }, [stream, photos]);
-
-  // Initialize shade recommendations when suggested shades are provided
-  useEffect(() => {
-    if (suggestedShades.length > 0) {
-      const recommendations: ShadeRecommendation[] = suggestedShades.map((shade, index) => ({
-        shade,
-        confidence: 0.9, // Default confidence since no analysis is done yet
-        targetTone: index === 0 ? 'dominant' : 'secondary'
-      }));
-      
-      setShadeRecommendations(recommendations);
-      setSelectedShades(suggestedShades.slice(0, 4)); // Auto-populate comparison
-    }
-  }, [suggestedShades]);
 
   const startCamera = useCallback(async () => {
     try {
@@ -445,40 +430,237 @@ const VirtualTryOn = ({ selectedMatch, skinTone, onShadeRecommendations, suggest
 
   const generateShadeRecommendations = async (analysis: SkinToneAnalysis) => {
     try {
-      console.log('Using suggested shades instead of generating new ones');
+      console.log('Generating recommendations for skin analysis:', analysis);
       
-      // Use the suggested shades from the shade finder instead of querying database
-      if (suggestedShades.length > 0) {
-        const recommendations: ShadeRecommendation[] = suggestedShades.map((shade, index) => ({
-          shade,
-          confidence: analysis.dominantTone.confidence,
-          targetTone: index === 0 ? 'dominant' : 'secondary'
-        }));
+      // Convert depth string to numeric level
+      const getDepthLevel = (depth: string): number => {
+        switch (depth) {
+          case 'fair': return 2;
+          case 'light': return 4;
+          case 'medium': return 6;
+          case 'deep': return 8;
+          case 'very-deep': return 10;
+          default: return 6;
+        }
+      };
+      
+      const dominantDepthLevel = getDepthLevel(analysis.dominantTone.depth);
+      
+      // Query database for shades that match the analyzed undertone with brand diversity
+      const { data: matchingShades, error } = await supabase
+        .from('foundation_shades')
+        .select(`
+          *,
+          foundation_products!inner(
+            *,
+            brands!inner(name, logo_url)
+          )
+        `)
+        .eq('undertone', analysis.dominantTone.undertone)
+        .gte('depth_level', Math.max(1, dominantDepthLevel - 2))
+        .lte('depth_level', Math.min(10, dominantDepthLevel + 2))
+        .eq('is_available', true)
+        .limit(20); // Get more results to filter for brand diversity
 
-        console.log('Using provided suggested shades:', recommendations);
-        setShadeRecommendations(recommendations);
-        
-        // Auto-populate shade comparison with the suggested shades
-        setSelectedShades(suggestedShades.slice(0, 4)); // Max 4 shades for comparison
-        
-        onShadeRecommendations?.(recommendations);
-        return;
+      if (error) {
+        console.error('Error fetching shade recommendations:', error);
+        throw error;
       }
 
-      // If no suggested shades are provided, show a message
-      toast({
-        title: "No shades available",
-        description: "Please use the shade finder first to get shade recommendations for virtual try-on.",
-        variant: "destructive"
-      });
+      const recommendations: ShadeRecommendation[] = [];
+      const usedBrands = new Set<string>();
+      const maxPerBrand = 2;
       
-    } catch (error) {
-      console.error('Error setting up shade recommendations:', error);
-      toast({
-        title: "Setup failed",
-        description: "Could not prepare shades for virtual try-on.",
-        variant: "destructive"
+      // Process the matching shades with brand diversity
+      matchingShades?.forEach((shade, index) => {
+        const product = shade.foundation_products;
+        const brand = product.brands;
+        
+        // Limit recommendations per brand for diversity
+        const brandCount = Array.from(usedBrands).filter(b => b === brand.name).length;
+        if (brandCount >= maxPerBrand && recommendations.length >= 3) {
+          return;
+        }
+        
+        usedBrands.add(brand.name);
+        
+        const foundationMatch: FoundationMatch = {
+          id: `${product.id}-${shade.id}`,
+          brand: brand.name,
+          product: product.name,
+          shade: shade.shade_name,
+          price: product.price || 36.00,
+          rating: 4.3 + (index * 0.1),
+          reviewCount: 800 + (index * 100),
+          availability: {
+            online: true,
+            inStore: index < 2,
+            readyForPickup: index < 2,
+            nearbyStores: index < 2 ? ['Sephora - Downtown', 'Ulta - Mall Plaza'] : []
+          },
+          matchPercentage: 95 - (index * 2),
+          undertone: shade.undertone,
+          coverage: product.coverage || 'medium',
+          finish: product.finish || 'natural',
+          imageUrl: product.image_url || '/placeholder.svg'
+        };
+
+        recommendations.push({
+          shade: foundationMatch,
+          confidence: analysis.dominantTone.confidence,
+          targetTone: index === 0 ? 'dominant' : 'secondary'
+        });
+        
+        // Stop when we have enough diverse recommendations
+        if (recommendations.length >= 4) {
+          return;
+        }
       });
+
+      // If we didn't get enough recommendations, add some with different undertones
+      if (recommendations.length < 2 && analysis.secondaryTone) {
+        const secondaryDepthLevel = getDepthLevel(analysis.secondaryTone.depth);
+        
+        const { data: alternativeShades } = await supabase
+          .from('foundation_shades')
+          .select(`
+            *,
+            foundation_products!inner(
+              *,
+              brands!inner(name, logo_url)
+            )
+          `)
+          .eq('undertone', analysis.secondaryTone.undertone)
+          .gte('depth_level', Math.max(1, secondaryDepthLevel - 1))
+          .lte('depth_level', Math.min(10, secondaryDepthLevel + 1))
+          .eq('is_available', true)
+          .limit(2);
+
+        alternativeShades?.forEach((shade, index) => {
+          const product = shade.foundation_products;
+          const brand = product.brands;
+          
+          const foundationMatch: FoundationMatch = {
+            id: `${product.id}-${shade.id}-alt`,
+            brand: brand.name,
+            product: product.name,
+            shade: shade.shade_name,
+            price: product.price || 36.00,
+            rating: 4.1 + (index * 0.1),
+            reviewCount: 600 + (index * 100),
+            availability: {
+              online: true,
+              inStore: false,
+              readyForPickup: false,
+              nearbyStores: []
+            },
+            matchPercentage: 88 - (index * 3),
+            undertone: shade.undertone,
+            coverage: product.coverage || 'medium',
+            finish: product.finish || 'natural',
+            imageUrl: product.image_url || '/placeholder.svg'
+          };
+
+          recommendations.push({
+            shade: foundationMatch,
+            confidence: analysis.secondaryTone.confidence,
+            targetTone: 'secondary'
+          });
+        });
+      }
+
+      console.log('Generated recommendations:', recommendations);
+      setShadeRecommendations(recommendations);
+      
+      // Auto-populate shade comparison with recommendations
+      const shadesToCompare = recommendations.map(r => r.shade);
+      if (selectedMatch && !shadesToCompare.find(s => s.id === selectedMatch.id)) {
+        shadesToCompare.unshift(selectedMatch);
+      }
+      setSelectedShades(shadesToCompare.slice(0, 4)); // Max 4 shades for comparison
+      
+      onShadeRecommendations?.(recommendations);
+    } catch (error) {
+      console.error('Error generating shade recommendations:', error);
+      
+      // Fallback to diverse brand recommendations if database query fails
+      const fallbackRecommendations: ShadeRecommendation[] = [
+        {
+          shade: {
+            id: 'fallback-1',
+            brand: 'Fenty Beauty',
+            product: 'Pro Filt\'r Soft Matte Foundation',
+            shade: '260 - Medium with warm undertones',
+            price: 36,
+            rating: 4.5,
+            reviewCount: 1240,
+            availability: { 
+              online: true, 
+              inStore: true, 
+              readyForPickup: true, 
+              nearbyStores: ['Sephora - Downtown', 'Ulta - Mall Plaza'] 
+            },
+            matchPercentage: 95,
+            undertone: analysis.dominantTone.undertone,
+            coverage: 'full',
+            finish: 'matte',
+            imageUrl: '/placeholder.svg'
+          },
+          confidence: analysis.dominantTone.confidence,
+          targetTone: 'dominant'
+        },
+        {
+          shade: {
+            id: 'fallback-2',
+            brand: 'Charlotte Tilbury',
+            product: 'Airbrush Flawless Foundation',
+            shade: '1 Fair',
+            price: 44,
+            rating: 4.4,
+            reviewCount: 1000,
+            availability: { 
+              online: true, 
+              inStore: true, 
+              readyForPickup: true, 
+              nearbyStores: ['Sephora - Downtown', 'Ulta - Mall Plaza'] 
+            },
+            matchPercentage: 92,
+            undertone: 'neutral',
+            coverage: 'full',
+            finish: 'natural',
+            imageUrl: '/placeholder.svg'
+          },
+          confidence: analysis.dominantTone.confidence,
+          targetTone: 'secondary'
+        },
+        {
+          shade: {
+            id: 'fallback-3',
+            brand: 'Rare Beauty',
+            product: 'Liquid Touch Weightless Foundation',
+            shade: '2W Fair',
+            price: 29,
+            rating: 4.2,
+            reviewCount: 750,
+            availability: { 
+              online: true, 
+              inStore: false, 
+              readyForPickup: false, 
+              nearbyStores: [] 
+            },
+            matchPercentage: 89,
+            undertone: 'warm',
+            coverage: 'medium',
+            finish: 'natural',
+            imageUrl: '/placeholder.svg'
+          },
+          confidence: analysis.dominantTone.confidence,
+          targetTone: 'secondary'
+        }
+      ];
+      
+      setShadeRecommendations(fallbackRecommendations);
+      onShadeRecommendations?.(fallbackRecommendations);
     }
   };
 
@@ -860,10 +1042,10 @@ const VirtualTryOn = ({ selectedMatch, skinTone, onShadeRecommendations, suggest
                   )}
                 </div>
 
-                {/* Shade Selection from Recommendations - Only show if we have recommendations */}
+                {/* Shade Selection from Recommendations */}
                 {shadeRecommendations.length > 0 && (
                   <div className="space-y-2">
-                    <p className="text-xs text-gray-600">Available shades to compare:</p>
+                    <p className="text-xs text-gray-600">Add to comparison:</p>
                     <div className="flex flex-wrap gap-1">
                       {shadeRecommendations.map((rec, index) => (
                         <button

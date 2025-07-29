@@ -44,15 +44,7 @@ export default function InclusiveShadeMatchingInterface({
   const [stream, setStream] = useState<MediaStream | null>(null);
 
   const startCamera = useCallback(async () => {
-    console.log('Start camera button clicked');
     try {
-      console.log('Requesting camera access...');
-      
-      // Check if getUserMedia is supported
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error('getUserMedia is not supported in this browser');
-      }
-      
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: {
           width: { ideal: 1280 },
@@ -61,20 +53,13 @@ export default function InclusiveShadeMatchingInterface({
         }
       });
       
-      console.log('Camera access granted, setting up video stream');
-      
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
         setStream(mediaStream);
-        console.log('Video stream set successfully');
-        toast.success('Camera started successfully!');
-      } else {
-        console.error('Video ref is not available');
-        throw new Error('Video element not found');
       }
     } catch (err) {
       console.error('Error accessing camera:', err);
-      toast.error(`Unable to access camera: ${err instanceof Error ? err.message : 'Unknown error'}. Please try uploading an image instead.`);
+      toast.error('Unable to access camera. Please try uploading an image instead.');
     }
   }, []);
 

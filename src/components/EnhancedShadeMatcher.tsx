@@ -364,16 +364,16 @@ const EnhancedShadeMatcher: React.FC<EnhancedShadeMatcherProps> = ({
       const undertoneMatch = profile ? 
         calculateUndertoneMatch(match.undertone, profile.undertone) : true;
       
-      // Calculate depth level difference - STRICTER penalty for depth mismatch
+      // Calculate depth level difference
       const depthDiff = profile ? 
-        Math.abs(match.depthLevel - profile.depthLevel) : 0;
+        Math.abs(match.depthLevel - profile.depthLevel) / 10 : 0;
       
-      // Calculate overall match score with stricter depth matching
+      // Calculate overall match score
       const matchScore = (
-        (1 - Math.min(colorDiff / 20, 1)) * 0.3 +           // 30% color accuracy
-        skinCompatibility * 0.2 +                           // 20% skin type compatibility
-        (undertoneMatch ? 1 : 0.3) * 0.25 +                // 25% undertone match
-        Math.max(0, 1 - depthDiff * 0.2) * 0.2 +           // 20% depth level match (stricter)
+        (1 - Math.min(colorDiff / 20, 1)) * 0.4 +           // 40% color accuracy
+        skinCompatibility * 0.25 +                          // 25% skin type compatibility
+        (undertoneMatch ? 1 : 0.3) * 0.2 +                 // 20% undertone match
+        (1 - depthDiff) * 0.1 +                            // 10% depth level match
         (match.rating / 5) * 0.05                          // 5% product rating
       );
 
@@ -386,7 +386,7 @@ const EnhancedShadeMatcher: React.FC<EnhancedShadeMatcherProps> = ({
       };
     })
     .filter(match => {
-      // Apply search criteria filters with stricter depth filtering
+      // Apply search criteria filters
       const priceInRange = match.price >= searchCriteria.priceRange[0] && 
                           match.price <= searchCriteria.priceRange[1];
       const brandMatch = searchCriteria.brands.length === 0 || 
@@ -397,16 +397,14 @@ const EnhancedShadeMatcher: React.FC<EnhancedShadeMatcherProps> = ({
                          match.finish === searchCriteria.finish;
       const undertoneMatch = !searchCriteria.undertone || 
                             match.undertone === searchCriteria.undertone;
-      
-      // STRICTER depth filtering - only allow ±1 depth level for consistency
-      const depthInRange = !profile?.depthLevel || 
-        Math.abs(match.depthLevel - profile.depthLevel) <= 1;
+      const depthInRange = match.depthLevel >= searchCriteria.depthRange[0] && 
+                          match.depthLevel <= searchCriteria.depthRange[1];
 
       return priceInRange && brandMatch && coverageMatch && 
              finishMatch && undertoneMatch && depthInRange;
     })
     .sort((a, b) => b.matchScore - a.matchScore)
-    .slice(0, 30); // Reduced to top 30 for more focused results
+    .slice(0, 50); // Limit to top 50 matches
   };
 
   const findMatches = async (targetColor: string = '#D4A574') => {
