@@ -106,9 +106,8 @@ const EnhancedFoundationMatcher = () => {
       undertone: analysis.dominantTone.undertone
     };
     setSkinTone(skinToneData);
-    if (userAnswers && Object.keys(userAnswers).length > 0) {
-      generateFoundationPairs(skinToneData, userAnswers);
-    }
+    // Always generate foundation pairs after analysis, regardless of questionnaire status
+    generateFoundationPairs(skinToneData, userAnswers);
   };
 
   const generateFoundationPairs = (toneData: SkinToneData, questionnaire?: UserQuestionnaireData | null) => {
