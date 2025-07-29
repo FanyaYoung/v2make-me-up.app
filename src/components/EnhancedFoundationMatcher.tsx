@@ -261,10 +261,21 @@ const EnhancedFoundationMatcher = () => {
 
   const findBestShadeMatch = (product: any, depth: number, undertone: string) => {
     if (product.foundation_shades?.length > 0) {
-      return product.foundation_shades.find((shade: any) => 
-        Math.abs((shade.depth_level || 5) - depth) <= 1 &&
+      // Find exact depth match first
+      let bestMatch = product.foundation_shades.find((shade: any) => 
+        shade.depth_level === depth &&
         (shade.undertone === undertone || shade.undertone === 'neutral')
-      ) || product.foundation_shades[Math.floor(product.foundation_shades.length / 2)];
+      );
+      
+      // If no exact match, find within ±1 depth level
+      if (!bestMatch) {
+        bestMatch = product.foundation_shades.find((shade: any) => 
+          Math.abs((shade.depth_level || 5) - depth) <= 1 &&
+          (shade.undertone === undertone || shade.undertone === 'neutral')
+        );
+      }
+      
+      return bestMatch || product.foundation_shades[Math.floor(product.foundation_shades.length / 2)];
     }
     
     return {
@@ -276,17 +287,31 @@ const EnhancedFoundationMatcher = () => {
   };
 
   const findContourShade = (product: any, depth: number, undertone: string) => {
+    // Contour should be 1 shade deeper, but still within reasonable range
+    const contourDepth = Math.min(depth + 1, 8);
+    
     if (product.foundation_shades?.length > 0) {
-      return product.foundation_shades.find((shade: any) => 
-        Math.abs((shade.depth_level || 5) - depth) <= 1 &&
+      // Find shade that's slightly deeper for contouring
+      let bestMatch = product.foundation_shades.find((shade: any) => 
+        shade.depth_level === contourDepth &&
         (shade.undertone === undertone || shade.undertone === 'neutral')
-      ) || product.foundation_shades[Math.floor(product.foundation_shades.length * 0.7)];
+      );
+      
+      // If no exact contour depth, find close match
+      if (!bestMatch) {
+        bestMatch = product.foundation_shades.find((shade: any) => 
+          Math.abs((shade.depth_level || 5) - contourDepth) <= 1 &&
+          (shade.undertone === undertone || shade.undertone === 'neutral')
+        );
+      }
+      
+      return bestMatch || product.foundation_shades[Math.floor(product.foundation_shades.length * 0.7)];
     }
     
     return {
       id: 'generated-contour',
-      shade_name: generateShadeName(depth, undertone),
-      depth_level: depth,
+      shade_name: generateShadeName(contourDepth, undertone),
+      depth_level: contourDepth,
       undertone: undertone
     };
   };

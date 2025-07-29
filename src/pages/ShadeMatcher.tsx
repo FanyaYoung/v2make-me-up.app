@@ -2,6 +2,7 @@ import React from 'react';
 import Header from '../components/Header';
 import EnhancedFoundationMatcher from '../components/EnhancedFoundationMatcher';
 import FoundationVisual from '../components/FoundationVisual';
+import SkinToneChart from '../components/SkinToneChart';
 import { Toaster } from '@/components/ui/toaster';
 import AuthGuard from '../components/AuthGuard';
 
@@ -22,8 +23,11 @@ const ShadeMatcher = () => {
           
           <FoundationVisual />
           
-          <main className="container mx-auto px-4 py-8">
-            <EnhancedFoundationMatcher />
+          <main className="container mx-auto px-4 py-8 space-y-8">
+            <div className="grid lg:grid-cols-2 gap-8">
+              <SkinToneChart />
+              <EnhancedFoundationMatcher />
+            </div>
           </main>
         </div>
         <Toaster />
