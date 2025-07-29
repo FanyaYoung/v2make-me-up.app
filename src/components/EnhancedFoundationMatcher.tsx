@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import SkinToneSlider from './SkinToneSlider';
+import SkinToneReference from './SkinToneReference';
 import VirtualTryOn from './VirtualTryOn';
 import FoundationPairResults from './FoundationPairResults';
 import QuestionnaireFlow from './QuestionnaireFlow';
@@ -432,7 +433,7 @@ const EnhancedFoundationMatcher = () => {
             <h2 className="text-2xl font-bold mb-6 text-center">Find Your Skin Tone</h2>
             
             <Tabs defaultValue="slider" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="slider" className="flex items-center gap-2">
                   <Palette className="w-4 h-4" />
                   Skin Tone Slider
@@ -440,6 +441,10 @@ const EnhancedFoundationMatcher = () => {
                 <TabsTrigger value="ai" className="flex items-center gap-2">
                   <Sparkles className="w-4 h-4" />
                   AI Analysis
+                </TabsTrigger>
+                <TabsTrigger value="reference" className="flex items-center gap-2">
+                  <Search className="w-4 h-4" />
+                  Reference Guide
                 </TabsTrigger>
               </TabsList>
               
@@ -467,6 +472,21 @@ const EnhancedFoundationMatcher = () => {
                 <InclusiveShadeMatchingInterface
                   onAnalysisComplete={handleInclusiveAnalysis}
                   onUpgradeClick={() => window.open('/subscription-plans', '_blank')}
+                />
+              </TabsContent>
+              
+              <TabsContent value="reference" className="mt-6">
+                <SkinToneReference 
+                  showSelector={true}
+                  onToneSelect={(hex, undertone, depth) => {
+                    const depthMapping = { 'fair': 2, 'light': 3, 'medium': 5, 'deep': 7, 'very-deep': 9 };
+                    const skinToneData: SkinToneData = {
+                      hexColor: hex,
+                      depth: depthMapping[depth as keyof typeof depthMapping] || 5,
+                      undertone: undertone
+                    };
+                    handleSkinToneSelect(skinToneData);
+                  }}
                 />
               </TabsContent>
             </Tabs>

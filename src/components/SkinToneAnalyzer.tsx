@@ -1,4 +1,5 @@
 import { pipeline, env } from '@huggingface/transformers';
+import { findClosestSkinTone, skinToneReferences } from '@/data/skinToneReferences';
 
 // Configure transformers.js
 env.allowLocalModels = false;
@@ -139,13 +140,17 @@ class SkinToneAnalyzer {
   private calculateDominantTones(regionTones: any) {
     const tones = [regionTones.forehead, regionTones.cheeks, regionTones.chin];
     
-    // Analyze undertones and depth for each region
-    const analyzedTones = tones.map(tone => ({
-      ...tone,
-      undertone: this.determineUndertone(tone.r, tone.g, tone.b),
-      depth: this.determineDepth(tone.r, tone.g, tone.b),
-      confidence: 0.85 // Mock confidence score
-    }));
+    // Analyze undertones and depth for each region using reference data
+    const analyzedTones = tones.map(tone => {
+      const closestRef = findClosestSkinTone(tone.hex);
+      return {
+        ...tone,
+        undertone: closestRef.undertone,
+        depth: closestRef.depth,
+        confidence: 0.85, // Mock confidence score
+        referenceName: closestRef.name
+      };
+    });
 
     // Find dominant tone (most common or average)
     const dominantTone = this.findDominantTone(analyzedTones);
