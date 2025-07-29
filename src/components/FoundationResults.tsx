@@ -19,6 +19,11 @@ interface FoundationResultsProps {
   }) => void;
 }
 
+const handlePurchase = (match: FoundationMatch) => {
+  // Implementation for individual purchase logic
+  console.log('Individual purchase:', match);
+};
+
 const FoundationResults = ({ 
   matches, 
   currentFoundation, 
@@ -195,19 +200,20 @@ const FoundationResults = ({
                   )}
 
                   {/* Action Buttons */}
-                  <div className="flex gap-3">
+                  <div className="flex flex-wrap gap-2">
                     <Button 
-                      className="bg-gradient-to-r from-pink-500 to-purple-600 text-white"
+                      className="bg-gradient-to-r from-pink-500 to-purple-600 text-white flex-1 min-w-[120px]"
                       onClick={() => onTryVirtual?.(match)}
                     >
                       <Eye className="w-4 h-4 mr-2" />
-                      Virtual Try-On
+                      Try Virtual
                     </Button>
                     <Button 
                       variant="outline"
-                      onClick={() => onViewDetails?.(match)}
+                      onClick={() => handlePurchase(match)}
+                      className="flex-1 min-w-[120px]"
                     >
-                      View Details
+                      Buy ${match.price.toFixed(2)}
                     </Button>
                   </div>
                 </div>

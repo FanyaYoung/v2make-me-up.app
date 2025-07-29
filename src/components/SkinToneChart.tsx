@@ -19,9 +19,9 @@ const skinTones: SkinTone[] = [
     name: "Porcelain",
     color: "#F7E7D7",
     undertones: [
-      { type: 'cool', color: '#F5E5D5', description: 'Pink undertones' },
-      { type: 'neutral', color: '#F6E6D6', description: 'Balanced undertones' },
-      { type: 'warm', color: '#F7E7D7', description: 'Yellow undertones' }
+      { type: 'cool', color: '#F5E0D0', description: 'Pink undertones' },
+      { type: 'neutral', color: '#F6E3D3', description: 'Balanced undertones' },
+      { type: 'warm', color: '#F8E8D8', description: 'Yellow undertones' }
     ]
   },
   {
@@ -29,9 +29,9 @@ const skinTones: SkinTone[] = [
     name: "Fair",
     color: "#F2DCC4",
     undertones: [
-      { type: 'cool', color: '#F0DAC2', description: 'Pink undertones' },
-      { type: 'neutral', color: '#F1DBC3', description: 'Balanced undertones' },
-      { type: 'warm', color: '#F3DDC5', description: 'Yellow undertones' }
+      { type: 'cool', color: '#F0D5BE', description: 'Pink undertones' },
+      { type: 'neutral', color: '#F1D8C1', description: 'Balanced undertones' },
+      { type: 'warm', color: '#F3DFC7', description: 'Yellow undertones' }
     ]
   },
   {
@@ -39,10 +39,10 @@ const skinTones: SkinTone[] = [
     name: "Light",
     color: "#EBDCC6",
     undertones: [
-      { type: 'cool', color: '#E9DAC4', description: 'Pink undertones' },
-      { type: 'neutral', color: '#EADBC5', description: 'Balanced undertones' },
-      { type: 'warm', color: '#ECDDC7', description: 'Yellow undertones' },
-      { type: 'olive', color: '#E8DBC3', description: 'Green undertones' }
+      { type: 'cool', color: '#E7D5BC', description: 'Pink undertones' },
+      { type: 'neutral', color: '#E9D8C1', description: 'Balanced undertones' },
+      { type: 'warm', color: '#EDDFCA', description: 'Yellow undertones' },
+      { type: 'olive', color: '#E6D7BE', description: 'Green undertones' }
     ]
   },
   {
@@ -50,10 +50,10 @@ const skinTones: SkinTone[] = [
     name: "Light Medium",
     color: "#E0D1B7",
     undertones: [
-      { type: 'cool', color: '#DECFB5', description: 'Pink undertones' },
-      { type: 'neutral', color: '#DFD0B6', description: 'Balanced undertones' },
-      { type: 'warm', color: '#E1D2B8', description: 'Yellow undertones' },
-      { type: 'olive', color: '#DDD0B4', description: 'Green undertones' }
+      { type: 'cool', color: '#DBC8A8', description: 'Pink undertones' },
+      { type: 'neutral', color: '#DDCDAF', description: 'Balanced undertones' },
+      { type: 'warm', color: '#E3D5BD', description: 'Yellow undertones' },
+      { type: 'olive', color: '#D9CAA6', description: 'Green undertones' }
     ]
   },
   {
@@ -61,10 +61,10 @@ const skinTones: SkinTone[] = [
     name: "Medium",
     color: "#D4A574",
     undertones: [
-      { type: 'cool', color: '#D2A372', description: 'Pink undertones' },
-      { type: 'neutral', color: '#D3A473', description: 'Balanced undertones' },
-      { type: 'warm', color: '#D5A675', description: 'Yellow undertones' },
-      { type: 'olive', color: '#D1A371', description: 'Green undertones' }
+      { type: 'cool', color: '#CC9A68', description: 'Pink undertones' },
+      { type: 'neutral', color: '#D09F6E', description: 'Balanced undertones' },
+      { type: 'warm', color: '#D8AB7A', description: 'Yellow undertones' },
+      { type: 'olive', color: '#CA9866', description: 'Green undertones' }
     ]
   },
   {
@@ -72,10 +72,10 @@ const skinTones: SkinTone[] = [
     name: "Medium Deep",
     color: "#C1AF93",
     undertones: [
-      { type: 'cool', color: '#BFAD91', description: 'Pink undertones' },
-      { type: 'neutral', color: '#C0AE92', description: 'Balanced undertones' },
-      { type: 'warm', color: '#C2B094', description: 'Yellow undertones' },
-      { type: 'olive', color: '#BEAC90', description: 'Green undertones' }
+      { type: 'cool', color: '#B7A085', description: 'Pink undertones' },
+      { type: 'neutral', color: '#BCA58C', description: 'Balanced undertones' },
+      { type: 'warm', color: '#C5B499', description: 'Yellow undertones' },
+      { type: 'olive', color: '#B59E83', description: 'Green undertones' }
     ]
   },
   {
@@ -83,10 +83,10 @@ const skinTones: SkinTone[] = [
     name: "Deep",
     color: "#A0835C",
     undertones: [
-      { type: 'cool', color: '#9E815A', description: 'Pink undertones' },
-      { type: 'neutral', color: '#9F825B', description: 'Balanced undertones' },
-      { type: 'warm', color: '#A1845D', description: 'Yellow undertones' },
-      { type: 'olive', color: '#9D8059', description: 'Green undertones' }
+      { type: 'cool', color: '#967750', description: 'Pink undertones' },
+      { type: 'neutral', color: '#9B7D56', description: 'Balanced undertones' },
+      { type: 'warm', color: '#A48962', description: 'Yellow undertones' },
+      { type: 'olive', color: '#94754E', description: 'Green undertones' }
     ]
   },
   {
@@ -94,10 +94,10 @@ const skinTones: SkinTone[] = [
     name: "Very Deep",
     color: "#8D7B5F",
     undertones: [
-      { type: 'cool', color: '#8B795D', description: 'Pink undertones' },
-      { type: 'neutral', color: '#8C7A5E', description: 'Balanced undertones' },
-      { type: 'warm', color: '#8E7C60', description: 'Yellow undertones' },
-      { type: 'olive', color: '#89785C', description: 'Green undertones' }
+      { type: 'cool', color: '#806B4F', description: 'Pink undertones' },
+      { type: 'neutral', color: '#867155', description: 'Balanced undertones' },
+      { type: 'warm', color: '#948165', description: 'Yellow undertones' },
+      { type: 'olive', color: '#7E694D', description: 'Green undertones' }
     ]
   }
 ];

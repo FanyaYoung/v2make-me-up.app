@@ -125,32 +125,67 @@ const FoundationPairResults = ({ pairs, onTryVirtual, onSelectPair }: Foundation
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex flex-wrap gap-2 pt-2">
-                  <Button 
-                    onClick={() => onTryVirtual(primaryMatch)}
-                    variant="outline" 
-                    size="sm"
-                    className="flex items-center gap-2"
-                  >
-                    <Eye className="w-4 h-4" />
-                    Try Primary Shade
-                  </Button>
-                  <Button 
-                    onClick={() => onTryVirtual(contourMatch)}
-                    variant="outline" 
-                    size="sm"
-                    className="flex items-center gap-2"
-                  >
-                    <Palette className="w-4 h-4" />
-                    Try Contour Shade
-                  </Button>
+                <div className="space-y-2">
+                  {/* Individual Product Actions */}
+                  <div className="grid md:grid-cols-2 gap-2">
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <Button 
+                          onClick={() => onTryVirtual(primaryMatch)}
+                          variant="outline" 
+                          size="sm"
+                          className="flex items-center gap-2 flex-1"
+                        >
+                          <Eye className="w-4 h-4" />
+                          Try
+                        </Button>
+                        <Button 
+                          onClick={() => handlePurchase(primaryMatch)}
+                          variant="secondary" 
+                          size="sm"
+                          className="flex items-center gap-2 flex-1"
+                        >
+                          <ShoppingCart className="w-4 h-4" />
+                          Buy ${primaryMatch.price.toFixed(2)}
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <Button 
+                          onClick={() => onTryVirtual(contourMatch)}
+                          variant="outline" 
+                          size="sm"
+                          className="flex items-center gap-2 flex-1"
+                        >
+                          <Palette className="w-4 h-4" />
+                          Try
+                        </Button>
+                        <Button 
+                          onClick={() => handlePurchase(contourMatch)}
+                          variant="secondary" 
+                          size="sm"
+                          className="flex items-center gap-2 flex-1"
+                        >
+                          <ShoppingCart className="w-4 h-4" />
+                          Buy ${contourMatch.price.toFixed(2)}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Pair Action */}
                   <Button 
                     onClick={() => onSelectPair && onSelectPair([primaryMatch, contourMatch])}
                     size="sm"
-                    className="flex items-center gap-2 ml-auto"
+                    className="w-full flex items-center justify-center gap-2"
                   >
                     <ShoppingCart className="w-4 h-4" />
-                    Buy Pair - ${(primaryMatch.price + contourMatch.price).toFixed(2)}
+                    Buy Complete Pair - ${(primaryMatch.price + contourMatch.price).toFixed(2)}
+                    <Badge variant="secondary" className="ml-2 text-xs">
+                      Save 10%
+                    </Badge>
                   </Button>
                 </div>
 
