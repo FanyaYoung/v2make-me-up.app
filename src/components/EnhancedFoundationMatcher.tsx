@@ -38,6 +38,7 @@ const EnhancedFoundationMatcher = () => {
   const [selectedProducts, setSelectedProducts] = useState<FoundationMatch[]>([]);
   const [showFulfillment, setShowFulfillment] = useState(false);
   const [inclusiveAnalysis, setInclusiveAnalysis] = useState<any>(null);
+  const [shadeFinderRecommendations, setShadeFinderRecommendations] = useState<FoundationMatch[]>([]);
 
   // Fetch cosmetics products
   const { data: cosmeticsProducts } = useQuery({
@@ -110,17 +111,138 @@ const EnhancedFoundationMatcher = () => {
     generateFoundationPairs(skinToneData, userAnswers);
   };
 
-  const generateFoundationPairs = (toneData: SkinToneData, questionnaire?: UserQuestionnaireData | null) => {
-    const allProducts = [
-      ...(foundationProducts || []),
-      ...(cosmeticsProducts || [])
-    ];
+  const generateFoundationPairs = async (toneData: SkinToneData, questionnaire?: UserQuestionnaireData | null) => {
+    try {
+      // Query database for diverse brand recommendations
+      const { data: foundationShades, error } = await supabase
+        .from('foundation_shades')
+        .select(`
+          *,
+          foundation_products!inner(
+            *,
+            brands!inner(name, logo_url)
+          )
+        `)
+        .eq('undertone', toneData.undertone as 'warm' | 'cool' | 'neutral' | 'olive')
+        .gte('depth_level', Math.max(1, toneData.depth - 2))
+        .lte('depth_level', Math.min(10, toneData.depth + 2))
+        .eq('is_available', true)
+        .limit(50); // Get more results for better brand diversity
 
-    const suitableProducts = filterProductsByToneAndPreferences(allProducts, toneData, questionnaire);
-    const pairs = createFoundationPairs(suitableProducts, toneData);
-    
-    // Limit to 4 pairs as requested
-    setFoundationPairs(pairs.slice(0, 4));
+      if (error) {
+        console.error('Error fetching foundation shades:', error);
+        // Fall back to existing logic if database query fails
+        const allProducts = [
+          ...(foundationProducts || []),
+          ...(cosmeticsProducts || [])
+        ];
+        const suitableProducts = filterProductsByToneAndPreferences(allProducts, toneData, questionnaire);
+        const pairs = createFoundationPairs(suitableProducts, toneData);
+        setFoundationPairs(pairs.slice(0, 4));
+        return;
+      }
+
+      // Group shades by brand for diversity
+      const shadesByBrand = new Map<string, any[]>();
+      foundationShades?.forEach(shade => {
+        const brandName = shade.foundation_products.brands.name;
+        if (!shadesByBrand.has(brandName)) {
+          shadesByBrand.set(brandName, []);
+        }
+        shadesByBrand.get(brandName)!.push(shade);
+      });
+
+      // Create diverse foundation pairs from different brands
+      const pairs: FoundationMatch[][] = [];
+      const recommendations: FoundationMatch[] = [];
+      const maxPairsPerBrand = 1; // Ensure brand diversity
+      
+      for (const [brandName, shades] of shadesByBrand) {
+        if (pairs.length >= 4) break; // Limit to 4 pairs as requested
+        
+        // Find best shade match for this brand
+        const bestShade = shades.find(shade => 
+          Math.abs((shade.depth_level || 5) - toneData.depth) <= 1
+        ) || shades[0];
+        
+        if (bestShade) {
+          const product = bestShade.foundation_products;
+          
+          // Create primary shade
+          const primaryMatch: FoundationMatch = {
+            id: `${product.id}-${bestShade.id}-primary`,
+            brand: brandName,
+            product: product.name,
+            shade: bestShade.shade_name,
+            price: product.price || 36,
+            rating: 4.3 + (pairs.length * 0.1),
+            reviewCount: 800 + (pairs.length * 100),
+            availability: {
+              online: true,
+              inStore: pairs.length < 2,
+              readyForPickup: pairs.length < 2,
+              nearbyStores: pairs.length < 2 ? ['Sephora', 'Ulta Beauty'] : []
+            },
+            matchPercentage: 95 - (pairs.length * 2),
+            undertone: bestShade.undertone,
+            coverage: product.coverage || 'medium',
+            finish: product.finish || 'natural',
+            imageUrl: product.image_url || '/placeholder.svg',
+            primaryShade: {
+              name: bestShade.shade_name,
+              purpose: 'face_center' as const
+            }
+          };
+
+          // Find a slightly deeper shade for contouring (from same brand if available)
+          const contourShade = shades.find(shade => 
+            shade.depth_level === (bestShade.depth_level || 5) + 1
+          ) || bestShade;
+
+          const contourMatch: FoundationMatch = {
+            id: `${product.id}-${contourShade.id}-contour`,
+            brand: brandName,
+            product: product.name,
+            shade: contourShade.shade_name,
+            price: product.price || 36,
+            rating: 4.3 + (pairs.length * 0.1),
+            reviewCount: 800 + (pairs.length * 100),
+            availability: {
+              online: true,
+              inStore: pairs.length < 2,
+              readyForPickup: pairs.length < 2,
+              nearbyStores: pairs.length < 2 ? ['Sephora', 'Ulta Beauty'] : []
+            },
+            matchPercentage: 92 - (pairs.length * 2),
+            undertone: contourShade.undertone,
+            coverage: product.coverage || 'medium',
+            finish: product.finish || 'natural',
+            imageUrl: product.image_url || '/placeholder.svg',
+            contourShade: {
+              name: contourShade.shade_name,
+              purpose: 'face_sides' as const,
+              mixable: true
+            }
+          };
+
+          pairs.push([primaryMatch, contourMatch]);
+          recommendations.push(primaryMatch, contourMatch);
+        }
+      }
+      
+      setFoundationPairs(pairs);
+      setShadeFinderRecommendations(recommendations);
+    } catch (error) {
+      console.error('Error generating foundation pairs:', error);
+      // Fallback to existing logic
+      const allProducts = [
+        ...(foundationProducts || []),
+        ...(cosmeticsProducts || [])
+      ];
+      const suitableProducts = filterProductsByToneAndPreferences(allProducts, toneData, questionnaire);
+      const pairs = createFoundationPairs(suitableProducts, toneData);
+      setFoundationPairs(pairs.slice(0, 4));
+    }
   };
 
   const filterProductsByToneAndPreferences = (products: any[], toneData: SkinToneData, questionnaire?: UserQuestionnaireData | null) => {
@@ -402,6 +524,7 @@ const EnhancedFoundationMatcher = () => {
           <VirtualTryOn 
             selectedMatch={selectedMatch}
             skinTone={skinTone}
+            availableRecommendations={shadeFinderRecommendations}
             onShadeRecommendations={(recommendations) => {
               console.log('New shade recommendations:', recommendations);
             }}
