@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import GoogleStorageFoundationImporter from '@/components/GoogleStorageFoundationImporter';
+import EnhancedGCSImporter from '@/components/EnhancedGCSImporter';
 import EnhancedFoundationBrowser from '@/components/EnhancedFoundationBrowser';
-import { Cloud, Database, Search } from 'lucide-react';
+import { Cloud, Database, Search, Image } from 'lucide-react';
 
 const GoogleStorageFoundations = () => {
   return (
@@ -35,7 +35,7 @@ const GoogleStorageFoundations = () => {
           </TabsContent>
 
           <TabsContent value="import" className="space-y-6">
-            <GoogleStorageFoundationImporter />
+            <EnhancedGCSImporter />
           </TabsContent>
         </Tabs>
       </div>

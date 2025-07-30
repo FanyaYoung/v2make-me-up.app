@@ -115,13 +115,29 @@ const TrueMatchFoundationResults: React.FC<TrueMatchFoundationResultsProps> = ({
             <img 
               src={match.imageUrl} 
               alt={`${match.brand} ${match.productName}`}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover transition-transform hover:scale-105"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.style.display = 'none';
+                const fallback = target.parentElement?.querySelector('.fallback-swatch') as HTMLElement;
+                if (fallback) fallback.style.display = 'flex';
+              }}
             />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
-              <Palette className="h-12 w-12 text-gray-400" />
+          ) : null}
+          
+          {/* Enhanced fallback with product color */}
+          <div 
+            className={`fallback-swatch w-full h-full items-center justify-center bg-gradient-to-br ${
+              match.imageUrl ? 'hidden' : 'flex'
+            }`}
+            style={{ backgroundColor: match.hexColor }}
+          >
+            <div className="text-center text-white bg-black bg-opacity-30 p-2 rounded">
+              <Palette className="h-8 w-8 mx-auto mb-1" />
+              <div className="text-xs font-medium">{match.brand}</div>
+              <div className="text-xs opacity-90">{match.shadeName}</div>
             </div>
-          )}
+          </div>
           
           {/* Match badge */}
           <div className="absolute top-2 left-2">

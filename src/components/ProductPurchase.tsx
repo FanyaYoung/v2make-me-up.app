@@ -95,15 +95,34 @@ const ProductPurchase: React.FC<ProductPurchaseProps> = ({ product }) => {
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Product Image */}
-        {product.image_url && (
-          <div className="aspect-square w-full max-w-32 mx-auto overflow-hidden rounded-lg bg-gray-100">
+        <div className="aspect-square w-full max-w-32 mx-auto overflow-hidden rounded-lg bg-gray-100">
+          {product.image_url ? (
             <img
               src={product.image_url}
               alt={`${product.brand} ${product.name}`}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover transition-transform hover:scale-105"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.style.display = 'none';
+                const fallback = target.nextElementSibling as HTMLElement;
+                if (fallback) fallback.style.display = 'flex';
+              }}
             />
+          ) : null}
+          
+          {/* Fallback placeholder */}
+          <div 
+            className={`w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 ${
+              product.image_url ? 'hidden' : 'flex'
+            }`}
+          >
+            <div className="text-center text-gray-500">
+              <ShoppingCart className="w-8 h-8 mx-auto mb-2" />
+              <div className="text-xs font-medium">{product.brand}</div>
+              <div className="text-xs">{product.name}</div>
+            </div>
           </div>
-        )}
+        </div>
 
         {/* Product Info */}
         <div className="text-center space-y-2">
