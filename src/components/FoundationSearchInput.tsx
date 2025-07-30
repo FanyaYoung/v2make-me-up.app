@@ -55,44 +55,64 @@ const FoundationSearchInput: React.FC<FoundationSearchInputProps> = ({ onMatchFo
   });
 
   const handleSearch = () => {
-    if (!selectedBrand || !productName) return;
+    if (!selectedBrand) return;
 
-    const matchingProduct = products?.find(p => 
-      p.name.toLowerCase().includes(productName.toLowerCase())
-    );
+    const generalCategories = ['concealer', 'powder foundation', 'liquid foundation', 'cream foundation', 'tinted moisturizer', 'bb cream', 'cc cream', 'primer', 'setting powder', 'bronzer', 'highlighter', 'blush'];
 
-    if (matchingProduct) {
+    let matchingProducts = products || [];
+
+    if (productName) {
+      const productNameLower = productName.toLowerCase();
+      
+      // Check if it's a general category
+      if (generalCategories.includes(productNameLower)) {
+        // Filter by product description or name for general categories
+        matchingProducts = products?.filter(p => 
+          p.description?.toLowerCase().includes(productNameLower) ||
+          p.name.toLowerCase().includes(productNameLower)
+        ) || [];
+      } else {
+        // Search by specific product name
+        matchingProducts = products?.filter(p => 
+          p.name.toLowerCase().includes(productNameLower)
+        ) || [];
+      }
+    }
+
+    if (matchingProducts.length > 0) {
       const brand = brands?.find(b => b.id === selectedBrand);
       
-      let matchingShade = null;
-      if (shadeName && matchingProduct.foundation_shades) {
-        matchingShade = matchingProduct.foundation_shades.find((shade: any) =>
-          shade.shade_name.toLowerCase().includes(shadeName.toLowerCase())
-        );
-      }
+      const foundationMatches = matchingProducts.slice(0, 5).map((product, index) => {
+        let matchingShade = null;
+        if (shadeName && product.foundation_shades) {
+          matchingShade = product.foundation_shades.find((shade: any) =>
+            shade.shade_name.toLowerCase().includes(shadeName.toLowerCase())
+          );
+        }
 
-      const foundationMatch: FoundationMatch = {
-        id: `search-${matchingProduct.id}`,
-        brand: brand?.name || 'Unknown',
-        product: matchingProduct.name,
-        shade: matchingShade?.shade_name || shadeName || 'Custom Shade',
-        price: matchingProduct.price || 35,
-        rating: 4.2,
-        reviewCount: 156,
-        availability: {
-          online: true,
-          inStore: true,
-          readyForPickup: true,
-          nearbyStores: ['Sephora', 'Ulta Beauty', 'Target']
-        },
-        matchPercentage: 95,
-        undertone: matchingShade?.undertone || 'neutral',
-        coverage: matchingProduct.coverage || 'medium',
-        finish: matchingProduct.finish || 'natural',
-        imageUrl: matchingProduct.image_url || '/placeholder.svg'
-      };
+        return {
+          id: `search-${product.id}-${index}`,
+          brand: brand?.name || 'Unknown',
+          product: product.name,
+          shade: matchingShade?.shade_name || shadeName || 'Custom Shade',
+          price: product.price || 35,
+          rating: 4.2,
+          reviewCount: 156,
+          availability: {
+            online: true,
+            inStore: true,
+            readyForPickup: true,
+            nearbyStores: ['Sephora', 'Ulta Beauty', 'Target']
+          },
+          matchPercentage: 95 - index * 5, // Decrease match percentage for additional results
+          undertone: matchingShade?.undertone || 'neutral',
+          coverage: product.coverage || 'medium',
+          finish: product.finish || 'natural',
+          imageUrl: product.image_url || '/placeholder.svg'
+        };
+      });
 
-      onMatchFound([foundationMatch]);
+      onMatchFound(foundationMatches);
     }
   };
 
@@ -126,13 +146,31 @@ const FoundationSearchInput: React.FC<FoundationSearchInputProps> = ({ onMatchFo
           </div>
 
           <div>
-            <Label htmlFor="product-name">Product Name</Label>
+            <Label htmlFor="product-name">Product Name (Optional)</Label>
             <Input
               id="product-name"
               value={productName}
               onChange={(e) => setProductName(e.target.value)}
-              placeholder="e.g., Fenty Beauty Pro Filt'r"
+              placeholder="e.g., Pro Filt'r, concealer, powder foundation, liquid foundation"
+              list="product-suggestions"
             />
+            <datalist id="product-suggestions">
+              <option value="concealer" />
+              <option value="powder foundation" />
+              <option value="liquid foundation" />
+              <option value="cream foundation" />
+              <option value="tinted moisturizer" />
+              <option value="BB cream" />
+              <option value="CC cream" />
+              <option value="primer" />
+              <option value="setting powder" />
+              <option value="bronzer" />
+              <option value="highlighter" />
+              <option value="blush" />
+              {products?.map((product) => (
+                <option key={product.id} value={product.name} />
+              ))}
+            </datalist>
           </div>
 
           <div>
@@ -147,7 +185,7 @@ const FoundationSearchInput: React.FC<FoundationSearchInputProps> = ({ onMatchFo
 
           <Button 
             onClick={handleSearch}
-            disabled={!selectedBrand || !productName}
+            disabled={!selectedBrand}
             className="w-full"
           >
             <Package className="w-4 h-4 mr-2" />
