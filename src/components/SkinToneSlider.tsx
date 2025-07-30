@@ -142,51 +142,6 @@ const SkinToneSlider = ({ onSkinToneSelect }: SkinToneSliderProps) => {
           </div>
         </div>
 
-        {/* Real Skin Tone References */}
-        <div>
-          <label className="text-sm font-medium mb-3 block">Real skin tone references ({selectedUndertone}):</label>
-          <div className="grid grid-cols-8 gap-2">
-            {!loading && skinToneByUndertone[selectedUndertone]?.slice(0, 16).map((tone, index) => (
-              <button
-                key={index}
-                className="w-8 h-8 rounded-full border-2 hover:scale-110 transition-transform relative group"
-                style={{ backgroundColor: tone.hex_color }}
-                onClick={() => {
-                  // Find closest matching depth for this reference
-                  const closestRef = findClosestSkinTone(tone.hex_color, skinToneReferences);
-                  const depthMapping = { 'fair': 20, 'light': 35, 'medium': 50, 'deep': 65, 'very-deep': 80 };
-                  setSliderValue([depthMapping[closestRef.depth] || 50]);
-                }}
-                title={tone.name || tone.hex_color}
-              >
-                <span className="sr-only">{tone.name || tone.hex_color}</span>
-                {/* Tooltip */}
-                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs bg-black text-white rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
-                  {tone.name || tone.hex_color}
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Generated Sample Colors for Fine-tuning */}
-        <div>
-          <label className="text-sm font-medium mb-3 block">Fine-tune with generated tones:</label>
-          <div className="flex gap-2">
-            {[20, 35, 50, 65, 80].map((depth) => {
-              const refTone = generateSkinTone(depth, selectedUndertone);
-              return (
-                <button
-                  key={depth}
-                  className="w-8 h-8 rounded-full border-2 hover:scale-110 transition-transform"
-                  style={{ backgroundColor: refTone.hsl }}
-                  onClick={() => setSliderValue([depth])}
-                  title={`Depth ${depth}`}
-                />
-              );
-            })}
-          </div>
-        </div>
 
         <Button onClick={handleConfirm} className="w-full">
           <Palette className="w-4 h-4 mr-2" />

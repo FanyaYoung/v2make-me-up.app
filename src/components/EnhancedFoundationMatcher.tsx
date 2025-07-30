@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import SkinToneSlider from './SkinToneSlider';
-import SkinToneReference from './SkinToneReference';
+import NaturalSkinToneSelector from './NaturalSkinToneSelector';
 import VirtualTryOn from './VirtualTryOn';
 import FoundationPairResults from './FoundationPairResults';
 import QuestionnaireFlow from './QuestionnaireFlow';
@@ -476,14 +476,13 @@ const EnhancedFoundationMatcher = () => {
               </TabsContent>
               
               <TabsContent value="reference" className="mt-6">
-                <SkinToneReference 
-                  showSelector={true}
-                  onToneSelect={(hex, undertone, depth) => {
-                    const depthMapping = { 'fair': 2, 'light': 3, 'medium': 5, 'deep': 7, 'very-deep': 9 };
+                <NaturalSkinToneSelector 
+                  onSkinToneSelect={(toneData) => {
+                    const depthMapping = { 'fair': 2, 'light': 3, 'medium': 5, 'dark': 7 };
                     const skinToneData: SkinToneData = {
-                      hexColor: hex,
-                      depth: depthMapping[depth as keyof typeof depthMapping] || 5,
-                      undertone: undertone
+                      hexColor: toneData.hexColor,
+                      depth: depthMapping[toneData.depth as keyof typeof depthMapping] || 5,
+                      undertone: toneData.undertone
                     };
                     handleSkinToneSelect(skinToneData);
                   }}
