@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { skinToneReferences, skinToneByCategory, skinToneByUndertone } from '@/data/skinToneReferences';
+import { useSkinToneReferences } from '@/hooks/useSkinToneReferences';
 import { Palette, Info } from 'lucide-react';
 
 interface SkinToneReferenceProps {
@@ -14,10 +14,36 @@ interface SkinToneReferenceProps {
 const SkinToneReference = ({ onToneSelect, showSelector = false }: SkinToneReferenceProps) => {
   const [selectedCategory, setSelectedCategory] = useState<'depth' | 'undertone'>('depth');
   const [hoveredTone, setHoveredTone] = useState<string | null>(null);
+  const { skinToneReferences, skinToneByCategory, skinToneByUndertone, loading, error } = useSkinToneReferences();
+
+  if (loading) {
+    return (
+      <Card className="w-full">
+        <CardContent className="flex items-center justify-center p-8">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading skin tone references...</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card className="w-full">
+        <CardContent className="flex items-center justify-center p-8">
+          <div className="text-center text-red-500">
+            <p>Error loading skin tone references: {error}</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const handleToneClick = (tone: any) => {
     if (onToneSelect) {
-      onToneSelect(tone.hex, tone.undertone, tone.depth);
+      onToneSelect(tone.hex_color, tone.undertone, tone.depth);
     }
   };
 
@@ -29,23 +55,23 @@ const SkinToneReference = ({ onToneSelect, showSelector = false }: SkinToneRefer
           <div
             key={index}
             className="relative group"
-            onMouseEnter={() => setHoveredTone(tone.hex)}
+            onMouseEnter={() => setHoveredTone(tone.hex_color)}
             onMouseLeave={() => setHoveredTone(null)}
           >
             <button
               className={`w-8 h-8 md:w-10 md:h-10 rounded-full border-2 border-gray-300 hover:border-gray-400 transition-all duration-200 hover:scale-110 ${
                 showSelector ? 'cursor-pointer' : ''
               }`}
-              style={{ backgroundColor: tone.hex }}
+              style={{ backgroundColor: tone.hex_color }}
               onClick={() => handleToneClick(tone)}
-              title={tone.name || tone.hex}
+              title={tone.name || tone.hex_color}
             />
             
             {/* Tooltip */}
-            {hoveredTone === tone.hex && (
+            {hoveredTone === tone.hex_color && (
               <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-black text-white text-xs rounded-lg opacity-95 pointer-events-none whitespace-nowrap z-20 shadow-lg">
                 <div className="font-medium">{tone.name || 'Untitled'}</div>
-                <div className="text-gray-300">{tone.hex}</div>
+                <div className="text-gray-300">{tone.hex_color}</div>
                 <div className="flex gap-1 mt-1">
                   <Badge variant="outline" className="text-xs bg-white/10 border-white/20">
                     {tone.undertone}

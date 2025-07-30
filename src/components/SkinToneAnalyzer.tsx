@@ -1,5 +1,5 @@
 import { pipeline, env } from '@huggingface/transformers';
-import { findClosestSkinTone, skinToneReferences } from '@/data/skinToneReferences';
+import { findClosestSkinTone, useSkinToneReferences } from '@/hooks/useSkinToneReferences';
 
 // Configure transformers.js
 env.allowLocalModels = false;
@@ -27,6 +27,11 @@ export interface SkinToneAnalysis {
 
 class SkinToneAnalyzer {
   private segmentationModel: any = null;
+  private skinToneReferences: any[] = [];
+
+  setSkinToneReferences(references: any[]) {
+    this.skinToneReferences = references;
+  }
   
   async initializeModel() {
     if (!this.segmentationModel) {
@@ -142,7 +147,7 @@ class SkinToneAnalyzer {
     
     // Analyze undertones and depth for each region using reference data
     const analyzedTones = tones.map(tone => {
-      const closestRef = findClosestSkinTone(tone.hex);
+      const closestRef = findClosestSkinTone(tone.hex, this.skinToneReferences);
       return {
         ...tone,
         undertone: closestRef.undertone,
