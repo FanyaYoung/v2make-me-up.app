@@ -62,7 +62,7 @@ class InclusiveShadeAnalyzer {
       // Load a color classification model for better undertone detection
       this.colorModel = await pipeline(
         'image-classification',
-        'google/vit-base-patch16-224',
+        'Xenova/vit-base-patch16-224-in21k',
         { device: 'webgpu' }
       );
       
