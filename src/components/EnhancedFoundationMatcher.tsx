@@ -331,6 +331,7 @@ const EnhancedFoundationMatcher = () => {
   };
 
   const handleSearchResults = (matches: FoundationMatch[]) => {
+    console.log('Search results received:', matches);
     setSearchResults(matches);
     setFoundationPairs([]); // Clear pairs when using search
   };
