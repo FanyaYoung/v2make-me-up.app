@@ -16,6 +16,7 @@ import {
   Download
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useCart } from '@/contexts/CartContext';
 
 interface FoundationMatch {
   id: string;
@@ -55,6 +56,7 @@ const TrueMatchFoundationResults: React.FC<TrueMatchFoundationResultsProps> = ({
   onTryVirtual
 }) => {
   const [savedMatches, setSavedMatches] = useState<Set<string>>(new Set());
+  const { addToCart } = useCart();
   
   const getMatchTypeIcon = (type: string) => {
     switch (type) {
@@ -104,6 +106,33 @@ const TrueMatchFoundationResults: React.FC<TrueMatchFoundationResultsProps> = ({
     // Open purchase URL in new tab
     window.open(match.purchaseUrl, '_blank');
     toast.success(`Opening ${match.brand} purchase page...`);
+  };
+
+  const handleAddToCart = (match: FoundationMatch) => {
+    // Convert FoundationMatch to the expected format for cart
+    const cartProduct = {
+      id: match.id,
+      brand: match.brand,
+      product: match.productName,
+      shade: match.shadeName,
+      price: match.price,
+      rating: match.rating,
+      reviewCount: match.reviewCount,
+      availability: {
+        online: true,
+        inStore: true,
+        readyForPickup: true,
+        nearbyStores: ['Sephora', 'Ulta Beauty']
+      },
+      matchPercentage: match.confidenceScore * 100,
+      undertone: match.undertone,
+      coverage: match.coverage,
+      finish: match.finish,
+      imageUrl: match.imageUrl
+    };
+    
+    addToCart(cartProduct);
+    toast.success(`${match.brand} ${match.productName} added to cart!`);
   };
 
   const renderFoundationCard = (match: FoundationMatch) => (
@@ -208,11 +237,11 @@ const TrueMatchFoundationResults: React.FC<TrueMatchFoundationResultsProps> = ({
           {/* Action Buttons */}
           <div className="flex space-x-2 pt-2">
             <Button 
-              onClick={() => handlePurchase(match)}
+              onClick={() => handleAddToCart(match)}
               className="flex-1 bg-gradient-to-r from-rose-500 to-purple-500"
             >
               <ShoppingCart className="mr-2 h-4 w-4" />
-              Buy Now
+              Add to Cart
             </Button>
             
             <Button
