@@ -1,321 +1,312 @@
-import React, { useState, useRef, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { 
-  Camera, 
-  Upload, 
-  Sparkles, 
-  Target, 
-  AlertCircle,
-  CheckCircle,
-  RefreshCw,
-  Palette,
-  Info
-} from 'lucide-react';
-import { toast } from 'sonner';
-import { inclusiveShadeAnalyzer, type InclusiveSkinToneAnalysis } from './InclusiveShadeAnalyzer';
-import FoundationEducationTips from './FoundationEducationTips';
-import { useAuth } from '@/hooks/useAuth';
+import { Camera, Upload, Target, CheckCircle, Palette, RefreshCw, AlertCircle } from 'lucide-react';
+import { inclusiveShadeAnalyzer, SkinToneData, SkinToneResult } from '@/lib/inclusiveShadeAnalyzer';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 interface InclusiveShadeMatchingInterfaceProps {
-  onAnalysisComplete: (analysis: InclusiveSkinToneAnalysis) => void;
+  onAnalysisComplete: (skinToneData: SkinToneData) => void;
   onUpgradeClick?: () => void;
 }
 
 export default function InclusiveShadeMatchingInterface({ 
-  onAnalysisComplete,
+  onAnalysisComplete, 
   onUpgradeClick 
 }: InclusiveShadeMatchingInterfaceProps) {
-  const { user } = useAuth();
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysisProgress, setAnalysisProgress] = useState(0);
-  const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const [analysisResult, setAnalysisResult] = useState<InclusiveSkinToneAnalysis | null>(null);
   const [currentStep, setCurrentStep] = useState<'capture' | 'analyzing' | 'results'>('capture');
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [analysisProgress, setAnalysisProgress] = useState(0);
+  const [analysisResult, setAnalysisResult] = useState<SkinToneResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [stream, setStream] = useState<MediaStream | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  
+  const { user } = useAuth();
 
-  const startCamera = useCallback(async () => {
+  const startCamera = async () => {
     try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          width: { ideal: 1280 },
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          width: { ideal: 1280 }, 
           height: { ideal: 720 },
           facingMode: 'user'
-        }
+        } 
       });
       
       if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-        setStream(mediaStream);
+        videoRef.current.srcObject = stream;
+        streamRef.current = stream;
       }
     } catch (err) {
-      console.error('Error accessing camera:', err);
-      toast.error('Unable to access camera. Please try uploading an image instead.');
+      setError('Unable to access camera. Please ensure camera permissions are granted.');
     }
-  }, []);
+  };
 
-  const stopCamera = useCallback(() => {
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
-      setStream(null);
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
     }
-  }, [stream]);
+  };
 
-  const capturePhoto = useCallback(() => {
-    if (!videoRef.current || !canvasRef.current) return;
-
-    const canvas = canvasRef.current;
+  const capturePhoto = () => {
     const video = videoRef.current;
-    const ctx = canvas.getContext('2d');
+    const canvas = canvasRef.current;
     
-    if (!ctx) return;
+    if (video && canvas) {
+      const context = canvas.getContext('2d');
+      if (context) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0);
+        
+        const imageDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+        setCapturedImage(imageDataUrl);
+        stopCamera();
+      }
+    }
+  };
 
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    ctx.drawImage(video, 0, 0);
-    
-    const imageDataUrl = canvas.toDataURL('image/jpeg', 0.9);
-    setCapturedImage(imageDataUrl);
-    stopCamera();
-    
-    toast.success('Photo captured! Ready for analysis.');
-  }, [stopCamera]);
-
-  const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) return;
-
-    if (file.type.startsWith('image/')) {
+    if (file) {
       const reader = new FileReader();
       reader.onload = (e) => {
         setCapturedImage(e.target?.result as string);
-        toast.success('Image uploaded! Ready for analysis.');
       };
       reader.readAsDataURL(file);
-    } else {
-      toast.error('Please upload a valid image file.');
     }
-  }, []);
+  };
 
-  const analyzeImage = useCallback(async () => {
-    if (!capturedImage) {
-      toast.error('Please capture or upload an image first.');
-      return;
-    }
-
-    setIsAnalyzing(true);
+  const analyzeImage = async () => {
+    if (!capturedImage) return;
+    
     setCurrentStep('analyzing');
+    setIsAnalyzing(true);
     setAnalysisProgress(0);
     setError(null);
 
     try {
-      // Create image element
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      
-      await new Promise((resolve, reject) => {
-        img.onload = resolve;
-        img.onerror = reject;
-        img.src = capturedImage;
-      });
-
-      // Simulate realistic analysis progress with educational tips
-      const progressSteps = [
-        { progress: 10, message: 'Initializing AI models...' },
-        { progress: 25, message: 'Detecting facial regions...' },
-        { progress: 40, message: 'Analyzing skin tone patterns...' },
-        { progress: 55, message: 'Applying multiple reference systems...' },
-        { progress: 70, message: 'Correcting color bias...' },
-        { progress: 85, message: 'Calculating confidence metrics...' },
-        { progress: 95, message: 'Synthesizing final analysis...' }
-      ];
-
-      for (const step of progressSteps) {
-        await new Promise(resolve => setTimeout(resolve, 800));
-        setAnalysisProgress(step.progress);
-        console.log(step.message);
-      }
-
-      // Perform actual analysis
-      const analysis = await inclusiveShadeAnalyzer.analyzeInclusiveSkinTone(img);
-      
-      setAnalysisProgress(100);
-      setAnalysisResult(analysis);
-      setCurrentStep('results');
-      onAnalysisComplete(analysis);
-
-      // Track usage in database
-      if (user) {
-        await supabase.from('user_match_usage').insert({
-          user_id: user.id,
-          match_type: 'inclusive_shade_analysis',
-          metadata: {
-            confidence: analysis.dominantTone.confidence,
-            reference_system: analysis.dominantTone.referenceSystem,
-            bias_correction: analysis.biasCorrection.adjustmentType,
-            quality_score: analysis.qualityMetrics.overallConfidence
+      // Simulate progress updates
+      const progressInterval = setInterval(() => {
+        setAnalysisProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
           }
+          return prev + Math.random() * 15;
         });
-      }
+      }, 200);
 
-      toast.success('Analysis complete! Your inclusive shade profile is ready.');
+      // Perform the actual analysis
+      const result = await inclusiveShadeAnalyzer.analyzeInclusiveSkinTone(capturedImage);
+      
+      clearInterval(progressInterval);
+      setAnalysisProgress(100);
+      
+      // Small delay to show 100% completion
+      setTimeout(() => {
+        setAnalysisResult(result);
+        setCurrentStep('results');
+        
+        // Create skin tone data for foundation matching
+        const skinToneData: SkinToneData = {
+          hexColor: result.dominantTone.hex,
+          depth: result.dominantTone.depth === 'fair' ? 2 :
+                 result.dominantTone.depth === 'light' ? 4 :
+                 result.dominantTone.depth === 'medium' ? 6 :
+                 result.dominantTone.depth === 'deep' ? 8 : 10,
+          undertone: result.dominantTone.undertone
+        };
+        
+        onAnalysisComplete(skinToneData);
+        
+        // Log usage to analytics
+        if (user) {
+          supabase.from('user_match_usage').insert({
+            user_id: user.id,
+            match_type: 'inclusive_shade_analysis',
+            metadata: {
+              confidence: result.dominantTone.confidence,
+              reference_system: result.dominantTone.referenceSystem,
+              bias_correction: result.biasCorrection.adjustmentType !== 'none'
+            }
+          });
+        }
+      }, 500);
       
     } catch (err) {
-      console.error('Analysis error:', err);
-      setError(err instanceof Error ? err.message : 'Analysis failed');
-      toast.error('Analysis failed. Please try again with a clearer image.');
+      setError('Failed to analyze image. Please try again with a clearer photo.');
+      setCurrentStep('capture');
     } finally {
       setIsAnalyzing(false);
     }
-  }, [capturedImage, user, onAnalysisComplete]);
+  };
 
-  const resetAnalysis = useCallback(() => {
+  const resetAnalysis = () => {
     setCurrentStep('capture');
     setCapturedImage(null);
     setAnalysisResult(null);
     setAnalysisProgress(0);
     setError(null);
     stopCamera();
-  }, [stopCamera]);
+  };
 
-  const renderCaptureInterface = () => (
-    <div className="space-y-6">
-      <div className="text-center">
-        <h2 className="text-2xl font-bold mb-2">Inclusive Shade Analysis</h2>
-        <p className="text-muted-foreground">
-          Capture or upload a clear photo of your face for accurate, bias-free shade matching
-        </p>
-      </div>
-
-      <Alert>
-        <Info className="h-4 w-4" />
-        <AlertDescription>
-          For best results: Use natural lighting, face the camera directly, and ensure your face fills most of the frame.
-        </AlertDescription>
-      </Alert>
-
-      {!capturedImage && (
-        <div className="grid md:grid-cols-2 gap-4">
-          {/* Camera Capture */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Camera className="w-5 h-5" />
-                Take Photo
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {!stream ? (
-                <Button onClick={startCamera} className="w-full">
-                  Start Camera
-                </Button>
-              ) : (
-                <div className="space-y-4">
-                  <video
-                    ref={videoRef}
-                    autoPlay
-                    playsInline
-                    className="w-full rounded-lg"
-                  />
-                  <Button onClick={capturePhoto} className="w-full">
-                    Capture Photo
-                  </Button>
-                </div>
-              )}
-              <canvas ref={canvasRef} className="hidden" />
-            </CardContent>
-          </Card>
-
-          {/* File Upload */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Upload className="w-5 h-5" />
-                Upload Photo
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleFileUpload}
-                className="hidden"
-              />
-              <Button 
-                onClick={() => fileInputRef.current?.click()}
-                variant="outline"
-                className="w-full"
-              >
-                Choose Image
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {capturedImage && (
-        <Card>
-          <CardContent className="p-6">
+  const renderCaptureInterface = () => {
+    return (
+      <Card className="bg-white/70 backdrop-blur-sm shadow-xl border-0 mb-8">
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl font-bold text-gray-800 mb-2">
+            AI Skin Tone Analysis
+          </CardTitle>
+          <p className="text-gray-600">
+            Capture or upload a photo for personalized shade matching using inclusive AI technology
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {!capturedImage ? (
             <div className="space-y-4">
+              {/* Camera Section */}
+              <div className="text-center">
+                <video 
+                  ref={videoRef}
+                  autoPlay 
+                  playsInline
+                  className="w-full max-w-md mx-auto rounded-lg shadow-lg"
+                  style={{ display: streamRef.current ? 'block' : 'none' }}
+                />
+                
+                {!streamRef.current && (
+                  <div className="w-full max-w-md mx-auto h-64 bg-gray-100 rounded-lg flex items-center justify-center">
+                    <div className="text-center">
+                      <Camera className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-600">Camera preview will appear here</p>
+                    </div>
+                  </div>
+                )}
+                
+                <div className="flex gap-4 justify-center mt-4">
+                  {!streamRef.current ? (
+                    <Button 
+                      onClick={startCamera}
+                      className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
+                    >
+                      <Camera className="w-4 h-4 mr-2" />
+                      Start Camera
+                    </Button>
+                  ) : (
+                    <Button 
+                      onClick={capturePhoto}
+                      className="bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600"
+                    >
+                      <Camera className="w-4 h-4 mr-2" />
+                      Capture Photo
+                    </Button>
+                  )}
+                </div>
+              </div>
+              
+              <div className="text-center">
+                <div className="flex items-center my-4">
+                  <div className="flex-1 border-t border-gray-300"></div>
+                  <span className="px-4 text-gray-500">or</span>
+                  <div className="flex-1 border-t border-gray-300"></div>
+                </div>
+                
+                <Button 
+                  onClick={() => fileInputRef.current?.click()}
+                  variant="outline"
+                  className="border-purple-200 hover:border-purple-400"
+                >
+                  <Upload className="w-4 h-4 mr-2" />
+                  Upload Photo
+                </Button>
+                
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="text-center space-y-4">
               <img 
                 src={capturedImage} 
-                alt="Captured for analysis"
-                className="w-full max-w-md mx-auto rounded-lg"
+                alt="Captured" 
+                className="w-full max-w-md mx-auto rounded-lg shadow-lg"
               />
-              <div className="flex gap-2 justify-center">
-                <Button onClick={analyzeImage} className="gap-2">
-                  <Sparkles className="w-4 h-4" />
-                  Analyze Shade
+              
+              <div className="flex gap-4 justify-center">
+                <Button 
+                  onClick={analyzeImage}
+                  disabled={isAnalyzing}
+                  className="bg-gradient-to-r from-rose-500 to-purple-500 hover:from-rose-600 hover:to-purple-600"
+                >
+                  <Target className="w-4 h-4 mr-2" />
+                  Analyze Skin Tone
                 </Button>
-                <Button variant="outline" onClick={resetAnalysis}>
+                
+                <Button 
+                  onClick={resetAnalysis}
+                  variant="outline"
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" />
                   Retake
                 </Button>
               </div>
             </div>
-          </CardContent>
-        </Card>
-      )}
-    </div>
-  );
+          )}
+          
+          <canvas ref={canvasRef} className="hidden" />
+        </CardContent>
+      </Card>
+    );
+  };
 
-  const renderAnalysisInterface = () => (
-    <div className="space-y-6">
-      <div className="text-center">
-        <h2 className="text-2xl font-bold mb-2">Analyzing Your Shade</h2>
-        <p className="text-muted-foreground">
-          Our AI is applying multiple reference systems for the most accurate analysis
-        </p>
-      </div>
-
-      <Card>
-        <CardContent className="p-6">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="font-medium">Analysis Progress</span>
-              <span className="text-sm text-muted-foreground">{analysisProgress}%</span>
-            </div>
-            <Progress value={analysisProgress} className="h-3" />
+  const renderAnalysisInterface = () => {
+    return (
+      <Card className="bg-white/70 backdrop-blur-sm shadow-xl border-0 mb-8">
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl font-bold text-gray-800 mb-2">
+            Analyzing Your Skin Tone
+          </CardTitle>
+          <p className="text-gray-600">
+            Our AI is processing your image for the most accurate shade match
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="text-center">
+            <div className="w-24 h-24 bg-gradient-to-br from-rose-200 to-purple-200 rounded-full mx-auto mb-4 animate-pulse" />
+            
+            <Progress value={analysisProgress} className="w-full max-w-md mx-auto mb-4" />
+            
+            <p className="text-lg font-semibold text-gray-700">
+              {analysisProgress < 30 ? 'Detecting skin regions...' :
+               analysisProgress < 60 ? 'Analyzing skin tone...' :
+               analysisProgress < 90 ? 'Applying bias correction...' :
+               'Finalizing results...'}
+            </p>
+            
+            <p className="text-sm text-gray-500 mt-2">
+              {Math.round(analysisProgress)}% complete
+            </p>
           </div>
         </CardContent>
       </Card>
-
-      <FoundationEducationTips 
-        isAnalyzing={isAnalyzing}
-        analysisProgress={analysisProgress}
-        onUpgradeClick={onUpgradeClick}
-      />
-    </div>
-  );
+    );
+  };
 
   const renderResults = () => {
     if (!analysisResult) return null;
@@ -341,7 +332,7 @@ export default function InclusiveShadeMatchingInterface({
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center gap-4">
-              <div 
+              <div
                 className="w-16 h-16 rounded-full border-2 border-border shadow-md"
                 style={{ backgroundColor: dominantTone.hex }}
               />
@@ -356,7 +347,7 @@ export default function InclusiveShadeMatchingInterface({
                 </div>
               </div>
             </div>
-            
+
             <div className="grid grid-cols-2 gap-4 mt-4">
               <div>
                 <p className="text-sm font-medium">Confidence</p>
@@ -386,13 +377,13 @@ export default function InclusiveShadeMatchingInterface({
             <CardContent>
               <div className="flex items-center gap-4">
                 <div className="flex gap-2">
-                  <div 
+                  <div
                     className="w-8 h-8 rounded border"
                     style={{ backgroundColor: biasCorrection.originalHex }}
                     title="Original"
                   />
                   <span className="text-muted-foreground">→</span>
-                  <div 
+                  <div
                     className="w-8 h-8 rounded border"
                     style={{ backgroundColor: biasCorrection.correctedHex }}
                     title="Corrected"
@@ -400,8 +391,8 @@ export default function InclusiveShadeMatchingInterface({
                 </div>
                 <div>
                   <p className="text-sm font-medium">
-                    {biasCorrection.adjustmentType === 'yellow-reduction' 
-                      ? 'Yellow Bias Reduced' 
+                    {biasCorrection.adjustmentType === 'yellow-reduction'
+                      ? 'Yellow Bias Reduced'
                       : 'Warmth Enhanced'}
                   </p>
                   <p className="text-xs text-muted-foreground">
