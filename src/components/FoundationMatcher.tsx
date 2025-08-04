@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import FoundationInput from './FoundationInput';
 import VirtualTryOn from './VirtualTryOn';
 import InclusiveShadeMatchingInterface from './InclusiveShadeMatchingInterface';
+import ColorMatchingTest from './ColorMatchingTest';
 import OptionalUserInfo from './OptionalUserInfo';
 import FoundationResults from './FoundationResults';
 import { FoundationMatch } from '../types/foundation';
@@ -267,6 +268,9 @@ const FoundationMatcher = () => {
             onAnalysisComplete={handleInclusiveAnalysis}
             onUpgradeClick={() => console.log('Upgrade clicked')} // Placeholder for actual upgrade logic
           />
+          
+          {/* CIELAB Color Matching Test */}
+          <ColorMatchingTest />
           
           <OptionalUserInfo />
 
