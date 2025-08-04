@@ -479,12 +479,26 @@ const EnhancedFoundationMatcher = () => {
               <TabsContent value="reference" className="mt-6">
                 <NaturalSkinToneSelector 
                   onSkinToneSelect={(toneData) => {
-                    const depthMapping = { 'fair': 2, 'light': 3, 'medium': 5, 'dark': 7 };
+                    console.log('Received tone data from NaturalSkinToneSelector:', toneData);
+                    
+                    // Map depth strings to numeric values that match the database
+                    const depthMapping: { [key: string]: number } = { 
+                      'fair': 2, 
+                      'light': 4, 
+                      'medium': 6, 
+                      'dark': 8 
+                    };
+                    
+                    const numericDepth = depthMapping[toneData.depth] || 6;
+                    console.log('Mapped depth from', toneData.depth, 'to', numericDepth);
+                    
                     const skinToneData: SkinToneData = {
                       hexColor: toneData.hexColor,
-                      depth: depthMapping[toneData.depth as keyof typeof depthMapping] || 5,
+                      depth: numericDepth,
                       undertone: toneData.undertone
                     };
+                    
+                    console.log('Final skinToneData being passed:', skinToneData);
                     handleSkinToneSelect(skinToneData);
                   }}
                 />
