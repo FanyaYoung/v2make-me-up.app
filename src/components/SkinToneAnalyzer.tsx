@@ -36,12 +36,29 @@ class SkinToneAnalyzer {
   async initializeModel() {
     if (!this.segmentationModel) {
       console.log('Loading skin segmentation model...');
-      this.segmentationModel = await pipeline(
-        'image-segmentation',
-        'Xenova/segformer-b2-finetuned-ade-512-512',
-        { device: 'webgpu' }
-      );
-      console.log('Model loaded successfully');
+      try {
+        // Try WebGPU first
+        this.segmentationModel = await pipeline(
+          'image-segmentation',
+          'Xenova/segformer-b2-finetuned-ade-512-512',
+          { device: 'webgpu' }
+        );
+        console.log('Model loaded successfully with WebGPU');
+      } catch (webgpuError) {
+        console.log('WebGPU failed, falling back to CPU:', webgpuError);
+        try {
+          // Fallback to CPU
+          this.segmentationModel = await pipeline(
+            'image-segmentation',
+            'Xenova/segformer-b2-finetuned-ade-512-512',
+            { device: 'cpu' }
+          );
+          console.log('Model loaded successfully with CPU');
+        } catch (cpuError) {
+          console.error('Failed to load model with both WebGPU and CPU:', cpuError);
+          throw new Error('Could not initialize skin tone analysis model');
+        }
+      }
     }
   }
 

@@ -4,6 +4,7 @@ import VirtualTryOn from '../components/VirtualTryOn';
 import EnhancedProductRecommendations from '../components/EnhancedProductRecommendations';
 import SkinToneAnalysisDisplay from '../components/SkinToneAnalysisDisplay';
 import UpgradePrompt from '../components/UpgradePrompt';
+import GCSProductPhotoBrowser from '../components/GCSProductPhotoBrowser';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -178,60 +179,9 @@ const VirtualTryOnPage = () => {
 
             {canTryOn ? (
               <>
-                {/* Quick Start Options */}
-                <div className="grid md:grid-cols-2 gap-6 mb-8 max-w-4xl mx-auto">
-                  <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-                    <CardHeader className="text-center">
-                      <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Camera className="h-8 w-8 text-purple-600" />
-                      </div>
-                      <CardTitle>Use Camera</CardTitle>
-                      <CardDescription>
-                        Take a photo with your device camera for instant try-on
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <Button className="w-full" size="lg">
-                        <Camera className="w-5 h-5 mr-2" />
-                        Start Camera
-                      </Button>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-                    <CardHeader className="text-center">
-                      <div className="w-16 h-16 bg-rose-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Upload className="h-8 w-8 text-rose-600" />
-                      </div>
-                      <CardTitle>Upload Photo</CardTitle>
-                      <CardDescription>
-                        Upload an existing photo from your device
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <Button variant="outline" className="w-full" size="lg">
-                        <Upload className="w-5 h-5 mr-2" />
-                        Choose File
-                      </Button>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* Show upgrade prompt for non-premium users who are running low on matches */}
-                {!subscription.isPremium && getUrgencyLevel() !== 'low' && (
-                  <div className="mb-8">
-                    <UpgradePrompt
-                      matchUsage={matchUsage}
-                      remainingMatches={remainingMatches}
-                      maxMatches={FREE_MATCH_LIMIT}
-                      onUpgrade={handleUpgrade}
-                      urgencyLevel={getUrgencyLevel()}
-                    />
-                  </div>
-                )}
-
-                {/* Virtual Try-On Component */}
-                <div className="grid lg:grid-cols-3 gap-8">
+                {/* Main Content Grid */}
+                <div className="grid lg:grid-cols-4 gap-8">
+                  {/* Compact Virtual Try-On Component */}
                   <div className="lg:col-span-1">
                     <VirtualTryOn 
                       selectedMatch={selectedMatch} 
@@ -240,7 +190,7 @@ const VirtualTryOnPage = () => {
                   </div>
                   
                   {/* Enhanced Product Recommendations */}
-                  <div className="lg:col-span-2 space-y-8">
+                  <div className="lg:col-span-3 space-y-6">
                     {/* Skin Tone Analysis */}
                     {skinToneAnalysis && (
                       <SkinToneAnalysisDisplay analysis={{
@@ -275,8 +225,74 @@ const VirtualTryOnPage = () => {
                         onVirtualTryOn={handleVirtualTryOn}
                       />
                     )}
+                    
+                    {/* Instructions when no recommendations */}
+                    {recommendations.length === 0 && (
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-center">Get Personalized Recommendations</CardTitle>
+                          <CardDescription className="text-center">
+                            Upload a photo or use your camera to get foundation matches tailored to your skin tone
+                          </CardDescription>
+                        </CardHeader>
+                      </Card>
+                    )}
+                    
+                    {/* Google Cloud Storage Product Photos Browser */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Try Products from Our Library</CardTitle>
+                        <CardDescription>
+                          Browse professional product photos and see how they might look on your skin tone
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <GCSProductPhotoBrowser 
+                          bucketName="makeup-product-photos"
+                          onPhotoSelect={async (photoUrl, fileName) => {
+                            // Convert GCS photo URL to a data URL for analysis
+                            try {
+                              const response = await fetch(photoUrl);
+                              const blob = await response.blob();
+                              const reader = new FileReader();
+                              reader.onload = (e) => {
+                                if (e.target?.result) {
+                                  // This would trigger analysis similar to uploaded photos
+                                  // For now, we'll show a success message
+                                  toast({
+                                    title: "Product photo selected",
+                                    description: `Selected ${fileName} for skin tone matching`,
+                                  });
+                                }
+                              };
+                              reader.readAsDataURL(blob);
+                            } catch (error) {
+                              console.error('Error processing GCS photo:', error);
+                              toast({
+                                title: "Error",
+                                description: "Could not process the selected photo",
+                                variant: "destructive"
+                              });
+                            }
+                          }}
+                        />
+                      </CardContent>
+                    </Card>
                   </div>
                 </div>
+
+                {/* Show upgrade prompt for non-premium users who are running low on matches */}
+                {!subscription.isPremium && getUrgencyLevel() !== 'low' && (
+                  <div className="mt-8">
+                    <UpgradePrompt
+                      matchUsage={matchUsage}
+                      remainingMatches={remainingMatches}
+                      maxMatches={FREE_MATCH_LIMIT}
+                      onUpgrade={handleUpgrade}
+                      urgencyLevel={getUrgencyLevel()}
+                    />
+                  </div>
+                )}
               </>
             ) : (
               /* Upgrade Prompt */
