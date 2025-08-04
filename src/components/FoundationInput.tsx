@@ -14,18 +14,19 @@ interface Brand {
 }
 
 interface FoundationInputProps {
-  onSubmit: (brand: string, shade: string) => void;
+  onSubmit: (brand: string, shade: string, userHexColor: string) => void;
   brands: Brand[];
 }
 
 const FoundationInput = ({ onSubmit, brands }: FoundationInputProps) => {
   const [selectedBrand, setSelectedBrand] = useState('');
   const [shadeInput, setShadeInput] = useState('');
+  const [userHexColorInput, setUserHexColorInput] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (selectedBrand && shadeInput.trim()) {
-      onSubmit(selectedBrand, shadeInput.trim());
+    if (selectedBrand && shadeInput.trim() && userHexColorInput.trim()) {
+      onSubmit(selectedBrand, shadeInput.trim(), userHexColorInput.trim());
     }
   };
 
@@ -68,10 +69,21 @@ const FoundationInput = ({ onSubmit, brands }: FoundationInputProps) => {
             />
           </div>
 
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">Your Skin Tone (Hex Color)</label>
+            <Input
+              type="text"
+              placeholder="e.g., #F5C6A8, #D4A574"
+              value={userHexColorInput}
+              onChange={(e) => setUserHexColorInput(e.target.value)}
+              className="h-12 border-rose-200 focus:border-rose-400"
+            />
+          </div>
+
           <Button 
             type="submit" 
             className="w-full h-12 bg-gradient-to-r from-rose-500 to-purple-500 hover:from-rose-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300"
-            disabled={!selectedBrand || !shadeInput.trim()}
+            disabled={!selectedBrand || !shadeInput.trim() || !userHexColorInput.trim()}
           >
             <Search className="w-5 h-5 mr-2" />
             Find Similar Shades
