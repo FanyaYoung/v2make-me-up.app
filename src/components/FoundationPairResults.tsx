@@ -39,9 +39,9 @@ const FoundationPairResults = ({ pairs, onTryVirtual, onSelectPair }: Foundation
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h2 className="text-2xl font-bold mb-2">Your Perfect Foundation + Concealer Sets</h2>
+        <h2 className="text-2xl font-bold mb-2">Your Perfect Foundation Pairs</h2>
         <p className="text-muted-foreground">
-          Each set includes a primary foundation for your face center and a concealer for seamless blending and contouring
+          Each pair includes a main shade for your face center and a contour shade for depth and dimension
         </p>
       </div>
 
@@ -106,10 +106,10 @@ const FoundationPairResults = ({ pairs, onTryVirtual, onSelectPair }: Foundation
                     </div>
                   </div>
 
-                  {/* Concealer Card */}
+                  {/* Contour Shade Card */}
                   <div className="border rounded-lg p-4 space-y-3">
                     <div className="flex items-center justify-between">
-                      <Badge variant="outline" className="text-xs">Concealer</Badge>
+                      <Badge variant="outline" className="text-xs">Contour Shade</Badge>
                       <div className="flex items-center gap-1 text-sm">
                         <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
                         <span>{contourMatch.rating.toFixed(1)}</span>
@@ -126,7 +126,7 @@ const FoundationPairResults = ({ pairs, onTryVirtual, onSelectPair }: Foundation
                         />
                         <div className="text-sm">
                           <p className="font-medium">{contourMatch.undertone} undertone</p>
-                          <p className="text-muted-foreground">Perfect for perimeter blending</p>
+                          <p className="text-muted-foreground">Blends seamlessly</p>
                         </div>
                       </div>
                     </div>
@@ -161,7 +161,7 @@ const FoundationPairResults = ({ pairs, onTryVirtual, onSelectPair }: Foundation
                     className="flex items-center gap-2"
                   >
                     <Palette className="w-4 h-4" />
-                    Try Concealer
+                    Try Contour Shade
                   </Button>
                   
                   {/* Individual Add to Cart Buttons */}
@@ -181,7 +181,7 @@ const FoundationPairResults = ({ pairs, onTryVirtual, onSelectPair }: Foundation
                     className="flex items-center gap-2 border-rose-300 text-rose-600 hover:bg-rose-50"
                   >
                     <Plus className="w-4 h-4" />
-                    Add Concealer
+                    Add Contour
                   </Button>
                   
                   {/* Buy Both Button */}

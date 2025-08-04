@@ -1,41 +1,15 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Trash2, Plus, Minus, ShoppingBag, ArrowLeft, CheckCircle, XCircle } from 'lucide-react';
+import { Trash2, Plus, Minus, ShoppingBag, ArrowLeft } from 'lucide-react';
 import { useCart } from '@/contexts/CartContext';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/hooks/use-toast';
+import { Link, useNavigate } from 'react-router-dom';
 import Header from '@/components/Header';
 
 const Cart = () => {
   const { items, removeFromCart, updateQuantity, clearCart, getTotalPrice, getTotalItems } = useCart();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const sessionId = searchParams.get('session_id');
-  const success = searchParams.get('success');
-  const canceled = searchParams.get('canceled');
-
-  useEffect(() => {
-    if (success === 'true' && sessionId) {
-      toast({
-        title: "Payment Successful!",
-        description: "Your order has been placed successfully. You'll receive a confirmation email shortly.",
-      });
-      clearCart();
-      // Clear URL params
-      navigate('/cart', { replace: true });
-    } else if (canceled === 'true') {
-      toast({
-        title: "Payment Canceled",
-        description: "Your payment was canceled. Your items are still in your cart.",
-        variant: "destructive",
-      });
-      // Clear URL params
-      navigate('/cart', { replace: true });
-    }
-  }, [success, canceled, sessionId, clearCart, navigate]);
 
   const getShadeColor = (shade: string, undertone: string) => {
     const shadeLower = shade.toLowerCase();
@@ -52,57 +26,9 @@ const Cart = () => {
     return baseColor;
   };
 
-  const handleCheckout = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        toast({
-          title: "Authentication Required",
-          description: "Please sign in to proceed with checkout.",
-          variant: "destructive",
-        });
-        navigate('/auth');
-        return;
-      }
-
-      const checkoutData = {
-        items: items.map(item => ({
-          id: item.id,
-          product: item.product,
-          quantity: item.quantity,
-          selectedShade: item.selectedShade,
-          shadeName: item.shadeName,
-        })),
-      };
-
-      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
-        body: checkoutData,
-      });
-
-      if (error) {
-        console.error('Checkout error:', error);
-        toast({
-          title: "Checkout Error",
-          description: "There was an error processing your checkout. Please try again.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (data?.checkout_url) {
-        // Redirect to Stripe checkout
-        window.location.href = data.checkout_url;
-      } else {
-        throw new Error('No checkout URL received');
-      }
-    } catch (error) {
-      console.error('Checkout error:', error);
-      toast({
-        title: "Checkout Error",
-        description: "There was an error processing your checkout. Please try again.",
-        variant: "destructive",
-      });
-    }
+  const handleCheckout = () => {
+    // TODO: Implement checkout functionality
+    console.log('Proceeding to checkout with items:', items);
   };
 
   if (items.length === 0) {

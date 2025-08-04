@@ -4,8 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Star, Eye, MapPin, Clock, ShoppingCart, ExternalLink } from 'lucide-react';
 import { FoundationMatch } from '../types/foundation';
-import { useCart } from '@/contexts/CartContext';
-import { toast } from 'sonner';
 
 interface EnhancedProductRecommendationsProps {
   recommendations: {
@@ -20,14 +18,7 @@ const EnhancedProductRecommendations = ({
   recommendations, 
   onVirtualTryOn 
 }: EnhancedProductRecommendationsProps) => {
-  const { addToCart } = useCart();
-  
   if (recommendations.length === 0) return null;
-
-  const handleAddToCart = (shade: FoundationMatch) => {
-    addToCart(shade);
-    toast.success(`${shade.brand} ${shade.product} added to cart!`);
-  };
 
   const getShadeColor = (shade: FoundationMatch) => {
     const undertoneMap = {
@@ -178,18 +169,17 @@ const EnhancedProductRecommendations = ({
                     <div className="flex gap-3 pt-2">
                       <Button 
                         onClick={() => onVirtualTryOn?.(shade)}
-                        variant="outline"
-                        className="flex-1"
+                        className="bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 text-white flex-1"
                       >
                         <Eye className="w-4 h-4 mr-2" />
                         Virtual Try-On
                       </Button>
                       <Button 
-                        onClick={() => handleAddToCart(shade)}
-                        className="bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 text-white flex-1"
+                        variant="outline" 
+                        className="border-gray-300 text-gray-700 hover:bg-gray-50 flex-1"
                       >
-                        <ShoppingCart className="w-4 h-4 mr-2" />
-                        Add to Cart
+                        <ExternalLink className="w-4 h-4 mr-2" />
+                        View Details
                       </Button>
                     </div>
                   </div>

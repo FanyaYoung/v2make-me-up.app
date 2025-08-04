@@ -14,19 +14,18 @@ interface Brand {
 }
 
 interface FoundationInputProps {
-  onSubmit: (brand: string, shade: string, userHexColor: string) => void;
+  onSubmit: (brand: string, shade: string) => void;
   brands: Brand[];
 }
 
 const FoundationInput = ({ onSubmit, brands }: FoundationInputProps) => {
   const [selectedBrand, setSelectedBrand] = useState('');
   const [shadeInput, setShadeInput] = useState('');
-  const [userHexColorInput, setUserHexColorInput] = useState(''); // New state for hex color
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (selectedBrand && shadeInput.trim() && userHexColorInput.trim()) {
-      onSubmit(selectedBrand, shadeInput.trim(), userHexColorInput.trim());
+    if (selectedBrand && shadeInput.trim()) {
+      onSubmit(selectedBrand, shadeInput.trim());
     }
   };
 
@@ -65,17 +64,6 @@ const FoundationInput = ({ onSubmit, brands }: FoundationInputProps) => {
               placeholder="e.g., 220, Medium Beige, NC30"
               value={shadeInput}
               onChange={(e) => setShadeInput(e.target.value)}
-              className="h-12 border-rose-200 focus:border-rose-400"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">Current Foundation Hex Color</label>
-            <Input
-              type="text"
-              placeholder="e.g., #F4D5B4"
-              value={userHexColorInput}
-              onChange={(e) => setUserHexColorInput(e.target.value)}
               className="h-12 border-rose-200 focus:border-rose-400"
             />
           </div>

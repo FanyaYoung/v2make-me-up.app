@@ -11,75 +11,64 @@ const SubscriptionOptions = () => {
   const plans = [
     {
       id: 'one_time',
-      name: 'One-Time Match',
-      price: '$2.00',
-      period: '',
-      subtitle: 'Single match',
+      name: 'Single Analysis',
+      price: '$4.99',
+      period: 'one-time',
       icon: <Zap className="w-5 h-5" />,
       popular: false,
-      description: 'Perfect for trying out our AI matching',
+      description: 'Perfect for trying out our AI analysis',
       features: [
-        'AI shade matching',
-        'Foundation database access',
-        'Basic recommendations'
+        '1 complete skin tone analysis',
+        '3 foundation matches',
+        'Basic undertone detection',
+        'Color recommendations',
+        '24-hour access to results'
       ],
-      expectedOutput: 'Get your perfect foundation match with AI-powered shade analysis'
+      expectedOutput: 'Instant analysis with foundation matches from major brands'
     },
     {
       id: 'weekly',
-      name: 'Weekly',
-      price: '$4.00',
-      period: 'Per week',
-      subtitle: '',
+      name: 'Weekly Plan',
+      price: '$9.99',
+      period: 'per week',
       icon: <Star className="w-5 h-5" />,
-      popular: false,
-      description: 'Enhanced matching for regular users',
+      popular: true,
+      description: 'Great for makeup enthusiasts',
       features: [
-        'Enhanced matching',
+        'Unlimited analyses',
+        '10+ foundation matches per analysis',
+        'Advanced undertone mapping',
+        'Seasonal color palette',
         'Virtual try-on access',
-        'Weekly updates',
-        'Email support'
+        'Premium brand recommendations',
+        'Skincare suggestions'
       ],
-      expectedOutput: 'Advanced matching with virtual try-on and weekly product updates'
+      expectedOutput: 'Comprehensive analysis with premium brand matches and seasonal recommendations'
     },
     {
       id: 'monthly',
-      name: 'Monthly Matches',
-      price: '$10.00',
-      period: 'Per month',
-      subtitle: '',
-      icon: <Crown className="w-5 h-5" />,
-      popular: true,
-      description: 'Most popular plan for beauty enthusiasts',
-      features: [
-        'Premium matching',
-        'Unlimited try-ons',
-        'Look recommendations',
-        'Priority support'
-      ],
-      expectedOutput: 'Premium matching with unlimited features and personalized look recommendations'
-    },
-    {
-      id: 'yearly',
-      name: 'Annual',
-      price: '$100.00',
-      period: 'Per year',
-      subtitle: '',
+      name: 'Monthly Pro',
+      price: '$29.99',
+      period: 'per month',
       icon: <Crown className="w-5 h-5" />,
       popular: false,
-      description: 'Best value with all premium features',
+      description: 'Ultimate beauty analysis experience',
       features: [
-        'All features',
-        'Custom consultations',
-        'Exclusive products',
-        'Personal beauty advisor'
+        'Everything in Weekly',
+        'Personal color consultant chat',
+        'Custom makeup looks',
+        'Brand partnership discounts',
+        'Early access to new features',
+        'Detailed heritage analysis',
+        'Professional makeup tips',
+        'Priority customer support'
       ],
-      expectedOutput: 'Complete beauty suite with personal consultation and exclusive access'
+      expectedOutput: 'Professional-level analysis with personal consultation and exclusive features'
     }
   ];
 
   const handleSubscribe = async (planId: string) => {
-    const url = await createCheckout(planId as 'one_time' | 'weekly' | 'monthly' | 'yearly');
+    const url = await createCheckout(planId as 'one_time' | 'weekly' | 'monthly');
     if (url) {
       window.open(url, '_blank');
     }
@@ -100,13 +89,13 @@ const SubscriptionOptions = () => {
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h2 className="text-3xl font-bold mb-2">
-          Choose Your Plan
+        <h2 className="text-3xl font-bold mb-2 bg-gradient-to-r from-purple-600 via-pink-600 to-orange-600 bg-clip-text text-transparent">
+          Choose Your Analysis Plan
         </h2>
         <p className="text-muted-foreground">Select the plan that best fits your beauty journey</p>
       </div>
 
-      <div className="grid md:grid-cols-4 gap-6">
+      <div className="grid md:grid-cols-3 gap-6">
         {plans.map((plan) => (
           <Card 
             key={plan.id} 
@@ -127,13 +116,9 @@ const SubscriptionOptions = () => {
               <CardTitle className="text-xl">{plan.name}</CardTitle>
               <div className="text-3xl font-bold text-primary">
                 {plan.price}
+                <span className="text-sm font-normal text-muted-foreground">/{plan.period}</span>
               </div>
-              {plan.period && (
-                <div className="text-sm font-normal text-muted-foreground">{plan.period}</div>
-              )}
-              {plan.subtitle && (
-                <div className="text-sm text-muted-foreground">{plan.subtitle}</div>
-              )}
+              <p className="text-sm text-muted-foreground">{plan.description}</p>
             </CardHeader>
 
             <CardContent className="space-y-4">
@@ -153,11 +138,11 @@ const SubscriptionOptions = () => {
               </div>
 
               <Button 
-                className={`w-full ${plan.popular ? 'bg-black hover:bg-gray-800 text-white' : ''}`}
+                className="w-full"
                 variant={plan.popular ? "default" : "outline"}
                 onClick={() => handleSubscribe(plan.id)}
               >
-                Choose Plan
+                {plan.id === 'one_time' ? 'Get Analysis' : 'Start Subscription'}
               </Button>
             </CardContent>
           </Card>

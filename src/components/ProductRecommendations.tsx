@@ -73,7 +73,7 @@ const ProductRecommendations = ({ matches, onSelectMatch, currentFoundation }: P
                           <img 
                             src={match.imageUrl} 
                             alt={`${match.brand} ${match.product}`}
-                            className="w-full h-full object-cover transition-transform hover:scale-105"
+                            className="w-full h-full object-cover"
                             onError={(e) => {
                               // Fallback to color swatch if image fails to load
                               const target = e.target as HTMLImageElement;
@@ -84,15 +84,10 @@ const ProductRecommendations = ({ matches, onSelectMatch, currentFoundation }: P
                           />
                           {/* Fallback color swatch */}
                           <div 
-                            className="absolute inset-0 hidden bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center"
+                            className="absolute inset-0 hidden"
                             style={{ backgroundColor: generateShadeColor(match.shade, match.undertone) }}
                             title={`${match.shade} shade`}
-                          >
-                            <div className="text-white text-center p-2">
-                              <div className="text-xs font-medium">{match.brand}</div>
-                              <div className="text-xs opacity-90">{match.shade}</div>
-                            </div>
-                          </div>
+                          />
                         </div>
                         {/* Shade color indicator bar */}
                         <div 

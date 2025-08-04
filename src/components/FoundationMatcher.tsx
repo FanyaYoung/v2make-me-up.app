@@ -3,17 +3,11 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import FoundationInput from './FoundationInput';
 import VirtualTryOn from './VirtualTryOn';
-import InclusiveShadeMatchingInterface from './InclusiveShadeMatchingInterface';
+import PhotoAnalysisDemo from './PhotoAnalysisDemo';
+
 import OptionalUserInfo from './OptionalUserInfo';
 import FoundationResults from './FoundationResults';
 import { FoundationMatch } from '../types/foundation';
-
-// Define SkinToneData interface for analysis results
-interface SkinToneData {
-  hexColor: string;
-  depth: number;
-  undertone: string;
-}
 
 const FoundationMatcher = () => {
   const [currentFoundation, setCurrentFoundation] = useState<{brand: string, shade: string} | null>(null);
@@ -78,8 +72,8 @@ const FoundationMatcher = () => {
     },
   });
 
-  const handleFoundationSubmit = async (brand: string, shade: string, userHexColor?: string) => {
-    console.log('Foundation submitted:', { brand, shade, userHexColor });
+  const handleFoundationSubmit = async (brand: string, shade: string) => {
+    console.log('Foundation submitted:', { brand, shade });
     setCurrentFoundation({ brand, shade });
     
     // Now leverage the comprehensive cosmetics database
@@ -204,13 +198,6 @@ const FoundationMatcher = () => {
     
     console.log('Generated matches:', realMatches);
     setMatches(realMatches);
-  };
-
-  // Handle inclusive analysis result
-  const handleInclusiveAnalysis = (skinToneData: SkinToneData) => {
-    console.log('Inclusive analysis completed:', skinToneData);
-    // You can process the analysis data here and potentially trigger foundation matching
-    // For example: handleFoundationSubmit('Any Brand', `Depth ${skinToneData.depth}`, skinToneData.hexColor);
   };
 
   // Helper functions for enhanced matching
@@ -380,12 +367,9 @@ const FoundationMatcher = () => {
             onSubmit={handleFoundationSubmit} 
             brands={brands || []}
           />
-
-          {/* AI Skin Tone Analysis */}
-          <InclusiveShadeMatchingInterface
-            onAnalysisComplete={handleInclusiveAnalysis}
-            onUpgradeClick={() => console.log('Upgrade clicked')} // Placeholder for actual upgrade logic
-          />
+          
+          {/* Analysis Demo and User Info */}
+          <PhotoAnalysisDemo />
           
           <OptionalUserInfo />
 

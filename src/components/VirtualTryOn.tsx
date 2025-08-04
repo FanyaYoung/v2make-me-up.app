@@ -25,11 +25,10 @@ interface ShadeRecommendation {
 interface VirtualTryOnProps {
   selectedMatch: FoundationMatch | null;
   skinTone?: { hexColor: string; depth: number; undertone: string } | null;
-  availableRecommendations?: FoundationMatch[];
   onShadeRecommendations?: (recommendations: ShadeRecommendation[]) => void;
 }
 
-const VirtualTryOn = ({ selectedMatch, skinTone, availableRecommendations = [], onShadeRecommendations }: VirtualTryOnProps) => {
+const VirtualTryOn = ({ selectedMatch, skinTone, onShadeRecommendations }: VirtualTryOnProps) => {
   const [isUsingCamera, setIsUsingCamera] = useState(false);
   const [photos, setPhotos] = useState<PhotoData[]>([]);
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
@@ -433,25 +432,6 @@ const VirtualTryOn = ({ selectedMatch, skinTone, availableRecommendations = [], 
     try {
       console.log('Generating recommendations for skin analysis:', analysis);
       
-      // Use available recommendations from shade finder if provided
-      if (availableRecommendations.length > 0) {
-        console.log('Using available recommendations from shade finder:', availableRecommendations);
-        
-        const recommendations: ShadeRecommendation[] = availableRecommendations.map((match, index) => ({
-          shade: match,
-          confidence: analysis.dominantTone.confidence,
-          targetTone: index === 0 ? 'dominant' : 'secondary'
-        }));
-        
-        setShadeRecommendations(recommendations);
-        setSelectedShades(recommendations.map(r => r.shade).slice(0, 4));
-        onShadeRecommendations?.(recommendations);
-        return;
-      }
-      
-      // Fallback: Generate recommendations from database if no shade finder recommendations available
-      console.log('No shade finder recommendations available, generating from database...');
-      
       // Convert depth string to numeric level
       const getDepthLevel = (depth: string): number => {
         switch (depth) {
@@ -489,7 +469,7 @@ const VirtualTryOn = ({ selectedMatch, skinTone, availableRecommendations = [], 
 
       const recommendations: ShadeRecommendation[] = [];
       const usedBrands = new Set<string>();
-      const maxPerBrand = 1; // Ensure brand diversity
+      const maxPerBrand = 2;
       
       // Process the matching shades with brand diversity
       matchingShades?.forEach((shade, index) => {
@@ -497,7 +477,8 @@ const VirtualTryOn = ({ selectedMatch, skinTone, availableRecommendations = [], 
         const brand = product.brands;
         
         // Limit recommendations per brand for diversity
-        if (usedBrands.has(brand.name) && recommendations.length >= 3) {
+        const brandCount = Array.from(usedBrands).filter(b => b === brand.name).length;
+        if (brandCount >= maxPerBrand && recommendations.length >= 3) {
           return;
         }
         
@@ -536,7 +517,59 @@ const VirtualTryOn = ({ selectedMatch, skinTone, availableRecommendations = [], 
         }
       });
 
-      console.log('Generated fallback recommendations:', recommendations);
+      // If we didn't get enough recommendations, add some with different undertones
+      if (recommendations.length < 2 && analysis.secondaryTone) {
+        const secondaryDepthLevel = getDepthLevel(analysis.secondaryTone.depth);
+        
+        const { data: alternativeShades } = await supabase
+          .from('foundation_shades')
+          .select(`
+            *,
+            foundation_products!inner(
+              *,
+              brands!inner(name, logo_url)
+            )
+          `)
+          .eq('undertone', analysis.secondaryTone.undertone)
+          .gte('depth_level', Math.max(1, secondaryDepthLevel - 1))
+          .lte('depth_level', Math.min(10, secondaryDepthLevel + 1))
+          .eq('is_available', true)
+          .limit(2);
+
+        alternativeShades?.forEach((shade, index) => {
+          const product = shade.foundation_products;
+          const brand = product.brands;
+          
+          const foundationMatch: FoundationMatch = {
+            id: `${product.id}-${shade.id}-alt`,
+            brand: brand.name,
+            product: product.name,
+            shade: shade.shade_name,
+            price: product.price || 36.00,
+            rating: 4.1 + (index * 0.1),
+            reviewCount: 600 + (index * 100),
+            availability: {
+              online: true,
+              inStore: false,
+              readyForPickup: false,
+              nearbyStores: []
+            },
+            matchPercentage: 88 - (index * 3),
+            undertone: shade.undertone,
+            coverage: product.coverage || 'medium',
+            finish: product.finish || 'natural',
+            imageUrl: product.image_url || '/placeholder.svg'
+          };
+
+          recommendations.push({
+            shade: foundationMatch,
+            confidence: analysis.secondaryTone.confidence,
+            targetTone: 'secondary'
+          });
+        });
+      }
+
+      console.log('Generated recommendations:', recommendations);
       setShadeRecommendations(recommendations);
       
       // Auto-populate shade comparison with recommendations
@@ -550,7 +583,7 @@ const VirtualTryOn = ({ selectedMatch, skinTone, availableRecommendations = [], 
     } catch (error) {
       console.error('Error generating shade recommendations:', error);
       
-      // Final fallback to diverse brand recommendations
+      // Fallback to diverse brand recommendations if database query fails
       const fallbackRecommendations: ShadeRecommendation[] = [
         {
           shade: {

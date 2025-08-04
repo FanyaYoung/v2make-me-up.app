@@ -1,5 +1,4 @@
 import { pipeline, env } from '@huggingface/transformers';
-import { findClosestSkinTone, useSkinToneReferences } from '@/hooks/useSkinToneReferences';
 
 // Configure transformers.js
 env.allowLocalModels = false;
@@ -27,38 +26,16 @@ export interface SkinToneAnalysis {
 
 class SkinToneAnalyzer {
   private segmentationModel: any = null;
-  private skinToneReferences: any[] = [];
-
-  setSkinToneReferences(references: any[]) {
-    this.skinToneReferences = references;
-  }
   
   async initializeModel() {
     if (!this.segmentationModel) {
       console.log('Loading skin segmentation model...');
-      try {
-        // Try WebGPU first
-        this.segmentationModel = await pipeline(
-          'image-segmentation',
-          'Xenova/segformer-b2-finetuned-ade-512-512',
-          { device: 'webgpu' }
-        );
-        console.log('Model loaded successfully with WebGPU');
-      } catch (webgpuError) {
-        console.log('WebGPU failed, falling back to CPU:', webgpuError);
-        try {
-          // Fallback to CPU
-          this.segmentationModel = await pipeline(
-            'image-segmentation',
-            'Xenova/segformer-b2-finetuned-ade-512-512',
-            { device: 'cpu' }
-          );
-          console.log('Model loaded successfully with CPU');
-        } catch (cpuError) {
-          console.error('Failed to load model with both WebGPU and CPU:', cpuError);
-          throw new Error('Could not initialize skin tone analysis model');
-        }
-      }
+      this.segmentationModel = await pipeline(
+        'image-segmentation',
+        'Xenova/segformer-b2-finetuned-ade-512-512',
+        { device: 'webgpu' }
+      );
+      console.log('Model loaded successfully');
     }
   }
 
@@ -162,17 +139,13 @@ class SkinToneAnalyzer {
   private calculateDominantTones(regionTones: any) {
     const tones = [regionTones.forehead, regionTones.cheeks, regionTones.chin];
     
-    // Analyze undertones and depth for each region using reference data
-    const analyzedTones = tones.map(tone => {
-      const closestRef = findClosestSkinTone(tone.hex, this.skinToneReferences);
-      return {
-        ...tone,
-        undertone: closestRef.undertone,
-        depth: closestRef.depth,
-        confidence: 0.85, // Mock confidence score
-        referenceName: closestRef.name
-      };
-    });
+    // Analyze undertones and depth for each region
+    const analyzedTones = tones.map(tone => ({
+      ...tone,
+      undertone: this.determineUndertone(tone.r, tone.g, tone.b),
+      depth: this.determineDepth(tone.r, tone.g, tone.b),
+      confidence: 0.85 // Mock confidence score
+    }));
 
     // Find dominant tone (most common or average)
     const dominantTone = this.findDominantTone(analyzedTones);

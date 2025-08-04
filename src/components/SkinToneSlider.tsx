@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { Hand, Palette } from 'lucide-react';
-import { useSkinToneReferences, findClosestSkinTone } from '@/hooks/useSkinToneReferences';
 
 interface SkinToneSliderProps {
   onSkinToneSelect: (toneData: { hexColor: string; depth: number; undertone: string }) => void;
@@ -11,8 +10,7 @@ interface SkinToneSliderProps {
 
 const SkinToneSlider = ({ onSkinToneSelect }: SkinToneSliderProps) => {
   const [sliderValue, setSliderValue] = useState([50]);
-  const [selectedUndertone, setSelectedUndertone] = useState<'cool' | 'warm' | 'neutral' | 'olive'>('neutral');
-  const { skinToneReferences, skinToneByUndertone, loading } = useSkinToneReferences();
+  const [selectedUndertone, setSelectedUndertone] = useState<'cool' | 'warm' | 'neutral'>('neutral');
 
   // Generate skin tone colors based on slider value and undertone
   const generateSkinTone = (depth: number, undertone: string) => {
@@ -29,10 +27,6 @@ const SkinToneSlider = ({ onSkinToneSelect }: SkinToneSliderProps) => {
       case 'warm':
         hue = 35; // More yellow/golden undertones
         saturation = 20 + (baseDepth * 0.3);
-        break;
-      case 'olive':
-        hue = 45; // More green/yellow undertones
-        saturation = 25 + (baseDepth * 0.2);
         break;
       default: // neutral
         hue = 30;
@@ -87,7 +81,7 @@ const SkinToneSlider = ({ onSkinToneSelect }: SkinToneSliderProps) => {
         <div>
           <label className="text-sm font-medium mb-3 block">First, select your undertone:</label>
           <div className="flex gap-2">
-            {(['cool', 'neutral', 'warm', 'olive'] as const).map((tone) => (
+            {(['cool', 'neutral', 'warm'] as const).map((tone) => (
               <Button
                 key={tone}
                 variant={selectedUndertone === tone ? 'default' : 'outline'}
@@ -142,6 +136,24 @@ const SkinToneSlider = ({ onSkinToneSelect }: SkinToneSliderProps) => {
           </div>
         </div>
 
+        {/* Sample Colors for Reference */}
+        <div>
+          <label className="text-sm font-medium mb-3 block">Reference tones ({selectedUndertone}):</label>
+          <div className="flex gap-2">
+            {[20, 35, 50, 65, 80].map((depth) => {
+              const refTone = generateSkinTone(depth, selectedUndertone);
+              return (
+                <button
+                  key={depth}
+                  className="w-8 h-8 rounded-full border-2 hover:scale-110 transition-transform"
+                  style={{ backgroundColor: refTone.hsl }}
+                  onClick={() => setSliderValue([depth])}
+                  title={`Depth ${depth}`}
+                />
+              );
+            })}
+          </div>
+        </div>
 
         <Button onClick={handleConfirm} className="w-full">
           <Palette className="w-4 h-4 mr-2" />

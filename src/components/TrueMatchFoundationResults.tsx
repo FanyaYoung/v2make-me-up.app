@@ -16,7 +16,6 @@ import {
   Download
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useCart } from '@/contexts/CartContext';
 
 interface FoundationMatch {
   id: string;
@@ -56,7 +55,6 @@ const TrueMatchFoundationResults: React.FC<TrueMatchFoundationResultsProps> = ({
   onTryVirtual
 }) => {
   const [savedMatches, setSavedMatches] = useState<Set<string>>(new Set());
-  const { addToCart } = useCart();
   
   const getMatchTypeIcon = (type: string) => {
     switch (type) {
@@ -108,33 +106,6 @@ const TrueMatchFoundationResults: React.FC<TrueMatchFoundationResultsProps> = ({
     toast.success(`Opening ${match.brand} purchase page...`);
   };
 
-  const handleAddToCart = (match: FoundationMatch) => {
-    // Convert FoundationMatch to the expected format for cart
-    const cartProduct = {
-      id: match.id,
-      brand: match.brand,
-      product: match.productName,
-      shade: match.shadeName,
-      price: match.price,
-      rating: match.rating,
-      reviewCount: match.reviewCount,
-      availability: {
-        online: true,
-        inStore: true,
-        readyForPickup: true,
-        nearbyStores: ['Sephora', 'Ulta Beauty']
-      },
-      matchPercentage: match.confidenceScore * 100,
-      undertone: match.undertone,
-      coverage: match.coverage,
-      finish: match.finish,
-      imageUrl: match.imageUrl
-    };
-    
-    addToCart(cartProduct);
-    toast.success(`${match.brand} ${match.productName} added to cart!`);
-  };
-
   const renderFoundationCard = (match: FoundationMatch) => (
     <Card key={match.id} className="overflow-hidden hover:shadow-lg transition-shadow">
       <CardContent className="p-0">
@@ -144,29 +115,13 @@ const TrueMatchFoundationResults: React.FC<TrueMatchFoundationResultsProps> = ({
             <img 
               src={match.imageUrl} 
               alt={`${match.brand} ${match.productName}`}
-              className="w-full h-full object-cover transition-transform hover:scale-105"
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                target.style.display = 'none';
-                const fallback = target.parentElement?.querySelector('.fallback-swatch') as HTMLElement;
-                if (fallback) fallback.style.display = 'flex';
-              }}
+              className="w-full h-full object-cover"
             />
-          ) : null}
-          
-          {/* Enhanced fallback with product color */}
-          <div 
-            className={`fallback-swatch w-full h-full items-center justify-center bg-gradient-to-br ${
-              match.imageUrl ? 'hidden' : 'flex'
-            }`}
-            style={{ backgroundColor: match.hexColor }}
-          >
-            <div className="text-center text-white bg-black bg-opacity-30 p-2 rounded">
-              <Palette className="h-8 w-8 mx-auto mb-1" />
-              <div className="text-xs font-medium">{match.brand}</div>
-              <div className="text-xs opacity-90">{match.shadeName}</div>
+          ) : (
+            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
+              <Palette className="h-12 w-12 text-gray-400" />
             </div>
-          </div>
+          )}
           
           {/* Match badge */}
           <div className="absolute top-2 left-2">
@@ -237,11 +192,11 @@ const TrueMatchFoundationResults: React.FC<TrueMatchFoundationResultsProps> = ({
           {/* Action Buttons */}
           <div className="flex space-x-2 pt-2">
             <Button 
-              onClick={() => handleAddToCart(match)}
+              onClick={() => handlePurchase(match)}
               className="flex-1 bg-gradient-to-r from-rose-500 to-purple-500"
             >
               <ShoppingCart className="mr-2 h-4 w-4" />
-              Add to Cart
+              Buy Now
             </Button>
             
             <Button
