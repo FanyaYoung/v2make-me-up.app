@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import FoundationInput from './FoundationInput';
-import VirtualTryOn from './VirtualTryOn';
+
 import PhotoAnalysisDemo from './PhotoAnalysisDemo';
 
 import OptionalUserInfo from './OptionalUserInfo';
@@ -383,15 +383,6 @@ const FoundationMatcher = () => {
               onFeedback={handleFoundationFeedback}
             />
           )}
-        </div>
-        <div className="lg:col-span-1">
-          <VirtualTryOn 
-            selectedMatch={selectedMatch} 
-            onShadeRecommendations={(recommendations) => {
-              console.log('New shade recommendations:', recommendations);
-              // You can handle the recommendations here
-            }}
-          />
         </div>
       </div>
     </div>

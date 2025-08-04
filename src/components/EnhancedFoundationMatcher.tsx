@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import SkinToneSlider from './SkinToneSlider';
-import VirtualTryOn from './VirtualTryOn';
+
 import FoundationPairResults from './FoundationPairResults';
 import QuestionnaireFlow from './QuestionnaireFlow';
 import FoundationSearchInput from './FoundationSearchInput';
@@ -397,16 +397,6 @@ const EnhancedFoundationMatcher = () => {
           )}
         </div>
 
-        {/* Virtual Try-On Section */}
-        <div className="lg:col-span-1">
-          <VirtualTryOn 
-            selectedMatch={selectedMatch}
-            skinTone={skinTone}
-            onShadeRecommendations={(recommendations) => {
-              console.log('New shade recommendations:', recommendations);
-            }}
-          />
-        </div>
       </div>
 
       {/* Questionnaire Modal */}
