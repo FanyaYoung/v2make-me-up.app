@@ -2,16 +2,15 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import FoundationInput from './FoundationInput';
-
+import VirtualTryOn from './VirtualTryOn';
 import PhotoAnalysisDemo from './PhotoAnalysisDemo';
-
 import OptionalUserInfo from './OptionalUserInfo';
 import FoundationResults from './FoundationResults';
 import { FoundationMatch } from '../types/foundation';
 
-const FoundationMatcher = () => {
-  const [currentFoundation, setCurrentFoundation] = useState<{brand: string, shade: string} | null>(null);
-  const [matches, setMatches] = useState<FoundationMatch[]>([]);
+  const FoundationMatcher = () => {
+    const [currentFoundation, setCurrentFoundation] = useState<{brand: string, shade: string, userHexColor: string} | null>(null);
+    const [matches, setMatches] = useState<FoundationMatch[]>([]);
   const [selectedMatch, setSelectedMatch] = useState<FoundationMatch | null>(null);
 
   // Sample foundation shades data for visualization
@@ -72,9 +71,9 @@ const FoundationMatcher = () => {
     },
   });
 
-  const handleFoundationSubmit = async (brand: string, shade: string) => {
-    console.log('Foundation submitted:', { brand, shade });
-    setCurrentFoundation({ brand, shade });
+  const handleFoundationSubmit = async (brand: string, shade: string, userHexColor: string) => {
+    console.log('Foundation submitted:', { brand, shade, userHexColor });
+    setCurrentFoundation({ brand, shade, userHexColor });
     
     // Now leverage the comprehensive cosmetics database
     const { data: cosmeticsProducts } = await supabase
@@ -129,7 +128,7 @@ const FoundationMatcher = () => {
         selectedShade = generateShadeFromCosmetics(productData, shade);
       }
       
-      const matchPercentage = calculateMatchPercentage(shade, selectedShade.shade_name, brandName, brand);
+      const matchPercentage = calculateMatchPercentage(shade, selectedShade.shade_name, brandName, brand, userHexColor, selectedShade.hex_color);
       
       const match: FoundationMatch = {
         id: `${productData.id}-${selectedShade.id || 'generated'}`,
@@ -234,7 +233,7 @@ const FoundationMatcher = () => {
     };
   };
 
-  const calculateMatchPercentage = (targetShade: string, matchShade: string, matchBrand: string, targetBrand: string): number => {
+  const calculateMatchPercentage = (targetShade: string, matchShade: string, matchBrand: string, targetBrand: string, userHexColor?: string, matchHexColor?: string): number => {
     let percentage = 85; // Base percentage
     
     // Boost for exact shade name matches
@@ -254,7 +253,40 @@ const FoundationMatcher = () => {
       percentage += 5;
     }
     
+    // Enhanced: Use hex color comparison if available
+    if (userHexColor && matchHexColor) {
+      const colorDistance = calculateColorDistance(userHexColor, matchHexColor);
+      // Convert color distance to percentage boost (lower distance = higher boost)
+      const colorBoost = Math.max(0, 15 - (colorDistance / 10));
+      percentage += colorBoost;
+    }
+    
     return Math.min(98, percentage);
+  };
+
+  // Helper function to calculate color distance between two hex colors
+  const calculateColorDistance = (hex1: string, hex2: string): number => {
+    const rgb1 = hexToRgb(hex1);
+    const rgb2 = hexToRgb(hex2);
+    
+    if (!rgb1 || !rgb2) return 100; // Max distance if invalid hex
+    
+    // Calculate Euclidean distance in RGB space
+    const rDiff = rgb1.r - rgb2.r;
+    const gDiff = rgb1.g - rgb2.g;
+    const bDiff = rgb1.b - rgb2.b;
+    
+    return Math.sqrt(rDiff * rDiff + gDiff * gDiff + bDiff * bDiff);
+  };
+
+  // Helper function to convert hex to RGB
+  const hexToRgb = (hex: string): {r: number, g: number, b: number} | null => {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+      r: parseInt(result[1], 16),
+      g: parseInt(result[2], 16),
+      b: parseInt(result[3], 16)
+    } : null;
   };
 
   const inferUndertoneFromShade = (shade: string): string => {
@@ -383,6 +415,15 @@ const FoundationMatcher = () => {
               onFeedback={handleFoundationFeedback}
             />
           )}
+        </div>
+        <div className="lg:col-span-1">
+          <VirtualTryOn
+            selectedMatch={selectedMatch}
+            onShadeRecommendations={(recommendations) => {
+              console.log('New shade recommendations:', recommendations);
+              // You can handle the recommendations here
+            }}
+          />
         </div>
       </div>
     </div>
