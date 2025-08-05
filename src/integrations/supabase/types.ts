@@ -1239,6 +1239,42 @@ export type Database = {
           },
         ]
       }
+      skin_tone_references: {
+        Row: {
+          category: string
+          created_at: string
+          depth: string
+          hex_color: string
+          id: string
+          name: string
+          source: string
+          undertone: string
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          depth: string
+          hex_color: string
+          id?: string
+          name: string
+          source: string
+          undertone: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          depth?: string
+          hex_color?: string
+          id?: string
+          name?: string
+          source?: string
+          undertone?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       stores: {
         Row: {
           address: string | null
@@ -1892,6 +1928,10 @@ export type Database = {
         Returns: Json
       }
       link_foundation_products: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      log_index_usage: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
