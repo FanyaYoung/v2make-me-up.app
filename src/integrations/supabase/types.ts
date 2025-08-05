@@ -568,16 +568,19 @@ export type Database = {
       "golden_and_adversarial_mst-e_image_ids": {
         Row: {
           golden_image_id: string | null
+          id: string
           not_ideal_image_id: string | null
           subject: string | null
         }
         Insert: {
           golden_image_id?: string | null
+          id?: string
           not_ideal_image_id?: string | null
           subject?: string | null
         }
         Update: {
           golden_image_id?: string | null
+          id?: string
           not_ideal_image_id?: string | null
           subject?: string | null
         }
