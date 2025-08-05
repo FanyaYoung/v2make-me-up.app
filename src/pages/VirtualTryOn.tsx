@@ -268,11 +268,12 @@ const VirtualTryOnPage = () => {
                       }} />
                     )}
                     
-                    {/* Product Recommendations */}
+                    {/* Product Recommendations - Limited to 4 groups */}
                     {recommendations.length > 0 && (
                       <EnhancedProductRecommendations 
-                        recommendations={recommendations}
+                        recommendations={recommendations.slice(0, 4)}
                         onVirtualTryOn={handleVirtualTryOn}
+                        enableCart={true}
                       />
                     )}
                   </div>

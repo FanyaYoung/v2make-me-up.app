@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Star, Eye, MapPin, Clock, ShoppingCart, ExternalLink } from 'lucide-react';
 import { FoundationMatch } from '../types/foundation';
+import { useCart } from '@/contexts/CartContext';
+import { useToast } from '@/hooks/use-toast';
 
 interface EnhancedProductRecommendationsProps {
   recommendations: {
@@ -12,13 +14,26 @@ interface EnhancedProductRecommendationsProps {
     targetTone: 'dominant' | 'secondary';
   }[];
   onVirtualTryOn?: (shade: FoundationMatch) => void;
+  enableCart?: boolean;
 }
 
 const EnhancedProductRecommendations = ({ 
   recommendations, 
-  onVirtualTryOn 
+  onVirtualTryOn,
+  enableCart = false
 }: EnhancedProductRecommendationsProps) => {
+  const { addToCart } = useCart();
+  const { toast } = useToast();
+  
   if (recommendations.length === 0) return null;
+
+  const handleAddToCart = (shade: FoundationMatch) => {
+    addToCart(shade);
+    toast({
+      title: "Added to cart",
+      description: `${shade.brand} ${shade.product} - ${shade.shade}`,
+    });
+  };
 
   const getShadeColor = (shade: FoundationMatch) => {
     const undertoneMap = {
@@ -174,9 +189,19 @@ const EnhancedProductRecommendations = ({
                         <Eye className="w-4 h-4 mr-2" />
                         Virtual Try-On
                       </Button>
+                      {enableCart && (
+                        <Button 
+                          onClick={() => handleAddToCart(shade)}
+                          variant="outline" 
+                          className="border-purple-300 text-purple-700 hover:bg-purple-50"
+                        >
+                          <ShoppingCart className="w-4 h-4 mr-2" />
+                          Add to Cart
+                        </Button>
+                      )}
                       <Button 
                         variant="outline" 
-                        className="border-gray-300 text-gray-700 hover:bg-gray-50 flex-1"
+                        className="border-gray-300 text-gray-700 hover:bg-gray-50"
                       >
                         <ExternalLink className="w-4 h-4 mr-2" />
                         View Details
