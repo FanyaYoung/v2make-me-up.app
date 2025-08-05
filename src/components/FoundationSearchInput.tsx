@@ -54,46 +54,84 @@ const FoundationSearchInput: React.FC<FoundationSearchInputProps> = ({ onMatchFo
     enabled: !!selectedBrand,
   });
 
-  const handleSearch = () => {
-    if (!selectedBrand || !productName) return;
+  const handleSearch = async () => {
+    if (!productName.trim()) return;
 
-    const matchingProduct = products?.find(p => 
-      p.name.toLowerCase().includes(productName.toLowerCase())
-    );
-
-    if (matchingProduct) {
-      const brand = brands?.find(b => b.id === selectedBrand);
-      
-      let matchingShade = null;
-      if (shadeName && matchingProduct.foundation_shades) {
-        matchingShade = matchingProduct.foundation_shades.find((shade: any) =>
-          shade.shade_name.toLowerCase().includes(shadeName.toLowerCase())
+    try {
+      // If brand is selected, search within that brand's products
+      if (selectedBrand && products) {
+        const matchingProduct = products.find(p => 
+          p.name.toLowerCase().includes(productName.toLowerCase())
         );
+
+        if (matchingProduct) {
+          const brand = brands?.find(b => b.id === selectedBrand);
+          createFoundationMatch(matchingProduct, brand);
+          return;
+        }
       }
 
-      const foundationMatch: FoundationMatch = {
-        id: `search-${matchingProduct.id}`,
-        brand: brand?.name || 'Unknown',
-        product: matchingProduct.name,
-        shade: matchingShade?.shade_name || shadeName || 'Custom Shade',
-        price: matchingProduct.price || 35,
-        rating: 4.2,
-        reviewCount: 156,
-        availability: {
-          online: true,
-          inStore: true,
-          readyForPickup: true,
-          nearbyStores: ['Sephora', 'Ulta Beauty', 'Target']
-        },
-        matchPercentage: 95,
-        undertone: matchingShade?.undertone || 'neutral',
-        coverage: matchingProduct.coverage || 'medium',
-        finish: matchingProduct.finish || 'natural',
-        imageUrl: matchingProduct.image_url || '/placeholder.svg'
-      };
+      // If no brand selected or no match found, search across all brands
+      const { data: allProducts, error } = await supabase
+        .from('foundation_products')
+        .select(`
+          *,
+          brands!inner(name, logo_url),
+          foundation_shades(*)
+        `)
+        .ilike('name', `%${productName}%`)
+        .eq('is_active', true)
+        .limit(5);
 
-      onMatchFound([foundationMatch]);
+      if (error) {
+        console.error('Error searching products:', error);
+        return;
+      }
+
+      if (allProducts && allProducts.length > 0) {
+        const matches = allProducts.map(product => {
+          return createFoundationMatch(product, product.brands);
+        }).filter(Boolean);
+        
+        onMatchFound(matches);
+      } else {
+        console.log('No products found matching:', productName);
+      }
+    } catch (error) {
+      console.error('Search error:', error);
     }
+  };
+
+  const createFoundationMatch = (product: any, brand: any): FoundationMatch => {
+    let matchingShade = null;
+    if (shadeName && product.foundation_shades) {
+      matchingShade = product.foundation_shades.find((shade: any) =>
+        shade.shade_name.toLowerCase().includes(shadeName.toLowerCase())
+      );
+    }
+
+    const foundationMatch: FoundationMatch = {
+      id: `search-${product.id}`,
+      brand: brand?.name || 'Unknown',
+      product: product.name,
+      shade: matchingShade?.shade_name || shadeName || 'Custom Shade',
+      price: product.price || 35,
+      rating: 4.2,
+      reviewCount: 156,
+      availability: {
+        online: true,
+        inStore: true,
+        readyForPickup: true,
+        nearbyStores: ['Sephora', 'Ulta Beauty', 'Target']
+      },
+      matchPercentage: 95,
+      undertone: matchingShade?.undertone || 'neutral',
+      coverage: product.coverage || 'medium',
+      finish: product.finish || 'natural',
+      imageUrl: product.image_url || '/placeholder.svg'
+    };
+
+    return foundationMatch;
   };
 
   return (
@@ -110,7 +148,7 @@ const FoundationSearchInput: React.FC<FoundationSearchInputProps> = ({ onMatchFo
 
         <div className="space-y-4">
           <div>
-            <Label htmlFor="brand-select">Brand</Label>
+            <Label htmlFor="brand-select">Brand (Optional)</Label>
             <Select value={selectedBrand} onValueChange={setSelectedBrand}>
               <SelectTrigger>
                 <SelectValue placeholder="Select a brand" />
@@ -147,7 +185,7 @@ const FoundationSearchInput: React.FC<FoundationSearchInputProps> = ({ onMatchFo
 
           <Button 
             onClick={handleSearch}
-            disabled={!selectedBrand || !productName}
+            disabled={!productName.trim()}
             className="w-full"
           >
             <Package className="w-4 h-4 mr-2" />
