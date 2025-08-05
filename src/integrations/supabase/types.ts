@@ -102,6 +102,7 @@ export type Database = {
           description: string | null
           faceoff_negative: Json | null
           faceoff_positive: Json | null
+          id: string
           item_id: string | null
           native_community_content_review_count: string | null
           native_review_count: string | null
@@ -139,6 +140,7 @@ export type Database = {
           description?: string | null
           faceoff_negative?: Json | null
           faceoff_positive?: Json | null
+          id?: string
           item_id?: string | null
           native_community_content_review_count?: string | null
           native_review_count?: string | null
@@ -176,6 +178,7 @@ export type Database = {
           description?: string | null
           faceoff_negative?: Json | null
           faceoff_positive?: Json | null
+          id?: string
           item_id?: string | null
           native_community_content_review_count?: string | null
           native_review_count?: string | null
