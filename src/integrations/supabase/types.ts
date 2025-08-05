@@ -630,6 +630,7 @@ export type Database = {
       }
       "mst-e_image_details": {
         Row: {
+          id: string
           image_ID: string | null
           lighting: string | null
           mask: string | null
@@ -638,6 +639,7 @@ export type Database = {
           subject_name: string | null
         }
         Insert: {
+          id?: string
           image_ID?: string | null
           lighting?: string | null
           mask?: string | null
@@ -646,6 +648,7 @@ export type Database = {
           subject_name?: string | null
         }
         Update: {
+          id?: string
           image_ID?: string | null
           lighting?: string | null
           mask?: string | null
