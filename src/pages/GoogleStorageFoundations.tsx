@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import GoogleStorageFoundationImporter from '@/components/GoogleStorageFoundationImporter';
 import EnhancedFoundationBrowser from '@/components/EnhancedFoundationBrowser';
-import { Cloud, Database, Search } from 'lucide-react';
+import BulkGCSImporter from '@/components/BulkGCSImporter';
+import { Cloud, Database, Search, Download } from 'lucide-react';
 
 const GoogleStorageFoundations = () => {
   return (
@@ -19,19 +20,27 @@ const GoogleStorageFoundations = () => {
         </div>
 
         <Tabs defaultValue="browse" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-8">
+          <TabsList className="grid w-full grid-cols-3 mb-8">
             <TabsTrigger value="browse" className="flex items-center gap-2">
               <Search className="w-4 h-4" />
               Browse Foundations
             </TabsTrigger>
+            <TabsTrigger value="bulk-import" className="flex items-center gap-2">
+              <Download className="w-4 h-4" />
+              Bulk Import
+            </TabsTrigger>
             <TabsTrigger value="import" className="flex items-center gap-2">
               <Cloud className="w-4 h-4" />
-              Import from GCS
+              Single File Import
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="browse" className="space-y-6">
             <EnhancedFoundationBrowser />
+          </TabsContent>
+
+          <TabsContent value="bulk-import" className="space-y-6">
+            <BulkGCSImporter />
           </TabsContent>
 
           <TabsContent value="import" className="space-y-6">
