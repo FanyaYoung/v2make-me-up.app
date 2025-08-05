@@ -24,11 +24,12 @@ interface ShadeRecommendation {
 
 interface VirtualTryOnProps {
   selectedMatch: FoundationMatch | null;
+  selectedShades?: FoundationMatch[];
   skinTone?: { hexColor: string; depth: number; undertone: string } | null;
   onShadeRecommendations?: (recommendations: ShadeRecommendation[]) => void;
 }
 
-const VirtualTryOn = ({ selectedMatch, skinTone, onShadeRecommendations }: VirtualTryOnProps) => {
+const VirtualTryOn = ({ selectedMatch, selectedShades = [], skinTone, onShadeRecommendations }: VirtualTryOnProps) => {
   const [isUsingCamera, setIsUsingCamera] = useState(false);
   const [photos, setPhotos] = useState<PhotoData[]>([]);
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
@@ -37,7 +38,7 @@ const VirtualTryOn = ({ selectedMatch, skinTone, onShadeRecommendations }: Virtu
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [shadeRecommendations, setShadeRecommendations] = useState<ShadeRecommendation[]>([]);
   const [comparisonMode, setComparisonMode] = useState<'single' | 'comparison'>('single');
-  const [selectedShades, setSelectedShades] = useState<FoundationMatch[]>([]);
+  const [localSelectedShades, setLocalSelectedShades] = useState<FoundationMatch[]>(selectedShades);
   const [activeShadeIndex, setActiveShadeIndex] = useState(0);
   const [hasFlash, setHasFlash] = useState(false);
   const [flashEnabled, setFlashEnabled] = useState(false);
@@ -577,7 +578,7 @@ const VirtualTryOn = ({ selectedMatch, skinTone, onShadeRecommendations }: Virtu
       if (selectedMatch && !shadesToCompare.find(s => s.id === selectedMatch.id)) {
         shadesToCompare.unshift(selectedMatch);
       }
-      setSelectedShades(shadesToCompare.slice(0, 4)); // Max 4 shades for comparison
+      setLocalSelectedShades(shadesToCompare.slice(0, 4)); // Max 4 shades for comparison
       
       onShadeRecommendations?.(recommendations);
     } catch (error) {
@@ -687,7 +688,7 @@ const VirtualTryOn = ({ selectedMatch, skinTone, onShadeRecommendations }: Virtu
     setActivePhotoIndex(0);
     setShowOverlay(false);
     setShadeRecommendations([]);
-    setSelectedShades([]);
+    setLocalSelectedShades([]);
     setComparisonMode('single');
     stopCamera();
   };
@@ -744,7 +745,7 @@ const VirtualTryOn = ({ selectedMatch, skinTone, onShadeRecommendations }: Virtu
   };
 
   const addShadeToComparison = (shade: FoundationMatch) => {
-    if (selectedShades.length >= 4) {
+    if (localSelectedShades.length >= 4) {
       toast({
         title: "Maximum shades reached",
         description: "You can compare up to 4 shades at once",
@@ -753,15 +754,15 @@ const VirtualTryOn = ({ selectedMatch, skinTone, onShadeRecommendations }: Virtu
       return;
     }
 
-    if (!selectedShades.find(s => s.id === shade.id)) {
-      setSelectedShades(prev => [...prev, shade]);
+    if (!localSelectedShades.find(s => s.id === shade.id)) {
+      setLocalSelectedShades(prev => [...prev, shade]);
     }
   };
 
   const removeShadeFromComparison = (shadeId: string) => {
-    setSelectedShades(prev => prev.filter(s => s.id !== shadeId));
-    if (activeShadeIndex >= selectedShades.length - 1) {
-      setActiveShadeIndex(Math.max(0, selectedShades.length - 2));
+    setLocalSelectedShades(prev => prev.filter(s => s.id !== shadeId));
+    if (activeShadeIndex >= localSelectedShades.length - 1) {
+      setActiveShadeIndex(Math.max(0, localSelectedShades.length - 2));
     }
   };
 
@@ -953,7 +954,7 @@ const VirtualTryOn = ({ selectedMatch, skinTone, onShadeRecommendations }: Virtu
             {photos.length > 0 && (
               <div className="space-y-2">
                 {/* View Toggle */}
-                {selectedShades.length > 1 && (
+                {localSelectedShades.length > 1 && (
                   <div className="flex gap-2">
                     <Button 
                       onClick={() => setComparisonMode('single')}
@@ -999,7 +1000,7 @@ const VirtualTryOn = ({ selectedMatch, skinTone, onShadeRecommendations }: Virtu
             )}
 
             {/* Shade Comparison View */}
-            {comparisonMode === 'comparison' && selectedShades.length > 0 && activePhoto && (
+            {comparisonMode === 'comparison' && localSelectedShades.length > 0 && activePhoto && (
               <div className="space-y-4 pt-4 border-t border-gray-200">
                 <h4 className="font-semibold text-gray-800 text-sm flex items-center gap-2">
                   <Grid3X3 className="w-4 h-4" />
@@ -1008,7 +1009,7 @@ const VirtualTryOn = ({ selectedMatch, skinTone, onShadeRecommendations }: Virtu
                 
                 {/* Comparison Grid */}
                 <div className="grid grid-cols-2 gap-2">
-                  {selectedShades.slice(0, 4).map((shade, index) => (
+                  {localSelectedShades.slice(0, 4).map((shade, index) => (
                     <div key={shade.id} className="relative">
                       <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden relative">
                         <img 
@@ -1032,7 +1033,7 @@ const VirtualTryOn = ({ selectedMatch, skinTone, onShadeRecommendations }: Virtu
                   ))}
                   
                   {/* Add more shades button */}
-                  {selectedShades.length < 4 && (
+                  {localSelectedShades.length < 4 && (
                     <div className="aspect-square bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center">
                       <div className="text-center">
                         <Plus className="w-6 h-6 text-gray-400 mx-auto mb-1" />
@@ -1051,7 +1052,7 @@ const VirtualTryOn = ({ selectedMatch, skinTone, onShadeRecommendations }: Virtu
                         <button
                           key={index}
                           onClick={() => addShadeToComparison(rec.shade)}
-                          disabled={selectedShades.find(s => s.id === rec.shade.id) !== undefined}
+                          disabled={localSelectedShades.find(s => s.id === rec.shade.id) !== undefined}
                           className="px-2 py-1 text-xs bg-rose-100 text-rose-700 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-rose-200"
                         >
                           {rec.shade.brand} - {rec.shade.shade}
