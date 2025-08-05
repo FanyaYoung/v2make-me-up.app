@@ -301,53 +301,42 @@ const EnhancedFoundationMatcher = () => {
   return (
     <div className="max-w-7xl mx-auto">
       <div className="grid lg:grid-cols-3 gap-8">
+        {/* Left Column - Camera & Upload */}
+        <div className="space-y-6">
+          <Card className="p-6">
+            <h2 className="text-xl font-bold mb-4 text-center">Capture Your Shade</h2>
+            <InclusiveShadeMatchingInterface
+              onAnalysisComplete={handleInclusiveAnalysis}
+              onUpgradeClick={() => window.open('/subscription-plans', '_blank')}
+            />
+          </Card>
+        </div>
+
+        {/* Right Column - Search & Recommendations */}
         <div className="lg:col-span-2 space-y-8">
           {/* Brand Search - Always Visible */}
           <FoundationSearchInput onMatchFound={handleSearchResults} />
 
-          {/* Find Your Skin Tone Methods */}
+          {/* Visual Shade Matching */}
           <Card className="p-6">
-            <h2 className="text-2xl font-bold mb-6 text-center">Find Your Skin Tone</h2>
-            
-            <Tabs defaultValue="slider" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="slider" className="flex items-center gap-2">
-                  <Palette className="w-4 h-4" />
-                  Skin Tone Slider
-                </TabsTrigger>
-                <TabsTrigger value="ai" className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4" />
-                  AI Analysis
-                </TabsTrigger>
-              </TabsList>
+            <h2 className="text-xl font-bold mb-6 text-center">Manual Shade Selection</h2>
+            <div className="space-y-6">
+              <SkinToneSlider onSkinToneSelect={handleSkinToneSelect} />
               
-              <TabsContent value="slider" className="mt-6">
-                <div className="space-y-6">
-                  <SkinToneSlider onSkinToneSelect={handleSkinToneSelect} />
-                  
-                  {!skinTone && (
-                    <Card className="p-6 text-center">
-                      <div className="space-y-4">
-                        <Palette className="w-12 h-12 mx-auto text-muted-foreground" />
-                        <div>
-                          <h3 className="text-lg font-semibold mb-2">Visual Shade Matching</h3>
-                          <p className="text-muted-foreground">
-                            Use the slider above to match your skin tone visually and get instant recommendations
-                          </p>
-                        </div>
-                      </div>
-                    </Card>
-                  )}
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="ai" className="mt-6">
-                <InclusiveShadeMatchingInterface
-                  onAnalysisComplete={handleInclusiveAnalysis}
-                  onUpgradeClick={() => window.open('/subscription-plans', '_blank')}
-                />
-              </TabsContent>
-            </Tabs>
+              {!skinTone && (
+                <Card className="p-6 text-center">
+                  <div className="space-y-4">
+                    <Palette className="w-12 h-12 mx-auto text-muted-foreground" />
+                    <div>
+                      <h3 className="text-lg font-semibold mb-2">Visual Shade Matching</h3>
+                      <p className="text-muted-foreground">
+                        Use the slider above to match your skin tone visually and get instant recommendations
+                      </p>
+                    </div>
+                  </div>
+                </Card>
+              )}
+            </div>
           </Card>
 
           {/* Search Results */}

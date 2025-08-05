@@ -188,10 +188,9 @@ export default function InclusiveShadeMatchingInterface({
   }, [stopCamera]);
 
   const renderCaptureInterface = () => (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="text-center">
-        <h2 className="text-2xl font-bold mb-2">Inclusive Shade Analysis</h2>
-        <p className="text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           Capture or upload a clear photo of your face for accurate, bias-free shade matching
         </p>
       </div>
@@ -204,62 +203,54 @@ export default function InclusiveShadeMatchingInterface({
       </Alert>
 
       {!capturedImage && (
-        <div className="grid md:grid-cols-2 gap-4">
+        <div className="space-y-4">
           {/* Camera Capture */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Camera className="w-5 h-5" />
-                Take Photo
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {!stream ? (
-                <Button onClick={startCamera} className="w-full">
-                  Start Camera
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Camera className="w-4 h-4" />
+              <span className="font-medium">Take Photo</span>
+            </div>
+            {!stream ? (
+              <Button onClick={startCamera} className="w-full">
+                Start Camera
+              </Button>
+            ) : (
+              <div className="space-y-3">
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  className="w-full rounded-lg"
+                />
+                <Button onClick={capturePhoto} className="w-full">
+                  Capture Photo
                 </Button>
-              ) : (
-                <div className="space-y-4">
-                  <video
-                    ref={videoRef}
-                    autoPlay
-                    playsInline
-                    className="w-full rounded-lg"
-                  />
-                  <Button onClick={capturePhoto} className="w-full">
-                    Capture Photo
-                  </Button>
-                </div>
-              )}
-              <canvas ref={canvasRef} className="hidden" />
-            </CardContent>
-          </Card>
+              </div>
+            )}
+            <canvas ref={canvasRef} className="hidden" />
+          </div>
 
           {/* File Upload */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Upload className="w-5 h-5" />
-                Upload Photo
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleFileUpload}
-                className="hidden"
-              />
-              <Button 
-                onClick={() => fileInputRef.current?.click()}
-                variant="outline"
-                className="w-full"
-              >
-                Choose Image
-              </Button>
-            </CardContent>
-          </Card>
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Upload className="w-4 h-4" />
+              <span className="font-medium">Upload Photo</span>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileUpload}
+              className="hidden"
+            />
+            <Button 
+              onClick={() => fileInputRef.current?.click()}
+              variant="outline"
+              className="w-full"
+            >
+              Choose Image
+            </Button>
+          </div>
         </div>
       )}
 
@@ -463,7 +454,7 @@ export default function InclusiveShadeMatchingInterface({
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
+    <div className="w-full">
       {currentStep === 'capture' && renderCaptureInterface()}
       {currentStep === 'analyzing' && renderAnalysisInterface()}
       {currentStep === 'results' && renderResults()}

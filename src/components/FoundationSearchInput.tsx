@@ -55,23 +55,32 @@ const FoundationSearchInput: React.FC<FoundationSearchInputProps> = ({ onMatchFo
   });
 
   const handleSearch = async () => {
-    if (!productName.trim()) return;
+    if (!productName.trim()) {
+      console.log('No product name entered');
+      return;
+    }
+
+    console.log('Starting search for:', productName);
 
     try {
       // If brand is selected, search within that brand's products
       if (selectedBrand && products) {
+        console.log('Searching within selected brand:', selectedBrand);
         const matchingProduct = products.find(p => 
           p.name.toLowerCase().includes(productName.toLowerCase())
         );
 
         if (matchingProduct) {
           const brand = brands?.find(b => b.id === selectedBrand);
-          createFoundationMatch(matchingProduct, brand);
+          const match = createFoundationMatch(matchingProduct, brand);
+          console.log('Found brand-specific match:', match);
+          onMatchFound([match]);
           return;
         }
       }
 
       // If no brand selected or no match found, search across all brands
+      console.log('Searching across all brands...');
       const { data: allProducts, error } = await supabase
         .from('foundation_products')
         .select(`
@@ -88,17 +97,28 @@ const FoundationSearchInput: React.FC<FoundationSearchInputProps> = ({ onMatchFo
         return;
       }
 
+      console.log('Search results:', allProducts);
+
       if (allProducts && allProducts.length > 0) {
         const matches = allProducts.map(product => {
           return createFoundationMatch(product, product.brands);
         }).filter(Boolean);
         
+        console.log('Created matches:', matches);
         onMatchFound(matches);
       } else {
         console.log('No products found matching:', productName);
+        // Show a toast message to the user
+        import('sonner').then(({ toast }) => {
+          toast.error('No foundation products found matching your search. Try a different product name.');
+        });
       }
     } catch (error) {
       console.error('Search error:', error);
+      // Show error toast
+      import('sonner').then(({ toast }) => {
+        toast.error('Search failed. Please try again.');
+      });
     }
   };
 
