@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import FoundationInput from './FoundationInput';
+import FoundationSearchInput from './FoundationSearchInput';
 import VirtualTryOn from './VirtualTryOn';
 import InclusiveShadeMatchingInterface from './InclusiveShadeMatchingInterface';
 import ColorMatchingTest from './ColorMatchingTest';
@@ -261,6 +262,10 @@ const FoundationMatcher = () => {
           <FoundationInput 
             onSubmit={handleFoundationSubmit} 
             brands={brands || []}
+          />
+          
+          <FoundationSearchInput 
+            onMatchFound={setMatches}
           />
           
           {/* AI Skin Tone Analysis */}
