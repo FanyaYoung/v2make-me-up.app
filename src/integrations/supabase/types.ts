@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.3 (519615d)"
@@ -1906,13 +1906,13 @@ export type Database = {
     Functions: {
       add_makeup_brand: {
         Args: {
-          p_name: string
           p_country?: string
-          p_founded_year?: number
           p_description?: string
-          p_website?: string
+          p_founded_year?: number
           p_is_cruelty_free?: boolean
           p_is_vegan?: boolean
+          p_name: string
+          p_website?: string
         }
         Returns: {
           country_of_origin: string | null
@@ -1932,8 +1932,8 @@ export type Database = {
         Args: {
           p_brand_name: string
           p_category_name: string
-          p_name: string
           p_description?: string
+          p_name: string
           p_price?: number
         }
         Returns: {
@@ -1959,13 +1959,13 @@ export type Database = {
       get_cosmetics_import_stats: {
         Args: Record<PropertyKey, never>
         Returns: {
-          dataset_name: string
-          total_products: number
-          brands_count: number
-          product_types_count: number
-          categories_count: number
           avg_price: number
           avg_rating: number
+          brands_count: number
+          categories_count: number
+          dataset_name: string
+          product_types_count: number
+          total_products: number
         }[]
       }
       get_user_match_stats: {
