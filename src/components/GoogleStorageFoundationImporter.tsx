@@ -17,7 +17,7 @@ interface ImportStats {
 
 const GoogleStorageFoundationImporter = () => {
   const [isImporting, setIsImporting] = useState(false);
-  const [bucketName, setBucketName] = useState('makeup-universe-datasets');
+  const [bucketName, setBucketName] = useState('make-me-up-app');
   const [filePath, setFilePath] = useState('foundation_products.csv');
   const [datasetName, setDatasetName] = useState('foundation-gcs-import');
   const [importStats, setImportStats] = useState<ImportStats | null>(null);
@@ -104,7 +104,7 @@ const GoogleStorageFoundationImporter = () => {
                 id="bucket"
                 value={bucketName}
                 onChange={(e) => setBucketName(e.target.value)}
-                placeholder="e.g., makeup-universe-datasets"
+                placeholder="e.g., make-me-up-app"
               />
             </div>
             

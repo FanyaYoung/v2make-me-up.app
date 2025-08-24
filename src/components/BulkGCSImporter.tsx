@@ -36,7 +36,7 @@ interface BulkImportSummary {
 }
 
 const BulkGCSImporter = () => {
-  const [bucketName, setBucketName] = useState('makeup-universe-datasets');
+  const [bucketName, setBucketName] = useState('make-me-up-app');
   const [selectedDataTypes, setSelectedDataTypes] = useState<string[]>(['foundations', 'cosmetics']);
   const [isImporting, setIsImporting] = useState(false);
   const [importSummary, setImportSummary] = useState<BulkImportSummary | null>(null);
@@ -160,7 +160,7 @@ const BulkGCSImporter = () => {
               id="bucket"
               value={bucketName}
               onChange={(e) => setBucketName(e.target.value)}
-              placeholder="e.g., makeup-universe-datasets"
+              placeholder="e.g., make-me-up-app"
               className="mt-1"
             />
           </div>
