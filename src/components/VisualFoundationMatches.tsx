@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ShoppingBag, Eye } from 'lucide-react';
 import { FoundationMatch } from '../types/foundation';
+import { generateRealisticFleshTone } from '../lib/fleshToneColorWheel';
 
 // Import foundation product images
 import charlotteTilburyImg from '@/assets/foundation-charlotte-tilbury.jpg';
@@ -67,7 +68,7 @@ const VisualFoundationMatches: React.FC<VisualFoundationMatchesProps> = ({
   // Convert FoundationMatch objects to the local interface format
   const processedMatches: VisualMatch[] = (matches || defaultMatches).map((match, index) => ({
     ...match,
-    swatchColor: match.hexColor || '#DCB99B',
+    swatchColor: match.hexColor || generateRealisticFleshTone(match.shade, match.undertone),
     productImage: match.imageUrl || '/placeholder.svg',
     isOriginal: index === 0 && originalShade && match.shade === originalShade
   }));

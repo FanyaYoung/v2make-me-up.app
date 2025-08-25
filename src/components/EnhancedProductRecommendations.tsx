@@ -6,6 +6,7 @@ import { Star, Eye, MapPin, Clock, ShoppingCart, ExternalLink } from 'lucide-rea
 import { FoundationMatch } from '../types/foundation';
 import { useCart } from '@/contexts/CartContext';
 import { useToast } from '@/hooks/use-toast';
+import { generateRealisticFleshTone } from '../lib/fleshToneColorWheel';
 
 interface EnhancedProductRecommendationsProps {
   recommendations: {
@@ -37,18 +38,12 @@ const EnhancedProductRecommendations = ({
 
   const getShadeColor = (shade: FoundationMatch) => {
     // First try to get the actual hex color from the shade data if available
-    if ((shade as any).hexColor) {
-      return (shade as any).hexColor;
+    if (shade.hexColor) {
+      return shade.hexColor;
     }
     
-    // Fallback to undertone mapping only if no hex color is available
-    const undertoneMap = {
-      warm: '#D4A574',
-      cool: '#F0D7C3',
-      neutral: '#DCB99B',
-      olive: '#B49B73'
-    };
-    return undertoneMap[shade.undertone as keyof typeof undertoneMap] || '#DCB99B';
+    // Use professional flesh tone color wheel for realistic pigmentation
+    return generateRealisticFleshTone(shade.shade, shade.undertone);
   };
 
   const renderStars = (rating: number, reviewCount: number) => {

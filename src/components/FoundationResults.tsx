@@ -7,6 +7,7 @@ import { FoundationMatch } from '../types/foundation';
 import { useCart } from '@/contexts/CartContext';
 import { toast } from '@/hooks/use-toast';
 import EnhancedFoundationFeedback from './EnhancedFoundationFeedback';
+import { generateRealisticFleshTone } from '../lib/fleshToneColorWheel';
 
 interface FoundationResultsProps {
   matches: FoundationMatch[];
@@ -70,19 +71,8 @@ const FoundationResults = ({
       return match.hexColor;
     }
     
-    // Fallback to generating color based on shade name and undertone
-    const shadeLower = match.shade.toLowerCase();
-    let baseColor = '#D4A574'; // Default medium tone
-    
-    if (shadeLower.includes('fair') || shadeLower.includes('light')) {
-      baseColor = match.undertone === 'cool' ? '#F5DCC4' : match.undertone === 'warm' ? '#F0D0A6' : '#F2D3B3';
-    } else if (shadeLower.includes('medium')) {
-      baseColor = match.undertone === 'cool' ? '#E8C2A0' : match.undertone === 'warm' ? '#D4A574' : '#DEBA8A';
-    } else if (shadeLower.includes('deep') || shadeLower.includes('dark')) {
-      baseColor = match.undertone === 'cool' ? '#B5967A' : match.undertone === 'warm' ? '#A0835C' : '#AA8B6E';
-    }
-    
-    return baseColor;
+    // Use professional flesh tone color wheel for realistic pigmentation
+    return generateRealisticFleshTone(match.shade, match.undertone);
   };
 
   return (

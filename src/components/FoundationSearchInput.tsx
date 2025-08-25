@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Search, Package } from 'lucide-react';
 import { FoundationMatch } from '../types/foundation';
+import { generateRealisticFleshTone } from '../lib/fleshToneColorWheel';
 
 interface FoundationSearchInputProps {
   onMatchFound: (matches: FoundationMatch[]) => void;
@@ -201,10 +202,11 @@ const FoundationSearchInput: React.FC<FoundationSearchInputProps> = ({ onMatchFo
                   ((product as any).description?.toLowerCase().includes('matte') ? 'matte' :
                    (product as any).description?.toLowerCase().includes('dewy') ? 'dewy' : 'natural');
 
-    // Get actual hex color if available
+    // Get actual hex color if available, otherwise use professional flesh tone color wheel
     const hexColor = matchingShade?.hex_color || 
                     (matchingShade as any)?.hexColor ||
-                    ((product as any).metadata?.hex_color);
+                    ((product as any).metadata?.hex_color) ||
+                    generateRealisticFleshTone(matchingShade?.shade_name || shadeName || 'Medium', matchingShade?.undertone || 'neutral');
 
     const foundationMatch: FoundationMatch = {
       id: `search-${product.id}`,
