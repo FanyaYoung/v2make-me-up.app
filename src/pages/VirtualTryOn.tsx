@@ -122,9 +122,9 @@ const VirtualTryOnPage = () => {
 
   const getUserTierDisplay = () => {
     if (subscription.isPremium) {
-      return subscription.subscription_tier === 'one_time' ? 'Premium' : 
-             subscription.subscription_tier === 'monthly' ? 'Monthly' :
-             subscription.subscription_tier === 'yearly' ? 'Yearly' : 'Premium';
+      return subscription.subscription_tier === 'monthly' ? 'Monthly' :
+             subscription.subscription_tier === 'yearly' ? 'Yearly' : 
+             subscription.subscription_tier === 'weekly' ? 'Weekly' : 'Premium';
     }
     return 'Free';
   };
