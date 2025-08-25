@@ -45,23 +45,125 @@ export default function InclusiveShadeMatchingInterface({
 
   const startCamera = useCallback(async () => {
     try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          facingMode: 'user'
+      console.log('Starting camera setup...');
+      
+      // Check if we're on HTTPS or localhost (required for camera access)
+      if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+        throw new Error('Camera access requires HTTPS or localhost');
+      }
+      
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error('Camera access not supported in this browser');
+      }
+
+      // Stop any existing stream first
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+
+      console.log('Requesting camera permissions...');
+      
+      // Try different camera constraints if the first fails
+      const constraints = [
+        { 
+          video: { 
+            width: { ideal: 1280 }, 
+            height: { ideal: 720 },
+            facingMode: 'user'
+          } 
+        },
+        { 
+          video: { 
+            width: { ideal: 640 }, 
+            height: { ideal: 480 },
+            facingMode: 'user'
+          } 
+        },
+        { 
+          video: { 
+            facingMode: 'user'
+          } 
+        },
+        { 
+          video: true
         }
-      });
+      ];
+
+      let mediaStream: MediaStream | null = null;
+      let lastError: Error | null = null;
+
+      for (const constraint of constraints) {
+        try {
+          console.log('Trying constraint:', constraint);
+          mediaStream = await navigator.mediaDevices.getUserMedia(constraint);
+          console.log('Camera access granted with constraint:', constraint);
+          break;
+        } catch (err) {
+          console.log('Constraint failed:', constraint, err);
+          lastError = err as Error;
+          continue;
+        }
+      }
+
+      if (!mediaStream) {
+        throw lastError || new Error('Failed to access camera with all constraints');
+      }
+      
+      console.log('Media stream obtained:', mediaStream);
+      setStream(mediaStream);
+      
+      // Wait for React to render the video element
+      await new Promise(resolve => setTimeout(resolve, 100));
       
       if (videoRef.current) {
+        console.log('Setting video source...');
         videoRef.current.srcObject = mediaStream;
-        setStream(mediaStream);
+        
+        // Add event listeners for debugging
+        videoRef.current.onloadedmetadata = () => {
+          console.log('Video metadata loaded');
+        };
+        
+        try {
+          console.log('Attempting to play video...');
+          videoRef.current.muted = true;
+          videoRef.current.playsInline = true;
+          await videoRef.current.play();
+          console.log('Video play() successful');
+        } catch (playError) {
+          console.error('Video play failed:', playError);
+        }
+      } else {
+        console.error('Video ref is null!');
       }
-    } catch (err) {
-      console.error('Error accessing camera:', err);
-      toast.error('Unable to access camera. Please try uploading an image instead.');
+      
+      toast.success('Camera started successfully!');
+    } catch (error) {
+      console.error('Error accessing camera:', error);
+      let errorMessage = "Please allow camera access to use virtual try-on";
+      
+      if (error instanceof Error) {
+        console.log('Error name:', error.name, 'Message:', error.message);
+        
+        if (error.name === 'NotAllowedError') {
+          errorMessage = "Camera access was denied. Please enable camera permissions and try again.";
+        } else if (error.name === 'NotFoundError') {
+          errorMessage = "No camera found. Please connect a camera and try again.";
+        } else if (error.name === 'NotSupportedError') {
+          errorMessage = "Camera access is not supported in this browser.";
+        } else if (error.name === 'NotReadableError') {
+          errorMessage = "Camera is already in use by another application. Please close other camera apps and try again.";
+        } else if (error.message.includes('HTTPS')) {
+          errorMessage = "Camera access requires a secure connection (HTTPS).";
+        } else {
+          errorMessage = `Camera error: ${error.message}`;
+        }
+      }
+      
+      toast.error(errorMessage);
+      setStream(null);
     }
-  }, []);
+  }, [stream]);
 
   const stopCamera = useCallback(() => {
     if (stream) {
