@@ -47,7 +47,7 @@ const EnhancedFoundationMatcher = () => {
   const [showFulfillment, setShowFulfillment] = useState(false);
   const [inclusiveAnalysis, setInclusiveAnalysis] = useState<any>(null);
 
-  // Fetch cosmetics products
+  // Fetch cosmetics products from ALL datasets
   const { data: cosmeticsProducts } = useQuery({
     queryKey: ['cosmetics-products'],
     queryFn: async () => {
@@ -59,9 +59,11 @@ const EnhancedFoundationMatcher = () => {
         `)
         .eq('product_type', 'foundation')
         .not('brand_id', 'is', null)
-        .limit(100);
+        .order('rating', { ascending: false })
+        .limit(300); // Increased to get more variety
       
       if (error) throw error;
+      console.log(`Loaded ${data?.length || 0} cosmetics products from GCS datasets`);
       return data;
     },
   });
@@ -77,9 +79,11 @@ const EnhancedFoundationMatcher = () => {
           brands!inner(name, logo_url),
           foundation_shades(*)
         `)
-        .eq('is_active', true);
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
       
       if (error) throw error;
+      console.log(`Loaded ${data?.length || 0} foundation products with shades`);
       return data;
     },
   });
@@ -123,6 +127,8 @@ const EnhancedFoundationMatcher = () => {
       ...(foundationProducts || []),
       ...(cosmeticsProducts || [])
     ];
+    
+    console.log(`Generating pairs from ${allProducts.length} total products (${foundationProducts?.length || 0} foundation + ${cosmeticsProducts?.length || 0} cosmetics)`);
 
     // Convert to SkinToneAnalysis format for the new matching system
     const skinToneAnalysis: SkinToneAnalysis = {

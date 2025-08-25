@@ -137,43 +137,63 @@ export const findBestShadeMatches = (
 ): ShadeMatch[] => {
   const matches: ShadeMatch[] = [];
   
+  console.log(`Finding matches for ${products.length} products with skin tone:`, skinTone);
+  
   for (const product of products) {
     const shades = product.foundation_shades || [];
     
+    // Always try to create matches - prioritize actual shades but include synthetic matches
     if (shades.length === 0) {
-      // For products without specific shades, create a synthetic match
+      // For products without specific shades (most cosmetics_products), create a synthetic match
       const match = createSyntheticShadeMatch(product, skinTone, preferences);
-      if (match) matches.push(match);
+      if (match) {
+        console.log(`Created synthetic match for ${product.product_name || product.name}:`, match.matchPercentage);
+        matches.push(match);
+      }
       continue;
     }
     
     // Find the best shade(s) for this product
+    let bestShadeForProduct = null;
+    let bestScore = -1;
+    
     for (const shade of shades) {
-      if (!shade.hex_color || !shade.is_available) continue;
+      // Be more inclusive - don't require hex_color or is_available to be set
+      // Many products in GCS don't have these fields populated
+      const shouldSkip = shade.is_available === false; // Only skip if explicitly set to false
+      if (shouldSkip) continue;
       
-      const colorDistance = calculateColorDistance(skinTone.hexColor, shade.hex_color);
+      // Use hex_color if available, otherwise estimate from shade name and undertone
+      const shadeHexColor = shade.hex_color || estimateColorFromShade(shade, skinTone);
+      
+      const colorDistance = shadeHexColor ? 
+        calculateColorDistance(skinTone.hexColor, shadeHexColor) : 
+        estimateColorDistanceFromProperties(skinTone, shade);
+        
       const undertoneCompatibility = calculateUndertoneCompatibility(
         skinTone.undertone, 
-        shade.undertone || 'neutral'
+        shade.undertone || extractUndertoneFromName(shade.shade_name) || 'neutral'
       );
       const depthCompatibility = calculateDepthCompatibility(
         skinTone.depth, 
-        shade.depth_level || 5
+        shade.depth_level || estimateDepthFromName(shade.shade_name) || 5
       );
       const preferenceScore = calculatePreferenceScore(product, preferences);
       
-      // Calculate match percentage (deltaE < 5 is excellent, < 10 is good)
-      const matchPercentage = Math.max(0, Math.min(100, 100 - (colorDistance * 5)));
+      // Calculate match percentage 
+      const matchPercentage = shadeHexColor ? 
+        Math.max(0, Math.min(100, 100 - (colorDistance * 5))) :
+        Math.max(40, Math.min(95, undertoneCompatibility * depthCompatibility * 100));
       
       // Overall score combines all factors
       const overallScore = (
-        (1 - (colorDistance / 50)) * 0.4 + // Color distance (40% weight)
-        undertoneCompatibility * 0.25 +     // Undertone (25% weight)
-        depthCompatibility * 0.25 +         // Depth (25% weight)
+        (shadeHexColor ? (1 - (colorDistance / 50)) * 0.4 : undertoneCompatibility * 0.4) + // Color/undertone
+        depthCompatibility * 0.3 +         // Depth (30% weight)
+        undertoneCompatibility * 0.2 +     // Undertone (20% weight)  
         (preferenceScore - 1) * 0.1         // Preferences (10% weight)
       );
       
-      matches.push({
+      const currentMatch = {
         shade,
         product,
         colorDistance,
@@ -181,14 +201,49 @@ export const findBestShadeMatches = (
         undertoneCompatibility,
         depthCompatibility,
         overallScore: Math.max(0, Math.min(1, overallScore))
-      });
+      };
+      
+      // Keep only the best shade per product
+      if (overallScore > bestScore) {
+        bestScore = overallScore;
+        bestShadeForProduct = currentMatch;
+      }
+    }
+    
+    if (bestShadeForProduct) {
+      console.log(`Best shade for ${product.product_name || product.name}: ${bestShadeForProduct.shade.shade_name} (${bestShadeForProduct.matchPercentage}%)`);
+      matches.push(bestShadeForProduct);
     }
   }
   
-  // Sort by overall score and return top matches
-  return matches
-    .sort((a, b) => b.overallScore - a.overallScore)
-    .slice(0, maxResults);
+  console.log(`Generated ${matches.length} total matches`);
+  
+  // Sort by overall score and return top matches, ensuring brand diversity
+  const sortedMatches = matches.sort((a, b) => b.overallScore - a.overallScore);
+  
+  // Ensure brand diversity in results
+  const diverseMatches: ShadeMatch[] = [];
+  const usedBrands = new Set<string>();
+  
+  // First pass: get the best match from each brand
+  for (const match of sortedMatches) {
+    const brandName = getBrandName(match.product);
+    if (!usedBrands.has(brandName) && diverseMatches.length < maxResults) {
+      diverseMatches.push(match);
+      usedBrands.add(brandName);
+    }
+  }
+  
+  // Second pass: fill remaining slots with next best matches
+  for (const match of sortedMatches) {
+    if (diverseMatches.length >= maxResults) break;
+    if (!diverseMatches.includes(match)) {
+      diverseMatches.push(match);
+    }
+  }
+  
+  console.log(`Returning ${diverseMatches.length} diverse matches from ${usedBrands.size} brands`);
+  return diverseMatches.slice(0, maxResults);
 };
 
 /**
@@ -330,4 +385,80 @@ export const generateShadeName = (depth: number, undertone: string): string => {
   const undertoneName = undertoneNames[undertone as keyof typeof undertoneNames] || 'Neutral';
   
   return `${depthNames[depthIndex]} ${undertoneName}`;
+};
+
+// Additional helper functions for improved matching
+
+const getBrandName = (product: any): string => {
+  return product.brands?.name || product.brand?.name || 'Unknown Brand';
+};
+
+const estimateColorFromShade = (shade: any, skinTone: SkinToneAnalysis): string | null => {
+  // Try to estimate color based on shade name and undertone
+  if (!shade.shade_name) return null;
+  
+  const name = shade.shade_name.toLowerCase();
+  const undertone = shade.undertone || extractUndertoneFromName(shade.shade_name);
+  const depth = shade.depth_level || estimateDepthFromName(shade.shade_name);
+  
+  if (depth && undertone) {
+    // Generate a realistic color based on depth and undertone
+    const { generateRealisticFleshTone } = require('./fleshToneColorWheel');
+    return generateRealisticFleshTone(shade.shade_name, undertone);
+  }
+  
+  return null;
+};
+
+const estimateColorDistanceFromProperties = (skinTone: SkinToneAnalysis, shade: any): number => {
+  // When no hex color is available, estimate distance based on undertone and depth
+  const undertoneCompatibility = calculateUndertoneCompatibility(
+    skinTone.undertone, 
+    shade.undertone || extractUndertoneFromName(shade.shade_name) || 'neutral'
+  );
+  const depthCompatibility = calculateDepthCompatibility(
+    skinTone.depth, 
+    shade.depth_level || estimateDepthFromName(shade.shade_name) || 5
+  );
+  
+  // Convert compatibility scores to estimated color distance
+  return 50 * (1 - (undertoneCompatibility + depthCompatibility) / 2);
+};
+
+const extractUndertoneFromName = (shadeName: string): string => {
+  if (!shadeName) return 'neutral';
+  const name = shadeName.toLowerCase();
+  
+  if (name.includes('warm') || name.includes('golden') || name.includes('honey') || name.includes('caramel')) return 'warm';
+  if (name.includes('cool') || name.includes('pink') || name.includes('rose') || name.includes('porcelain')) return 'cool';
+  if (name.includes('olive') || name.includes('yellow')) return 'olive';
+  if (name.includes('neutral') || name.includes('beige') || name.includes('sand')) return 'neutral';
+  
+  return 'neutral';
+};
+
+const estimateDepthFromName = (shadeName: string): number => {
+  if (!shadeName) return 5;
+  const name = shadeName.toLowerCase();
+  
+  if (name.includes('porcelain') || name.includes('ivory')) return 1;
+  if (name.includes('fair') || name.includes('alabaster')) return 2;
+  if (name.includes('light')) return 3;
+  if (name.includes('medium light')) return 4;
+  if (name.includes('medium')) return 5;
+  if (name.includes('tan') || name.includes('medium deep')) return 6;
+  if (name.includes('deep')) return 7;
+  if (name.includes('very deep') || name.includes('espresso')) return 8;
+  if (name.includes('darkest') || name.includes('ebony')) return 9;
+  
+  // Try to extract numbers from shade names like "350", "120", etc.
+  const numbers = shadeName.match(/\d+/g);
+  if (numbers && numbers.length > 0) {
+    const num = parseInt(numbers[0]);
+    if (num < 200) return Math.min(9, Math.floor(num / 50) + 1);
+    if (num < 400) return Math.min(9, Math.floor((num - 100) / 50) + 3);
+    return Math.min(9, Math.floor((num - 200) / 50) + 5);
+  }
+  
+  return 5; // Default to medium
 };
