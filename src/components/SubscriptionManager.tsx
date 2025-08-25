@@ -1,14 +1,14 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Check, Crown, Zap, Calendar, CreditCard } from 'lucide-react';
+import { Check, Crown, Calendar, CreditCard } from 'lucide-react';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useToast } from '@/hooks/use-toast';
 
-// Pre-built Stripe payment URLs
+// Updated Stripe payment URLs with new pricing
 const STRIPE_PAYMENT_URLS = {
-  one_time: 'https://buy.stripe.com/test_4gweVo6QR2XMgMw5kl',
   weekly: 'https://buy.stripe.com/test_6oEaFY3EFeAu4cE9AC',
   monthly: 'https://buy.stripe.com/test_cN23dwhppasmfIscMN',
   yearly: 'https://buy.stripe.com/test_5kA29s3EF5a2fIscMO',
@@ -16,30 +16,15 @@ const STRIPE_PAYMENT_URLS = {
 
 const TIERS = [
   {
-    id: 'one_time',
-    name: 'One-Time Match',
-    price: '$2',
-    description: 'Perfect for a single foundation match',
-    features: [
-      'One foundation match',
-      'Basic skin analysis',
-      'Product recommendations',
-      'Results saved to account',
-    ],
-    icon: Zap,
-    popular: false,
-    paymentUrl: STRIPE_PAYMENT_URLS.one_time,
-  },
-  {
     id: 'weekly',
-    name: 'Weekly Premium',
-    price: '$4/week',
-    description: 'Great for short-term access',
+    name: 'Weekly Subscription',
+    price: '$10/week',
+    description: 'Perfect for short-term access',
     features: [
-      'Unlimited foundation matches',
+      'Complete AI shade matching',
       'Advanced skin analysis',
-      'Premium recommendations',
       'Virtual try-on features',
+      'All foundation brands',
     ],
     icon: Calendar,
     popular: false,
@@ -47,13 +32,13 @@ const TIERS = [
   },
   {
     id: 'monthly',
-    name: 'Monthly Premium',
+    name: 'Monthly Subscription',
     price: '$10/month',
     description: 'Most popular choice for regular users',
     features: [
-      'Everything in Weekly Premium',
+      'Everything in Weekly',
       'Priority customer support',
-      'New features first',
+      'Advanced analytics',
       'Cancel anytime',
     ],
     icon: Crown,
@@ -62,12 +47,12 @@ const TIERS = [
   },
   {
     id: 'yearly',
-    name: 'Yearly Premium',
-    price: '$100/year',
-    description: 'Best value - save over $20 per year',
+    name: 'Yearly Subscription',
+    price: '$10/year',
+    description: 'Best value - incredible savings',
     features: [
-      'Everything in Monthly Premium',
-      'Significant savings',
+      'Everything in Monthly',
+      'Maximum savings',
       'Exclusive yearly bonuses',
       'Priority feature requests',
     ],
@@ -82,7 +67,7 @@ export const SubscriptionManager = () => {
   const [loading, setLoading] = useState<string | null>(null);
   const subscription = useSubscription();
 
-  const handleUpgrade = async (tier: 'one_time' | 'weekly' | 'monthly' | 'yearly') => {
+  const handleUpgrade = async (tier: 'weekly' | 'monthly' | 'yearly') => {
     setLoading(tier);
     try {
       const paymentUrl = STRIPE_PAYMENT_URLS[tier];
@@ -90,7 +75,7 @@ export const SubscriptionManager = () => {
         window.open(paymentUrl, '_blank');
         toast({
           title: "Redirecting to payment",
-          description: "You're being redirected to complete your purchase.",
+          description: "You're being redirected to complete your subscription.",
         });
       } else {
         toast({
@@ -136,7 +121,7 @@ export const SubscriptionManager = () => {
 
   const getCurrentTierName = () => {
     const tier = TIERS.find(t => t.id === subscription.subscription_tier);
-    return tier ? tier.name : 'Free';
+    return tier ? tier.name : 'No Active Subscription';
   };
 
   const formatSubscriptionEnd = () => {
@@ -155,7 +140,7 @@ export const SubscriptionManager = () => {
   return (
     <div className="space-y-6">
       {/* Current Subscription Status */}
-      {subscription.isPremium && (
+      {subscription.isPremium ? (
         <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-accent/5">
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -165,10 +150,9 @@ export const SubscriptionManager = () => {
                   Current Plan: {getCurrentTierName()}
                 </CardTitle>
                 <CardDescription>
-                  {subscription.subscription_end && subscription.subscription_tier !== 'one_time' && (
+                  {subscription.subscription_end && (
                     `Renews on ${formatSubscriptionEnd()}`
                   )}
-                  {subscription.subscription_tier === 'one_time' && 'Lifetime access'}
                 </CardDescription>
               </div>
               <Badge variant="default" className="bg-primary">
@@ -190,6 +174,14 @@ export const SubscriptionManager = () => {
             </CardContent>
           )}
         </Card>
+      ) : (
+        <Card className="border-orange-200 bg-orange-50">
+          <CardContent className="p-6 text-center">
+            <Crown className="w-12 h-12 text-orange-600 mx-auto mb-3" />
+            <h3 className="text-xl font-semibold text-orange-800 mb-2">Subscription Required</h3>
+            <p className="text-orange-600">Please choose a subscription plan to access Make Me Up</p>
+          </CardContent>
+        </Card>
       )}
 
       {/* Subscription Tiers */}
@@ -197,8 +189,7 @@ export const SubscriptionManager = () => {
         {TIERS.map((tier) => {
           const Icon = tier.icon;
           const isCurrentTier = subscription.subscription_tier === tier.id;
-          const isUpgrade = !subscription.isPremium || 
-            (subscription.subscription_tier === 'one_time' && tier.id !== 'one_time') ||
+          const canUpgrade = !subscription.isPremium || 
             (subscription.subscription_tier === 'weekly' && ['monthly', 'yearly'].includes(tier.id)) ||
             (subscription.subscription_tier === 'monthly' && tier.id === 'yearly');
 
@@ -240,18 +231,18 @@ export const SubscriptionManager = () => {
                   <Button disabled className="w-full">
                     Current Plan
                   </Button>
-                ) : isUpgrade ? (
+                ) : canUpgrade ? (
                   <Button
                     onClick={() => handleUpgrade(tier.id as any)}
                     disabled={loading === tier.id}
                     className="w-full"
                     variant={tier.popular ? "default" : "outline"}
                   >
-                    {loading === tier.id ? 'Processing...' : 'Upgrade Now'}
+                    {loading === tier.id ? 'Processing...' : subscription.isPremium ? 'Upgrade' : 'Subscribe Now'}
                   </Button>
                 ) : (
                   <Button disabled className="w-full" variant="secondary">
-                    Downgrade Not Available
+                    Lower Tier
                   </Button>
                 )}
               </CardContent>

@@ -1,8 +1,9 @@
+
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Check, Star, Crown, Zap } from 'lucide-react';
+import { Check, Star, Crown, AlertCircle } from 'lucide-react';
 import { useSubscription } from '@/hooks/useSubscription';
 
 const SubscriptionOptions = () => {
@@ -10,76 +11,60 @@ const SubscriptionOptions = () => {
 
   const plans = [
     {
-      id: 'one_time',
-      name: 'One-Time Match',
-      price: '$2.00',
-      period: '',
-      subtitle: 'Single match',
-      icon: <Zap className="w-5 h-5" />,
-      popular: false,
-      description: 'Perfect for trying out our AI matching',
-      features: [
-        'AI shade matching',
-        'Foundation database access',
-        'Basic recommendations'
-      ],
-      expectedOutput: 'Get your perfect foundation match with AI-powered shade analysis'
-    },
-    {
       id: 'weekly',
-      name: 'Weekly',
-      price: '$4.00',
+      name: 'Weekly Plan',
+      price: '$10.00',
       period: 'Per week',
-      subtitle: '',
+      subtitle: 'Perfect for trying out',
       icon: <Star className="w-5 h-5" />,
       popular: false,
-      description: 'Enhanced matching for regular users',
+      description: 'Weekly access to all premium features',
       features: [
-        'Enhanced matching',
+        'Complete AI shade matching',
         'Virtual try-on access',
-        'Weekly updates',
+        'All foundation brands',
         'Email support'
       ],
-      expectedOutput: 'Advanced matching with virtual try-on and weekly product updates'
+      expectedOutput: 'Full access to all features with weekly billing'
     },
     {
       id: 'monthly',
-      name: 'Monthly Matches',
+      name: 'Monthly Plan',
       price: '$10.00',
       period: 'Per month',
-      subtitle: '',
+      subtitle: 'Most popular',
       icon: <Crown className="w-5 h-5" />,
       popular: true,
-      description: 'Most popular plan for beauty enthusiasts',
+      description: 'Monthly access with best value',
       features: [
-        'Premium matching',
-        'Unlimited try-ons',
-        'Look recommendations',
-        'Priority support'
+        'Everything in Weekly',
+        'Priority customer support',
+        'Advanced analytics',
+        'Early access to new features'
       ],
-      expectedOutput: 'Premium matching with unlimited features and personalized look recommendations'
+      expectedOutput: 'Complete beauty suite with monthly convenience and savings'
     },
     {
       id: 'yearly',
-      name: 'Annual',
-      price: '$100.00',
+      name: 'Annual Plan',
+      price: '$10.00',
       period: 'Per year',
-      subtitle: '',
+      subtitle: 'Best value',
       icon: <Crown className="w-5 h-5" />,
       popular: false,
-      description: 'Best value with all premium features',
+      description: 'Maximum savings with annual billing',
       features: [
-        'All features',
+        'Everything in Monthly',
         'Custom consultations',
         'Exclusive products',
         'Personal beauty advisor'
       ],
-      expectedOutput: 'Complete beauty suite with personal consultation and exclusive access'
+      expectedOutput: 'Premium experience with maximum savings and exclusive perks'
     }
   ];
 
   const handleSubscribe = async (planId: string) => {
-    const url = await createCheckout(planId as 'one_time' | 'weekly' | 'monthly' | 'yearly');
+    const url = await createCheckout(planId as 'weekly' | 'monthly' | 'yearly');
     if (url) {
       window.open(url, '_blank');
     }
@@ -90,8 +75,8 @@ const SubscriptionOptions = () => {
       <Card className="border-green-200 bg-green-50">
         <CardContent className="p-6 text-center">
           <Crown className="w-12 h-12 text-green-600 mx-auto mb-3" />
-          <h3 className="text-xl font-semibold text-green-800 mb-2">You're Already Premium!</h3>
-          <p className="text-green-600">Enjoy unlimited access to all features</p>
+          <h3 className="text-xl font-semibold text-green-800 mb-2">You're All Set!</h3>
+          <p className="text-green-600">Enjoy full access to all features</p>
         </CardContent>
       </Card>
     );
@@ -100,13 +85,19 @@ const SubscriptionOptions = () => {
   return (
     <div className="space-y-6">
       <div className="text-center">
+        <div className="flex items-center justify-center gap-2 mb-4">
+          <AlertCircle className="w-6 h-6 text-orange-600" />
+          <Badge variant="destructive" className="text-sm font-semibold">
+            SUBSCRIPTION REQUIRED
+          </Badge>
+        </div>
         <h2 className="text-3xl font-bold mb-2">
-          Choose Your Plan
+          Choose Your Subscription Plan
         </h2>
-        <p className="text-muted-foreground">Select the plan that best fits your beauty journey</p>
+        <p className="text-muted-foreground">A subscription is required to access Make Me Up features</p>
       </div>
 
-      <div className="grid md:grid-cols-4 gap-6">
+      <div className="grid md:grid-cols-3 gap-6">
         {plans.map((plan) => (
           <Card 
             key={plan.id} 
@@ -128,12 +119,8 @@ const SubscriptionOptions = () => {
               <div className="text-3xl font-bold text-primary">
                 {plan.price}
               </div>
-              {plan.period && (
-                <div className="text-sm font-normal text-muted-foreground">{plan.period}</div>
-              )}
-              {plan.subtitle && (
-                <div className="text-sm text-muted-foreground">{plan.subtitle}</div>
-              )}
+              <div className="text-sm font-normal text-muted-foreground">{plan.period}</div>
+              <div className="text-sm text-muted-foreground">{plan.subtitle}</div>
             </CardHeader>
 
             <CardContent className="space-y-4">
@@ -148,7 +135,7 @@ const SubscriptionOptions = () => {
               </div>
 
               <div className="border-t pt-4">
-                <h4 className="font-semibold text-sm mb-2">Expected Output:</h4>
+                <h4 className="font-semibold text-sm mb-2">What You Get:</h4>
                 <p className="text-sm text-muted-foreground">{plan.expectedOutput}</p>
               </div>
 
@@ -157,7 +144,7 @@ const SubscriptionOptions = () => {
                 variant={plan.popular ? "default" : "outline"}
                 onClick={() => handleSubscribe(plan.id)}
               >
-                Choose Plan
+                Subscribe Now
               </Button>
             </CardContent>
           </Card>

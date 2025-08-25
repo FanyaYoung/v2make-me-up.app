@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.21.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
@@ -26,7 +27,7 @@ serve(async (req) => {
     logStep("Function started");
 
     const { tier } = await req.json();
-    if (!tier || !['one_time', 'weekly', 'monthly', 'yearly'].includes(tier)) {
+    if (!tier || !['weekly', 'monthly', 'yearly'].includes(tier)) {
       throw new Error("Invalid subscription tier");
     }
 
@@ -50,12 +51,11 @@ serve(async (req) => {
 
     logStep("Customer lookup completed", { customerId, hasExistingCustomer: !!customerId });
 
-    // Define pricing based on tier
+    // Updated pricing - all tiers are $10 with different intervals
     const tierConfig = {
-      one_time: { amount: 200, mode: "payment" as const }, // $2.00
-      weekly: { amount: 400, mode: "subscription" as const, interval: "week" as const }, // $4.00/week
-      monthly: { amount: 1000, mode: "subscription" as const, interval: "month" as const }, // $10.00/month
-      yearly: { amount: 10000, mode: "subscription" as const, interval: "year" as const } // $100.00/year
+      weekly: { amount: 1000, mode: "subscription" as const, interval: "week" as const }, // $10.00/week
+      monthly: { amount: 1000, mode: "subscription" as const, interval: "month" as const }, // $10.00/month  
+      yearly: { amount: 1000, mode: "subscription" as const, interval: "year" as const } // $10.00/year
     };
 
     const config = tierConfig[tier as keyof typeof tierConfig];
@@ -68,32 +68,20 @@ serve(async (req) => {
       cancel_url: `${req.headers.get("origin")}/subscription-canceled`,
     };
 
-    if (config.mode === "payment") {
-      // One-time payment
-      sessionConfig.line_items = [
-        {
-          price_data: {
-            currency: "usd",
-            product_data: { name: "Premium Match - One Time" },
-            unit_amount: config.amount,
+    // All plans are now subscriptions
+    sessionConfig.line_items = [
+      {
+        price_data: {
+          currency: "usd",
+          product_data: { 
+            name: `Make Me Up - ${tier.charAt(0).toUpperCase() + tier.slice(1)} Subscription` 
           },
-          quantity: 1,
+          unit_amount: config.amount,
+          recurring: { interval: config.interval },
         },
-      ];
-    } else {
-      // Subscription
-      sessionConfig.line_items = [
-        {
-          price_data: {
-            currency: "usd",
-            product_data: { name: `Premium Subscription - ${tier === 'monthly' ? 'Monthly' : tier === 'weekly' ? 'Weekly' : 'Yearly'}` },
-            unit_amount: config.amount,
-            recurring: { interval: config.interval },
-          },
-          quantity: 1,
-        },
-      ];
-    }
+        quantity: 1,
+      },
+    ];
 
     const session = await stripe.checkout.sessions.create(sessionConfig);
     logStep("Checkout session created", { sessionId: session.id, url: session.url });
