@@ -64,13 +64,13 @@ const EnhancedProductRecommendations = ({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="text-center space-y-2">
         <h3 className="text-2xl font-bold text-gray-800">Perfect Matches Found</h3>
         <p className="text-gray-600">Based on your skin analysis, here are similar shades:</p>
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-3">
         {recommendations.map((rec, index) => {
           const { shade } = rec;
           return (
@@ -133,13 +133,13 @@ const EnhancedProductRecommendations = ({
                       </div>
                     </div>
 
-                    {/* Product Tags */}
+                    {/* Product Tags - Coverage highlighted */}
                     <div className="flex flex-wrap gap-2">
+                      <Badge className="bg-purple-600 text-white hover:bg-purple-700">
+                        {shade.coverage || 'Medium'} Coverage
+                      </Badge>
                       <Badge variant="outline" className="text-rose-600 border-rose-200">
                         {shade.undertone} undertone
-                      </Badge>
-                      <Badge variant="outline" className="text-purple-600 border-purple-200">
-                        {shade.coverage} coverage
                       </Badge>
                       <Badge variant="outline" className="text-blue-600 border-blue-200">
                         {shade.finish} finish
