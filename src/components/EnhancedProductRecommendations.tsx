@@ -36,6 +36,12 @@ const EnhancedProductRecommendations = ({
   };
 
   const getShadeColor = (shade: FoundationMatch) => {
+    // First try to get the actual hex color from the shade data if available
+    if ((shade as any).hexColor) {
+      return (shade as any).hexColor;
+    }
+    
+    // Fallback to undertone mapping only if no hex color is available
     const undertoneMap = {
       warm: '#D4A574',
       cool: '#F0D7C3',

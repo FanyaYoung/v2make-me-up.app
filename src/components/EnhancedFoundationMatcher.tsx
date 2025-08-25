@@ -217,6 +217,11 @@ const EnhancedFoundationMatcher = () => {
     skinToneAnalysis: SkinToneAnalysis, 
     type: 'primary' | 'contour'
   ): FoundationMatch => {
+    // Get the actual hex color from the shade data if available
+    const hexColor = shadeMatch.shade?.hex_color || 
+                    (shadeMatch.shade as any)?.hexColor ||
+                    skinToneAnalysis.hexColor;
+
     return {
       id: `${shadeMatch.product.id}-${shadeMatch.shade.id || 'generated'}-${type}`,
       brand: getBrandName(shadeMatch.product),
@@ -236,6 +241,7 @@ const EnhancedFoundationMatcher = () => {
       coverage: shadeMatch.shade.coverage || extractCoverage(shadeMatch.product) || 'medium',
       finish: shadeMatch.shade.finish || extractFinish(shadeMatch.product) || 'natural',
       imageUrl: shadeMatch.product.image_url || '/placeholder.svg',
+      hexColor: hexColor, // Add the actual hex color to the match
       primaryShade: type === 'primary' ? {
         name: shadeMatch.shade.shade_name || generateShadeName(skinToneAnalysis.depth, skinToneAnalysis.undertone),
         purpose: 'face_center' as const

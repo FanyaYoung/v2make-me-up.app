@@ -3,6 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ShoppingBag, Eye } from 'lucide-react';
+import { FoundationMatch } from '../types/foundation';
 
 // Import foundation product images
 import charlotteTilburyImg from '@/assets/foundation-charlotte-tilbury.jpg';
@@ -10,79 +11,80 @@ import rareBeautyImg from '@/assets/foundation-rare-beauty.jpg';
 import narsImg from '@/assets/foundation-nars.jpg';
 import skinToneSwatchesImg from '@/assets/skin-tone-swatches.jpg';
 
-interface FoundationMatch {
-  id: string;
-  brand: string;
-  product: string;
-  shade: string;
-  matchPercentage: number;
-  swatchColor: string;
-  productImage: string;
+interface VisualMatch extends FoundationMatch {
+  swatchColor?: string;
+  productImage?: string;
   isOriginal?: boolean;
 }
 
 interface VisualFoundationMatchesProps {
-  originalShade: string;
-  originalBrand: string;
+  matches?: FoundationMatch[]; // Make matches optional for backward compatibility
+  originalShade?: string;
+  originalBrand?: string;
 }
 
 const VisualFoundationMatches: React.FC<VisualFoundationMatchesProps> = ({
+  matches,
   originalShade,
   originalBrand
 }) => {
-  const matches: FoundationMatch[] = [
+  // Use provided matches or create sample data for demo purposes
+  const defaultMatches: FoundationMatch[] = [
     {
       id: 'original',
-      brand: originalBrand,
+      brand: originalBrand || 'Fenty Beauty',
       product: 'Pro Filt\'r Soft Matte Foundation',
-      shade: originalShade,
+      shade: originalShade || '220',
+      price: 36,
+      rating: 4.5,
+      reviewCount: 1250,
+      availability: { online: true, inStore: true, readyForPickup: true, nearbyStores: [] },
       matchPercentage: 100,
-      swatchColor: '#CFC1A2',
-      productImage: rareBeautyImg,
-      isOriginal: true
+      undertone: 'neutral',
+      coverage: 'full',
+      finish: 'matte',
+      imageUrl: rareBeautyImg,
+      hexColor: '#CFC1A2'
     },
     {
       id: 'match1',
       brand: 'Charlotte Tilbury',
-      product: '6 Medium',
-      shade: 'Airbrush Flawless Foundation',
+      product: 'Airbrush Flawless Foundation',
+      shade: '6 Medium',
+      price: 44,
+      rating: 4.3,
+      reviewCount: 850,
+      availability: { online: true, inStore: true, readyForPickup: true, nearbyStores: [] },
       matchPercentage: 95,
-      swatchColor: '#D2C3A4',
-      productImage: charlotteTilburyImg
-    },
-    {
-      id: 'match2',
-      brand: 'Rare Beauty',
-      product: '240N',
-      shade: 'Liquid Touch Foundation',
-      matchPercentage: 95,
-      swatchColor: '#CAB89C',
-      productImage: rareBeautyImg
-    },
-    {
-      id: 'match3',
-      brand: 'NARS',
-      product: 'Barcelona',
-      shade: 'Natural Radiant Foundation',
-      matchPercentage: 95,
-      swatchColor: '#C6B498',
-      productImage: narsImg
+      undertone: 'neutral',
+      coverage: 'medium',
+      finish: 'natural',
+      imageUrl: charlotteTilburyImg,
+      hexColor: '#D2C3A4'
     }
   ];
+
+  // Convert FoundationMatch objects to the local interface format
+  const processedMatches: VisualMatch[] = (matches || defaultMatches).map((match, index) => ({
+    ...match,
+    swatchColor: match.hexColor || '#DCB99B',
+    productImage: match.imageUrl || '/placeholder.svg',
+    isOriginal: index === 0 && originalShade && match.shade === originalShade
+  }));
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="text-center">
         <h2 className="text-3xl font-bold mb-2 bg-gradient-to-r from-rose-600 via-pink-600 to-purple-600 bg-clip-text text-transparent">
-          Perfect Matches for {originalBrand} {originalShade}
+          Perfect Matches {originalBrand && originalShade ? `for ${originalBrand} ${originalShade}` : 'Found'}
         </h2>
-        <p className="text-muted-foreground">Here are identical shades from other brands</p>
+        <p className="text-muted-foreground">Here are foundation shades that match your skin tone</p>
       </div>
 
       {/* Foundation Matches Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {matches.map((match) => (
+        {processedMatches.map((match) => (
           <Card key={match.id} className={`overflow-hidden transition-all duration-300 hover:shadow-lg ${
             match.isOriginal ? 'ring-2 ring-rose-500' : ''
           }`}>
@@ -115,7 +117,7 @@ const VisualFoundationMatches: React.FC<VisualFoundationMatchesProps> = ({
                 <div className="flex justify-center">
                   <div 
                     className="w-12 h-12 rounded-full border-2 border-border shadow-inner"
-                    style={{ backgroundColor: match.swatchColor }}
+                    style={{ backgroundColor: match.hexColor || match.swatchColor }}
                     title={match.shade}
                   />
                 </div>

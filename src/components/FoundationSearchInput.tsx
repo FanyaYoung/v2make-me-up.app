@@ -201,6 +201,11 @@ const FoundationSearchInput: React.FC<FoundationSearchInputProps> = ({ onMatchFo
                   ((product as any).description?.toLowerCase().includes('matte') ? 'matte' :
                    (product as any).description?.toLowerCase().includes('dewy') ? 'dewy' : 'natural');
 
+    // Get actual hex color if available
+    const hexColor = matchingShade?.hex_color || 
+                    (matchingShade as any)?.hexColor ||
+                    ((product as any).metadata?.hex_color);
+
     const foundationMatch: FoundationMatch = {
       id: `search-${product.id}`,
       brand: brand?.name || 'Unknown',
@@ -219,7 +224,8 @@ const FoundationSearchInput: React.FC<FoundationSearchInputProps> = ({ onMatchFo
       undertone: matchingShade?.undertone || 'neutral',
       coverage: coverage,
       finish: finish,
-      imageUrl: (product as any).image_url || '/placeholder.svg'
+      imageUrl: (product as any).image_url || '/placeholder.svg',
+      hexColor: hexColor // Add the actual hex color
     };
 
     return foundationMatch;

@@ -13,7 +13,15 @@ interface ProductRecommendationsProps {
 
 const ProductRecommendations = ({ matches, onSelectMatch, currentFoundation }: ProductRecommendationsProps) => {
   // Function to generate a shade color swatch
-  const generateShadeColor = (shade: string, undertone: string) => {
+  const generateShadeColor = (match: FoundationMatch) => {
+    // Use actual hex color if available from database
+    if (match.hexColor) {
+      return match.hexColor;
+    }
+    
+    // Fallback to generating based on shade and undertone
+    const { shade, undertone } = match;
+    
     // Base colors for different undertones
     const undertoneColors = {
       warm: { r: 210, g: 180, b: 140 },
@@ -85,14 +93,14 @@ const ProductRecommendations = ({ matches, onSelectMatch, currentFoundation }: P
                           {/* Fallback color swatch */}
                           <div 
                             className="absolute inset-0 hidden"
-                            style={{ backgroundColor: generateShadeColor(match.shade, match.undertone) }}
+                            style={{ backgroundColor: generateShadeColor(match) }}
                             title={`${match.shade} shade`}
                           />
                         </div>
                         {/* Shade color indicator bar */}
                         <div 
                           className="h-4 border-t border-gray-200"
-                          style={{ backgroundColor: generateShadeColor(match.shade, match.undertone) }}
+                          style={{ backgroundColor: generateShadeColor(match) }}
                           title={`${match.shade} color`}
                         />
                       </div>
@@ -101,7 +109,7 @@ const ProductRecommendations = ({ matches, onSelectMatch, currentFoundation }: P
                         {/* Foundation shade color when no image */}
                         <div 
                           className="flex-1 border-b border-gray-200"
-                          style={{ backgroundColor: generateShadeColor(match.shade, match.undertone) }}
+                          style={{ backgroundColor: generateShadeColor(match) }}
                           title={`${match.shade} shade`}
                         />
                         {/* Brand/product info overlay */}
@@ -124,7 +132,7 @@ const ProductRecommendations = ({ matches, onSelectMatch, currentFoundation }: P
                         <p className="text-rose-600 font-semibold">{match.shade}</p>
                         <div 
                           className="w-4 h-4 rounded-full border border-gray-300"
-                          style={{ backgroundColor: generateShadeColor(match.shade, match.undertone) }}
+                          style={{ backgroundColor: generateShadeColor(match) }}
                           title={`${match.shade} color preview`}
                         />
                       </div>

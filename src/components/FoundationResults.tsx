@@ -64,17 +64,22 @@ const FoundationResults = ({
     return stars;
   };
 
-  const getShadeColor = (shade: string, undertone: string) => {
-    // Generate a realistic foundation color based on shade name and undertone
-    const shadeLower = shade.toLowerCase();
+  const getShadeColor = (match: FoundationMatch): string => {
+    // First check if we have the actual hex color from the database
+    if (match.hexColor) {
+      return match.hexColor;
+    }
+    
+    // Fallback to generating color based on shade name and undertone
+    const shadeLower = match.shade.toLowerCase();
     let baseColor = '#D4A574'; // Default medium tone
     
     if (shadeLower.includes('fair') || shadeLower.includes('light')) {
-      baseColor = undertone === 'cool' ? '#F5DCC4' : undertone === 'warm' ? '#F0D0A6' : '#F2D3B3';
+      baseColor = match.undertone === 'cool' ? '#F5DCC4' : match.undertone === 'warm' ? '#F0D0A6' : '#F2D3B3';
     } else if (shadeLower.includes('medium')) {
-      baseColor = undertone === 'cool' ? '#E8C2A0' : undertone === 'warm' ? '#D4A574' : '#DEBA8A';
+      baseColor = match.undertone === 'cool' ? '#E8C2A0' : match.undertone === 'warm' ? '#D4A574' : '#DEBA8A';
     } else if (shadeLower.includes('deep') || shadeLower.includes('dark')) {
-      baseColor = undertone === 'cool' ? '#B5967A' : undertone === 'warm' ? '#A0835C' : '#AA8B6E';
+      baseColor = match.undertone === 'cool' ? '#B5967A' : match.undertone === 'warm' ? '#A0835C' : '#AA8B6E';
     }
     
     return baseColor;
@@ -104,7 +109,7 @@ const FoundationResults = ({
                     <div 
                       className="w-20 h-20 rounded-lg border shadow-sm mb-2"
                       style={{ 
-                        backgroundColor: getShadeColor(match.shade, match.undertone)
+                        backgroundColor: getShadeColor(match)
                       }}
                     />
                     <p className="text-xs text-gray-600 font-medium">{match.brand}</p>
@@ -127,7 +132,7 @@ const FoundationResults = ({
                           </span>
                           <div 
                             className="w-4 h-4 rounded-full border"
-                            style={{ backgroundColor: getShadeColor(match.primaryShade?.name || match.shade, match.undertone) }}
+                            style={{ backgroundColor: getShadeColor(match) }}
                           />
                         </div>
                         
@@ -139,7 +144,7 @@ const FoundationResults = ({
                             </span>
                             <div 
                               className="w-4 h-4 rounded-full border"
-                              style={{ backgroundColor: getShadeColor(match.contourShade.name, match.undertone) }}
+                              style={{ backgroundColor: getShadeColor(match) }}
                             />
                             {match.contourShade.mixable && (
                               <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
