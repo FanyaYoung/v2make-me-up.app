@@ -6,6 +6,7 @@ import FoundationPairResults from './FoundationPairResults';
 import QuestionnaireFlow from './QuestionnaireFlow';
 import FoundationSearchInput from './FoundationSearchInput';
 import FulfillmentOptions from './FulfillmentOptions';
+import FoundationBrandChart from './FoundationBrandChart';
 import InclusiveShadeMatchingInterface from './InclusiveShadeMatchingInterface';
 import { FoundationMatch } from '../types/foundation';
 import { Card } from '@/components/ui/card';
@@ -369,7 +370,11 @@ const EnhancedFoundationMatcher = () => {
             />
           )}
         </div>
+      </div>
 
+      {/* Foundation Brand Chart */}
+      <div className="mt-12">
+        <FoundationBrandChart />
       </div>
 
       {/* Questionnaire Modal */}
