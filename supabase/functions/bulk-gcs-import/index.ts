@@ -208,12 +208,15 @@ async function processBulkImport(config: BulkImportConfig, token: string): Promi
         
         // Download file content
         const fileData = await downloadFile(config.bucketName, file.name, token);
-        const csvContent = new TextDecoder().decode(new Uint8Array(fileData.data));
+        const fileContent = new TextDecoder().decode(new Uint8Array(fileData.data));
         
-        // Determine which table configuration to use
+        // Determine file type and table configuration
+        const fileName = file.name.toLowerCase();
+        const fileExtension = fileName.split('.').pop();
+        
         let tableConfig = null;
         for (const [pattern, tConfig] of Object.entries(config.targetTables)) {
-          if (file.name.toLowerCase().includes(pattern.replace('*', ''))) {
+          if (fileName.includes(pattern.replace('*', ''))) {
             tableConfig = tConfig;
             break;
           }
@@ -224,8 +227,20 @@ async function processBulkImport(config: BulkImportConfig, token: string): Promi
           continue;
         }
         
-        // Parse CSV and import data
-        const records = parseCSVWithMapping(csvContent, tableConfig);
+        // Parse file based on type and import records
+        let records: any[] = [];
+        
+        if (fileExtension === 'csv') {
+          records = parseCSVWithMapping(fileContent, tableConfig);
+        } else if (fileExtension === 'json') {
+          records = parseJSONWithMapping(fileContent, tableConfig);
+        } else {
+          console.warn(`Unsupported file type: ${fileExtension} for file: ${file.name}`);
+          continue;
+        }
+        
+        console.log(`Parsed ${records.length} records from ${file.name}`);
+        
         if (records.length > 0) {
           const importResult = await importRecordsToBatch(records, tableConfig, config.batchSize || 100);
           recordsImported += importResult.imported;
@@ -266,47 +281,124 @@ function parseCSVWithMapping(csvContent: string, tableConfig: any): any[] {
       const values = parseCSVLine(lines[i]);
       if (values.length < headers.length) continue;
       
-      const record: any = {};
-      let hasRequiredFields = true;
-      
-      // Map CSV columns to target table columns
-      headers.forEach((header, index) => {
-        const value = values[index]?.trim().replace(/"/g, '');
-        if (!value || value === '' || value === 'NULL') return;
-        
-        const targetField = tableConfig.mapping[header];
-        if (targetField) {
-          // Handle numeric fields
-          if (['price', 'rating', 'total_reviews'].includes(targetField)) {
-            const numValue = parseFloat(value.replace(/[$,]/g, ''));
-            if (!isNaN(numValue)) record[targetField] = numValue;
-          } else {
-            record[targetField] = value;
-          }
-        }
-      });
-      
-      // Check if all required fields are present
-      for (const requiredField of tableConfig.requiredFields) {
-        if (!record[requiredField]) {
-          hasRequiredFields = false;
-          break;
-        }
-      }
-      
-      if (hasRequiredFields) {
-        // Add metadata
-        record.created_at = new Date().toISOString();
-        record.updated_at = new Date().toISOString();
-        records.push(record);
-      }
+      const record = mapDataToRecord(headers, values, tableConfig);
+      if (record) records.push(record);
       
     } catch (error) {
-      console.warn(`Error parsing line ${i}: ${error.message}`);
+      console.warn(`Error parsing CSV line ${i}: ${error.message}`);
     }
   }
   
   return records;
+}
+
+function parseJSONWithMapping(jsonContent: string, tableConfig: any): any[] {
+  try {
+    const jsonData = JSON.parse(jsonContent);
+    const records: any[] = [];
+    
+    // Handle both array of objects and single object
+    const dataArray = Array.isArray(jsonData) ? jsonData : [jsonData];
+    
+    for (const item of dataArray) {
+      try {
+        const record = mapObjectToRecord(item, tableConfig);
+        if (record) records.push(record);
+      } catch (error) {
+        console.warn(`Error parsing JSON item: ${error.message}`);
+      }
+    }
+    
+    return records;
+  } catch (error) {
+    console.error(`Error parsing JSON content: ${error.message}`);
+    return [];
+  }
+}
+
+function mapDataToRecord(headers: string[], values: string[], tableConfig: any): any | null {
+  const record: any = {};
+  let hasRequiredFields = true;
+  
+  // Map CSV columns to target table columns
+  headers.forEach((header, index) => {
+    const value = values[index]?.trim().replace(/"/g, '');
+    if (!value || value === '' || value === 'NULL') return;
+    
+    const targetField = tableConfig.mapping[header];
+    if (targetField) {
+      record[targetField] = processFieldValue(value, targetField);
+    }
+  });
+  
+  // Check if all required fields are present
+  for (const requiredField of tableConfig.requiredFields) {
+    if (!record[requiredField]) {
+      hasRequiredFields = false;
+      break;
+    }
+  }
+  
+  if (hasRequiredFields) {
+    record.created_at = new Date().toISOString();
+    record.updated_at = new Date().toISOString();
+    return record;
+  }
+  
+  return null;
+}
+
+function mapObjectToRecord(item: any, tableConfig: any): any | null {
+  const record: any = {};
+  let hasRequiredFields = true;
+  
+  // Map JSON object properties to target table columns
+  for (const [sourceField, targetField] of Object.entries(tableConfig.mapping)) {
+    const value = item[sourceField] || item[sourceField.toLowerCase()] || item[sourceField.toUpperCase()];
+    if (value !== undefined && value !== null && value !== '') {
+      record[targetField as string] = processFieldValue(String(value), targetField as string);
+    }
+  }
+  
+  // Check if all required fields are present
+  for (const requiredField of tableConfig.requiredFields) {
+    if (!record[requiredField]) {
+      hasRequiredFields = false;
+      break;
+    }
+  }
+  
+  if (hasRequiredFields) {
+    record.created_at = new Date().toISOString();
+    record.updated_at = new Date().toISOString();
+    return record;
+  }
+  
+  return null;
+}
+
+function processFieldValue(value: string, targetField: string): any {
+  // Handle numeric fields
+  if (['price', 'rating', 'total_reviews', 'depth_level'].includes(targetField)) {
+    const numValue = parseFloat(value.replace(/[$,]/g, ''));
+    return !isNaN(numValue) ? numValue : null;
+  }
+  
+  // Handle boolean fields
+  if (['is_active', 'is_available'].includes(targetField)) {
+    return ['true', '1', 'yes', 'active'].includes(value.toLowerCase());
+  }
+  
+  // Handle array fields (for ingredients, skin_concerns, etc.)
+  if (['ingredients', 'skin_concerns', 'tags'].includes(targetField)) {
+    try {
+      return Array.isArray(value) ? value : value.split(',').map(item => item.trim());
+    } catch {
+      return [value];
+    }
+  }
+  
+  return value;
 }
 
 async function importRecordsToBatch(records: any[], tableConfig: any, batchSize: number): Promise<any> {
