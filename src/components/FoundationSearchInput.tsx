@@ -61,26 +61,31 @@ const FoundationSearchInput: React.FC<FoundationSearchInputProps> = ({ onMatchFo
     }
 
     console.log('Starting search for:', productName);
+    console.log('Selected brand:', selectedBrand);
+    console.log('Available brands:', brands?.length);
+    console.log('Available products for selected brand:', products?.length);
 
     try {
       // If brand is selected, search within that brand's products
       if (selectedBrand && products) {
-        console.log('Searching within selected brand:', selectedBrand);
+        console.log('Searching within selected brand products:', products);
         const matchingProduct = products.find(p => 
           p.name.toLowerCase().includes(productName.toLowerCase())
         );
 
+        console.log('Matching product in brand:', matchingProduct);
+
         if (matchingProduct) {
           const brand = brands?.find(b => b.id === selectedBrand);
           const match = createFoundationMatch(matchingProduct, brand);
-          console.log('Found brand-specific match:', match);
+          console.log('Created brand-specific match:', match);
           onMatchFound([match]);
           return;
         }
       }
 
       // If no brand selected or no match found, search across all brands
-      console.log('Searching across all brands...');
+      console.log('Searching across all brands for product name:', productName);
       const { data: allProducts, error } = await supabase
         .from('foundation_products')
         .select(`
@@ -94,17 +99,22 @@ const FoundationSearchInput: React.FC<FoundationSearchInputProps> = ({ onMatchFo
 
       if (error) {
         console.error('Error searching products:', error);
+        // Show error toast
+        import('sonner').then(({ toast }) => {
+          toast.error('Search failed. Please try again.');
+        });
         return;
       }
 
-      console.log('Search results:', allProducts);
+      console.log('All products search results:', allProducts);
 
       if (allProducts && allProducts.length > 0) {
         const matches = allProducts.map(product => {
+          console.log('Creating match for product:', product);
           return createFoundationMatch(product, product.brands);
         }).filter(Boolean);
         
-        console.log('Created matches:', matches);
+        console.log('Final created matches:', matches);
         onMatchFound(matches);
       } else {
         console.log('No products found matching:', productName);
