@@ -33,13 +33,14 @@ const FoundationSearchInput: React.FC<FoundationSearchInputProps> = ({ onMatchFo
     },
   });
 
-  // Fetch products when brand is selected
+  // Fetch products when brand is selected (search both tables)
   const { data: products } = useQuery({
     queryKey: ['brand-products', selectedBrand],
     queryFn: async () => {
       if (!selectedBrand) return [];
       
-      const { data, error } = await supabase
+      // Search foundation_products table
+      const { data: foundationProducts, error: foundationError } = await supabase
         .from('foundation_products')
         .select(`
           *,
@@ -48,8 +49,28 @@ const FoundationSearchInput: React.FC<FoundationSearchInputProps> = ({ onMatchFo
         .eq('brand_id', selectedBrand)
         .eq('is_active', true);
       
-      if (error) throw error;
-      return data;
+      if (foundationError) console.error('Foundation products error:', foundationError);
+      
+      // Search cosmetics_products table
+      const { data: cosmeticsProducts, error: cosmeticsError } = await supabase
+        .from('cosmetics_products')
+        .select(`
+          *,
+          brand:brands(name, logo_url)
+        `)
+        .eq('brand_id', selectedBrand)
+        .eq('product_type', 'foundation');
+      
+      if (cosmeticsError) console.error('Cosmetics products error:', cosmeticsError);
+      
+      // Combine both results
+      const allProducts = [
+        ...(foundationProducts || []),
+        ...(cosmeticsProducts || [])
+      ];
+      
+      console.log('Combined products for brand:', selectedBrand, allProducts);
+      return allProducts;
     },
     enabled: !!selectedBrand,
   });
@@ -69,9 +90,10 @@ const FoundationSearchInput: React.FC<FoundationSearchInputProps> = ({ onMatchFo
       // If brand is selected, search within that brand's products
       if (selectedBrand && products) {
         console.log('Searching within selected brand products:', products);
-        const matchingProduct = products.find(p => 
-          p.name.toLowerCase().includes(productName.toLowerCase())
-        );
+        const matchingProduct = products.find(p => {
+          const productNameField = (p as any).name || (p as any).product_name;
+          return productNameField.toLowerCase().includes(productName.toLowerCase());
+        });
 
         console.log('Matching product in brand:', matchingProduct);
 
@@ -84,9 +106,11 @@ const FoundationSearchInput: React.FC<FoundationSearchInputProps> = ({ onMatchFo
         }
       }
 
-      // If no brand selected or no match found, search across all brands
+      // If no brand selected or no match found, search across all brands and both tables
       console.log('Searching across all brands for product name:', productName);
-      const { data: allProducts, error } = await supabase
+      
+      // Search foundation_products table
+      const { data: foundationProducts, error: foundationError } = await supabase
         .from('foundation_products')
         .select(`
           *,
@@ -97,21 +121,38 @@ const FoundationSearchInput: React.FC<FoundationSearchInputProps> = ({ onMatchFo
         .eq('is_active', true)
         .limit(5);
 
-      if (error) {
-        console.error('Error searching products:', error);
-        // Show error toast
-        import('sonner').then(({ toast }) => {
-          toast.error('Search failed. Please try again.');
-        });
-        return;
+      // Search cosmetics_products table  
+      const { data: cosmeticsProducts, error: cosmeticsError } = await supabase
+        .from('cosmetics_products')
+        .select(`
+          *,
+          brand:brands!inner(name, logo_url)
+        `)
+        .ilike('product_name', `%${productName}%`)
+        .eq('product_type', 'foundation')
+        .limit(5);
+
+      if (foundationError) {
+        console.error('Error searching foundation products:', foundationError);
+      }
+      
+      if (cosmeticsError) {
+        console.error('Error searching cosmetics products:', cosmeticsError);
       }
 
-      console.log('All products search results:', allProducts);
+      // Combine results from both tables
+      const allProducts = [
+        ...(foundationProducts || []),
+        ...(cosmeticsProducts || [])
+      ];
+
+      console.log('Combined search results:', allProducts);
 
       if (allProducts && allProducts.length > 0) {
         const matches = allProducts.map(product => {
           console.log('Creating match for product:', product);
-          return createFoundationMatch(product, product.brands);
+          const brandData = (product as any).brands || (product as any).brand;
+          return createFoundationMatch(product, brandData);
         }).filter(Boolean);
         
         console.log('Final created matches:', matches);
@@ -134,20 +175,40 @@ const FoundationSearchInput: React.FC<FoundationSearchInputProps> = ({ onMatchFo
 
   const createFoundationMatch = (product: any, brand: any): FoundationMatch => {
     let matchingShade = null;
-    if (shadeName && product.foundation_shades) {
-      matchingShade = product.foundation_shades.find((shade: any) =>
-        shade.shade_name.toLowerCase().includes(shadeName.toLowerCase())
-      );
+    
+    // Handle different shade data structures
+    if (shadeName) {
+      if (product.foundation_shades) {
+        // Foundation products table structure
+        matchingShade = product.foundation_shades.find((shade: any) =>
+          shade.shade_name.toLowerCase().includes(shadeName.toLowerCase())
+        );
+      }
+      // For cosmetics products, shade info might be in metadata
     }
+
+    // Handle different product name fields
+    const productNameField = (product as any).name || (product as any).product_name;
+    
+    // Handle different coverage/finish fields
+    const coverage = (product as any).coverage || 
+                    ((product as any).metadata?.coverage) || 
+                    ((product as any).description?.toLowerCase().includes('full') ? 'full' : 
+                     (product as any).description?.toLowerCase().includes('light') ? 'light' : 'medium');
+                     
+    const finish = (product as any).finish || 
+                  ((product as any).metadata?.finish) ||
+                  ((product as any).description?.toLowerCase().includes('matte') ? 'matte' :
+                   (product as any).description?.toLowerCase().includes('dewy') ? 'dewy' : 'natural');
 
     const foundationMatch: FoundationMatch = {
       id: `search-${product.id}`,
       brand: brand?.name || 'Unknown',
-      product: product.name,
+      product: productNameField,
       shade: matchingShade?.shade_name || shadeName || 'Custom Shade',
-      price: product.price || 35,
-      rating: 4.2,
-      reviewCount: 156,
+      price: (product as any).price || 35,
+      rating: (product as any).rating || 4.2,
+      reviewCount: (product as any).total_reviews || 156,
       availability: {
         online: true,
         inStore: true,
@@ -156,9 +217,9 @@ const FoundationSearchInput: React.FC<FoundationSearchInputProps> = ({ onMatchFo
       },
       matchPercentage: 95,
       undertone: matchingShade?.undertone || 'neutral',
-      coverage: product.coverage || 'medium',
-      finish: product.finish || 'natural',
-      imageUrl: product.image_url || '/placeholder.svg'
+      coverage: coverage,
+      finish: finish,
+      imageUrl: (product as any).image_url || '/placeholder.svg'
     };
 
     return foundationMatch;
