@@ -2008,6 +2008,10 @@ export type Database = {
         Args: { user_uuid: string }
         Returns: Json
       }
+      is_admin_user: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       link_foundation_products: {
         Args: Record<PropertyKey, never>
         Returns: undefined
