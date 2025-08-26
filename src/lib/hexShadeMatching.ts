@@ -1,6 +1,27 @@
 // Advanced HEX-based shade matching system
 // Integrates with the comprehensive shade database and matching engine
 
+import { supabase } from '@/integrations/supabase/client';
+
+export interface ShadeMatch {
+  brand: string;
+  product_name: string;
+  shade_name: string;
+  shade_hex: string;
+  delta_e_distance: number;
+  match_score: number;
+  undertone_match: boolean;
+}
+
+export interface SkinToneHex {
+  hex_color: string;
+  lab_l: number;
+  lab_a: number;
+  lab_b: number;
+  undertone: string;
+  depth_category: string;
+}
+
 export interface HexShadeMatch {
   hex: string;
   brand: string;
@@ -196,6 +217,46 @@ export function extractUniqueHexValues(rawData: string): string[] {
     .filter((s) => /^#[0-9A-Fa-f]{6}$/.test(s))
     .map((s) => s.toUpperCase())
     .filter((hex, index, arr) => arr.indexOf(hex) === index); // Remove duplicates
+}
+
+// Supabase integration functions
+export async function findClosestShades(userHex: string, limit: number = 10): Promise<ShadeMatch[]> {
+  try {
+    const { data, error } = await supabase
+      .rpc('find_closest_shade_matches', {
+        user_hex: userHex,
+        match_limit: limit
+      });
+
+    if (error) {
+      console.error('Error finding shade matches:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('Error calling find_closest_shade_matches:', error);
+    return [];
+  }
+}
+
+export async function getSkinToneReferences(): Promise<SkinToneHex[]> {
+  try {
+    const { data, error } = await supabase
+      .from('skin_tone_hex_references')
+      .select('*')
+      .order('lab_l', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching skin tone references:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching skin tone references:', error);
+    return [];
+  }
 }
 
 // Generate cross-brand recommendations for a user HEX

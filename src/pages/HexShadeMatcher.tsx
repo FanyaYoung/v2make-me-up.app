@@ -1,47 +1,82 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from '../components/Header';
 import SkinHexSwatches from '../components/SkinHexSwatches';
+import HexDataImporter from '../components/HexDataImporter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Toaster } from '@/components/ui/toaster';
-import { analyzeSkinHex, findHexShadeMatches, generateCrossBrandRecommendations, type HexShadeMatch } from '@/lib/hexShadeMatching';
+import { analyzeSkinHex, findClosestShades, getSkinToneReferences, type ShadeMatch, type SkinToneHex } from '@/lib/hexShadeMatching';
 import AuthGuard from '../components/AuthGuard';
 
-// Sample shade database - in production this would come from your CSV data
-const SAMPLE_SHADE_DATABASE = [
-  { hex: '#F7C19B', brand: 'Fenty Beauty', product: 'Pro Filt\'r Foundation', shade: '110' },
-  { hex: '#E1B571', brand: 'Fenty Beauty', product: 'Pro Filt\'r Foundation', shade: '150' },
-  { hex: '#D2A469', brand: 'Fenty Beauty', product: 'Pro Filt\'r Foundation', shade: '200' },
-  { hex: '#C68642', brand: 'Fenty Beauty', product: 'Pro Filt\'r Foundation', shade: '300' },
-  { hex: '#9C7248', brand: 'Fenty Beauty', product: 'Pro Filt\'r Foundation', shade: '385' },
-  { hex: '#6D3800', brand: 'Fenty Beauty', product: 'Pro Filt\'r Foundation', shade: '498' },
-  { hex: '#FFDBAC', brand: 'Rare Beauty', product: 'Liquid Touch Foundation', shade: '12N' },
-  { hex: '#ECC3A3', brand: 'Rare Beauty', product: 'Liquid Touch Foundation', shade: '16N' },
-  { hex: '#D4AA78', brand: 'Rare Beauty', product: 'Liquid Touch Foundation', shade: '20N' },
-  { hex: '#BD8966', brand: 'Rare Beauty', product: 'Liquid Touch Foundation', shade: '26N' },
-  { hex: '#A16E4B', brand: 'Rare Beauty', product: 'Liquid Touch Foundation', shade: '32N' },
-  { hex: '#4F2903', brand: 'Rare Beauty', product: 'Liquid Touch Foundation', shade: '42N' },
-];
+// Quick shade selection from database
+const QuickShadeSelector = ({ skinTones, onSelect }: { skinTones: SkinToneHex[], onSelect: (hex: string) => void }) => {
+  if (skinTones.length === 0) return null;
+  
+  return (
+    <div className="mt-4">
+      <h4 className="text-sm font-medium mb-2">Quick Select from Database:</h4>
+      <div className="grid grid-cols-8 gap-2">
+        {skinTones.slice(0, 16).map((tone) => (
+          <button
+            key={tone.hex_color}
+            onClick={() => onSelect(tone.hex_color)}
+            className="w-10 h-10 rounded border border-gray-300 hover:scale-105 transition-transform"
+            style={{ backgroundColor: tone.hex_color }}
+            title={`${tone.hex_color} - ${tone.undertone} - ${tone.depth_category}`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
 
 const HexShadeMatcher = () => {
   const [userHex, setUserHex] = useState('#D4AA78');
-  const [matches, setMatches] = useState<HexShadeMatch[]>([]);
+  const [matches, setMatches] = useState<ShadeMatch[]>([]);
   const [analysis, setAnalysis] = useState<any>(null);
   const [showSwatches, setShowSwatches] = useState(false);
+  const [skinTones, setSkinTones] = useState<SkinToneHex[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-  const handleAnalyze = () => {
+  // Load skin tone references on component mount
+  useEffect(() => {
+    const loadSkinTones = async () => {
+      setIsLoading(true);
+      try {
+        const tones = await getSkinToneReferences();
+        setSkinTones(tones);
+      } catch (error) {
+        console.error('Error loading skin tones:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadSkinTones();
+  }, []);
+
+  const handleAnalyze = async () => {
     if (!userHex.match(/^#[0-9A-Fa-f]{6}$/)) {
       alert('Please enter a valid HEX color (e.g., #D4AA78)');
       return;
     }
 
-    const skinAnalysis = analyzeSkinHex(userHex);
-    const shadeMatches = findHexShadeMatches(userHex, SAMPLE_SHADE_DATABASE, 10);
-    
-    setAnalysis(skinAnalysis);
-    setMatches(shadeMatches);
+    setIsAnalyzing(true);
+    try {
+      const skinAnalysis = analyzeSkinHex(userHex);
+      const shadeMatches = await findClosestShades(userHex, 10);
+      
+      setAnalysis(skinAnalysis);
+      setMatches(shadeMatches);
+    } catch (error) {
+      console.error('Error analyzing shade:', error);
+      alert('Error finding shade matches. Please try again.');
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   const getUndertoneColor = (undertone: string) => {
@@ -93,19 +128,29 @@ const HexShadeMatcher = () => {
                     className="w-16 h-10 rounded border-2 border-gray-300"
                     style={{ backgroundColor: userHex }}
                   />
-                  <Button onClick={handleAnalyze} size="lg">
-                    Analyze & Match
+                  <Button onClick={handleAnalyze} size="lg" disabled={isAnalyzing}>
+                    {isAnalyzing ? 'Analyzing...' : 'Analyze & Match'}
                   </Button>
                 </div>
                 
-                <div className="mt-4 flex gap-2">
-                  <Button 
-                    variant="outline" 
-                    onClick={() => setShowSwatches(!showSwatches)}
-                  >
-                    {showSwatches ? 'Hide' : 'Show'} HEX Reference Swatches
-                  </Button>
-                </div>
+                 {!isLoading && (
+                   <QuickShadeSelector 
+                     skinTones={skinTones} 
+                     onSelect={(hex) => {
+                       setUserHex(hex);
+                       handleAnalyze();
+                     }} 
+                   />
+                 )}
+                 
+                 <div className="mt-4 flex gap-2">
+                   <Button 
+                     variant="outline" 
+                     onClick={() => setShowSwatches(!showSwatches)}
+                   >
+                     {showSwatches ? 'Hide' : 'Show'} HEX Reference Swatches
+                   </Button>
+                 </div>
               </CardContent>
             </Card>
 
@@ -148,7 +193,7 @@ const HexShadeMatcher = () => {
             )}
 
             {/* Shade Matches */}
-            {matches.length > 0 && (
+            {matches.length > 0 ? (
               <Card className="mb-8">
                 <CardHeader>
                   <CardTitle>Best Shade Matches</CardTitle>
@@ -158,31 +203,51 @@ const HexShadeMatcher = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {matches.map((match, index) => (
-                      <div key={index} className="flex items-center gap-4 p-4 border rounded-lg">
-                        <div className="text-center">
-                          <div 
-                            className="w-12 h-12 rounded border-2 border-gray-300"
-                            style={{ backgroundColor: match.hex }}
-                          />
-                          <p className="text-xs font-mono mt-1">{match.hex}</p>
-                        </div>
-                        <div className="flex-1">
-                          <h4 className="font-semibold">{match.brand}</h4>
-                          <p className="text-sm text-gray-600">{match.product}</p>
-                          <p className="font-medium">{match.shade}</p>
-                        </div>
-                        <div className="text-right">
-                          <Badge className={getUndertoneColor(match.undertone)}>
-                            {match.undertone}
-                          </Badge>
-                          <p className="text-xs mt-2">
-                            ΔE76: {match.deltaE76.toFixed(1)}<br/>
-                            Score: {match.adjustedScore.toFixed(1)}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
+                     {matches.map((match, index) => (
+                       <div key={index} className="flex items-center gap-4 p-4 border rounded-lg">
+                         <div className="text-center">
+                           <div 
+                             className="w-12 h-12 rounded border-2 border-gray-300"
+                             style={{ backgroundColor: match.shade_hex }}
+                           />
+                           <p className="text-xs font-mono mt-1">{match.shade_hex}</p>
+                         </div>
+                         <div className="flex-1">
+                           <h4 className="font-semibold">{match.brand}</h4>
+                           <p className="text-sm text-gray-600">{match.product_name}</p>
+                           <p className="font-medium">{match.shade_name}</p>
+                         </div>
+                         <div className="text-right">
+                           {match.undertone_match && (
+                             <Badge className="bg-green-100 text-green-800 mb-2">
+                               Undertone Match
+                             </Badge>
+                           )}
+                           <p className="text-xs">
+                             ΔE: {match.delta_e_distance.toFixed(1)}<br/>
+                             Score: {match.match_score.toFixed(0)}%
+                           </p>
+                         </div>
+                       </div>
+                     ))}
+                  </div>
+                </CardContent>
+              </Card>
+            ) : analysis && (
+              <Card className="mb-8">
+                <CardHeader>
+                  <CardTitle>No Shade Matches Found</CardTitle>
+                  <CardDescription>
+                    The foundation database needs to be populated with shade matching data
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                    <p className="text-yellow-800 text-sm">
+                      <strong>Database Setup Required:</strong> The HEX shade matching system requires foundation shade data 
+                      to provide recommendations. You'll need to import your CSV data (hex_groups_full.csv, shade_ladders_full.csv, 
+                      recommendations_full.csv) into the Supabase tables.
+                    </p>
                   </div>
                 </CardContent>
               </Card>
@@ -192,6 +257,13 @@ const HexShadeMatcher = () => {
             {showSwatches && (
               <div className="mb-8">
                 <SkinHexSwatches />
+              </div>
+            )}
+
+            {/* Data Import Section - Show when no data available */}
+            {skinTones.length === 0 && !isLoading && (
+              <div className="mb-8">
+                <HexDataImporter />
               </div>
             )}
 
