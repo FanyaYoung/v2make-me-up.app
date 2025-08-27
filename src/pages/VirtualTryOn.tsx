@@ -5,6 +5,13 @@ import DualPointSkinAnalyzer from '../components/DualPointSkinAnalyzer';
 import PairedRecommendations from '../components/PairedRecommendations';
 import SkinToneAnalysisDisplay from '../components/SkinToneAnalysisDisplay';
 import UpgradePrompt from '../components/UpgradePrompt';
+import EnhancedProductRecommendations from '../components/EnhancedProductRecommendations';
+import { 
+  DualPointAnalysis, 
+  RecommendationGroup, 
+  findPairedShadeMatches, 
+  generateRecommendationGroups 
+} from '../lib/dualPointShadeMatching';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
