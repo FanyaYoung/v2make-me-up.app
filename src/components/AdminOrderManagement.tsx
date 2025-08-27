@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,7 +10,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Package, Truck, ExternalLink, Eye, Edit, Search } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { Package, Truck, ExternalLink, Eye, Edit, Search, ShieldAlert } from 'lucide-react';
 
 interface Order {
   id: string;
@@ -51,13 +53,41 @@ const AdminOrderManagement: React.FC = () => {
     tracking_url: ''
   });
   const { toast } = useToast();
+  const { user } = useAuth();
 
+  // Check if user is admin
+  const { data: isAdmin, isLoading: isCheckingAdmin } = useQuery({
+    queryKey: ['is-admin', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return false;
+      
+      const { data, error } = await supabase.rpc('is_admin_user');
+      if (error) {
+        console.error('Error checking admin status:', error);
+        return false;
+      }
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  // Fetch orders when admin status is confirmed
   useEffect(() => {
-    fetchOrders();
-  }, []);
+    if (isAdmin) {
+      fetchOrders();
+    } else if (!isCheckingAdmin) {
+      setLoading(false);
+    }
+  }, [isAdmin, isCheckingAdmin]);
 
   const fetchOrders = async () => {
     try {
+      // Only fetch orders if user is confirmed admin
+      if (!isAdmin) {
+        setLoading(false);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('orders')
         .select(`
@@ -124,6 +154,46 @@ const AdminOrderManagement: React.FC = () => {
     const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+
+  // Show loading state while checking admin status
+  if (isCheckingAdmin || (loading && isAdmin)) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500 mx-auto"></div>
+          <p className="text-muted-foreground">
+            {isCheckingAdmin ? 'Verifying admin access...' : 'Loading orders...'}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show access denied if not admin
+  if (!isAdmin) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Card className="w-full max-w-md">
+          <CardContent className="pt-6 text-center space-y-4">
+            <ShieldAlert className="h-12 w-12 text-red-500 mx-auto" />
+            <div>
+              <h3 className="text-lg font-semibold text-red-600">Access Denied</h3>
+              <p className="text-muted-foreground mt-2">
+                You do not have administrator privileges to access this section.
+              </p>
+            </div>
+            <Button 
+              variant="outline" 
+              onClick={() => window.history.back()}
+              className="mt-4"
+            >
+              Go Back
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (loading) {
     return <div className="flex justify-center p-8">Loading orders...</div>;
