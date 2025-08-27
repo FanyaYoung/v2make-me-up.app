@@ -78,7 +78,7 @@ serve(async (req) => {
     const customerId = customers.data[0].id;
     logStep("Found Stripe customer", { customerId });
 
-    // Check for active subscriptions only (no more one-time payments)
+    // Check for active subscriptions
     const subscriptions = await stripe.subscriptions.list({
       customer: customerId,
       status: "active",
@@ -94,23 +94,41 @@ serve(async (req) => {
       subscribed = true;
       subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
       
-      // Determine tier from price and interval
+      // Determine tier from price
       const priceId = subscription.items.data[0].price.id;
       const price = await stripe.prices.retrieve(priceId);
+      const amount = price.unit_amount || 0;
       const interval = price.recurring?.interval;
       
-      // All tiers are $10, differentiated by interval
-      if (interval === 'week') {
+      if (interval === 'week' && amount === 400) {
         subscriptionTier = 'weekly';
-      } else if (interval === 'month') {
-        subscriptionTier = 'monthly';  
-      } else if (interval === 'year') {
+      } else if (interval === 'month' && amount === 1000) {
+        subscriptionTier = 'monthly';
+      } else if (interval === 'year' && amount === 10000) {
         subscriptionTier = 'yearly';
       }
       
       logStep("Active subscription found", { subscriptionId: subscription.id, tier: subscriptionTier, endDate: subscriptionEnd });
     } else {
-      logStep("No active subscription found");
+      // Check for one-time payments (successful checkout sessions)
+      const sessions = await stripe.checkout.sessions.list({
+        customer: customerId,
+        limit: 10,
+      });
+      
+      const oneTimeSession = sessions.data.find(session => 
+        session.mode === 'payment' && 
+        session.payment_status === 'paid' &&
+        session.amount_total === 200 // $2.00
+      );
+      
+      if (oneTimeSession) {
+        subscribed = true;
+        subscriptionTier = 'one_time';
+        // One-time payments don't expire, but we can set a far future date
+        subscriptionEnd = new Date('2099-12-31').toISOString();
+        logStep("One-time payment found", { sessionId: oneTimeSession.id });
+      }
     }
 
     await supabaseClient.from("subscribers").upsert({
@@ -143,7 +161,7 @@ serve(async (req) => {
       subscription_end: null
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
+      status: 500,
     });
   }
 });

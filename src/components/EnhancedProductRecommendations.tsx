@@ -6,7 +6,6 @@ import { Star, Eye, MapPin, Clock, ShoppingCart, ExternalLink } from 'lucide-rea
 import { FoundationMatch } from '../types/foundation';
 import { useCart } from '@/contexts/CartContext';
 import { useToast } from '@/hooks/use-toast';
-import { generateRealisticFleshTone } from '../lib/fleshToneColorWheel';
 
 interface EnhancedProductRecommendationsProps {
   recommendations: {
@@ -37,13 +36,13 @@ const EnhancedProductRecommendations = ({
   };
 
   const getShadeColor = (shade: FoundationMatch) => {
-    // First try to get the actual hex color from the shade data if available
-    if (shade.hexColor) {
-      return shade.hexColor;
-    }
-    
-    // Use professional flesh tone color wheel for realistic pigmentation
-    return generateRealisticFleshTone(shade.shade, shade.undertone);
+    const undertoneMap = {
+      warm: '#D4A574',
+      cool: '#F0D7C3',
+      neutral: '#DCB99B',
+      olive: '#B49B73'
+    };
+    return undertoneMap[shade.undertone as keyof typeof undertoneMap] || '#DCB99B';
   };
 
   const renderStars = (rating: number, reviewCount: number) => {
@@ -65,13 +64,13 @@ const EnhancedProductRecommendations = ({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="text-center space-y-2">
         <h3 className="text-2xl font-bold text-gray-800">Perfect Matches Found</h3>
         <p className="text-gray-600">Based on your skin analysis, here are similar shades:</p>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-6">
         {recommendations.map((rec, index) => {
           const { shade } = rec;
           return (
@@ -134,13 +133,13 @@ const EnhancedProductRecommendations = ({
                       </div>
                     </div>
 
-                    {/* Product Tags - Coverage highlighted */}
+                    {/* Product Tags */}
                     <div className="flex flex-wrap gap-2">
-                      <Badge className="bg-purple-600 text-white hover:bg-purple-700">
-                        {shade.coverage || 'Medium'} Coverage
-                      </Badge>
                       <Badge variant="outline" className="text-rose-600 border-rose-200">
                         {shade.undertone} undertone
+                      </Badge>
+                      <Badge variant="outline" className="text-purple-600 border-purple-200">
+                        {shade.coverage} coverage
                       </Badge>
                       <Badge variant="outline" className="text-blue-600 border-blue-200">
                         {shade.finish} finish

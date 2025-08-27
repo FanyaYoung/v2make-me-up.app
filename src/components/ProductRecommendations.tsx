@@ -4,7 +4,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Eye } from 'lucide-react';
 import { FoundationMatch } from '../types/foundation';
-import { generateRealisticFleshTone } from '../lib/fleshToneColorWheel';
 
 interface ProductRecommendationsProps {
   matches: FoundationMatch[];
@@ -13,15 +12,42 @@ interface ProductRecommendationsProps {
 }
 
 const ProductRecommendations = ({ matches, onSelectMatch, currentFoundation }: ProductRecommendationsProps) => {
-  // Function to generate a shade color swatch using professional flesh tone color wheel
-  const generateShadeColor = (match: FoundationMatch) => {
-    // Use actual hex color if available from database
-    if (match.hexColor) {
-      return match.hexColor;
-    }
+  // Function to generate a shade color swatch
+  const generateShadeColor = (shade: string, undertone: string) => {
+    // Base colors for different undertones
+    const undertoneColors = {
+      warm: { r: 210, g: 180, b: 140 },
+      cool: { r: 240, g: 220, b: 200 },
+      neutral: { r: 220, g: 190, b: 160 },
+      yellow: { r: 200, g: 170, b: 120 },
+      pink: { r: 230, g: 200, b: 180 },
+      red: { r: 190, g: 150, b: 120 },
+      olive: { r: 180, g: 160, b: 120 }
+    };
+
+    const baseColor = undertoneColors[undertone.toLowerCase() as keyof typeof undertoneColors] || undertoneColors.neutral;
     
-    // Use professional flesh tone color wheel for realistic pigmentation
-    return generateRealisticFleshTone(match.shade, match.undertone);
+    // Adjust darkness based on shade name
+    const shadeLower = shade.toLowerCase();
+    let multiplier = 1;
+    
+    if (shadeLower.includes('fair') || shadeLower.includes('light')) {
+      multiplier = 1.1;
+    } else if (shadeLower.includes('medium') || shadeLower.includes('med')) {
+      multiplier = 0.85;
+    } else if (shadeLower.includes('deep') || shadeLower.includes('dark') || shadeLower.includes('tan')) {
+      multiplier = 0.6;
+    } else if (shadeLower.includes('rich') || shadeLower.includes('espresso')) {
+      multiplier = 0.4;
+    }
+
+    const adjustedColor = {
+      r: Math.round(baseColor.r * multiplier),
+      g: Math.round(baseColor.g * multiplier),
+      b: Math.round(baseColor.b * multiplier)
+    };
+
+    return `rgb(${adjustedColor.r}, ${adjustedColor.g}, ${adjustedColor.b})`;
   };
 
   return (
@@ -59,14 +85,14 @@ const ProductRecommendations = ({ matches, onSelectMatch, currentFoundation }: P
                           {/* Fallback color swatch */}
                           <div 
                             className="absolute inset-0 hidden"
-                            style={{ backgroundColor: generateShadeColor(match) }}
+                            style={{ backgroundColor: generateShadeColor(match.shade, match.undertone) }}
                             title={`${match.shade} shade`}
                           />
                         </div>
                         {/* Shade color indicator bar */}
                         <div 
                           className="h-4 border-t border-gray-200"
-                          style={{ backgroundColor: generateShadeColor(match) }}
+                          style={{ backgroundColor: generateShadeColor(match.shade, match.undertone) }}
                           title={`${match.shade} color`}
                         />
                       </div>
@@ -75,7 +101,7 @@ const ProductRecommendations = ({ matches, onSelectMatch, currentFoundation }: P
                         {/* Foundation shade color when no image */}
                         <div 
                           className="flex-1 border-b border-gray-200"
-                          style={{ backgroundColor: generateShadeColor(match) }}
+                          style={{ backgroundColor: generateShadeColor(match.shade, match.undertone) }}
                           title={`${match.shade} shade`}
                         />
                         {/* Brand/product info overlay */}
@@ -98,7 +124,7 @@ const ProductRecommendations = ({ matches, onSelectMatch, currentFoundation }: P
                         <p className="text-rose-600 font-semibold">{match.shade}</p>
                         <div 
                           className="w-4 h-4 rounded-full border border-gray-300"
-                          style={{ backgroundColor: generateShadeColor(match) }}
+                          style={{ backgroundColor: generateShadeColor(match.shade, match.undertone) }}
                           title={`${match.shade} color preview`}
                         />
                       </div>

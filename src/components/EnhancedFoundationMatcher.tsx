@@ -6,15 +6,12 @@ import FoundationPairResults from './FoundationPairResults';
 import QuestionnaireFlow from './QuestionnaireFlow';
 import FoundationSearchInput from './FoundationSearchInput';
 import FulfillmentOptions from './FulfillmentOptions';
-import FoundationBrandChart from './FoundationBrandChart';
 import InclusiveShadeMatchingInterface from './InclusiveShadeMatchingInterface';
 import { FoundationMatch } from '../types/foundation';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Palette, Camera, Search, Sparkles } from 'lucide-react';
-import { useCart } from '@/contexts/CartContext';
-import { toast } from '@/hooks/use-toast';
 import { 
   findBestShadeMatches, 
   SkinToneAnalysis, 
@@ -40,7 +37,6 @@ interface UserQuestionnaireData {
 }
 
 const EnhancedFoundationMatcher = () => {
-  const { addToCart } = useCart();
   const [skinTone, setSkinTone] = useState<SkinToneData | null>(null);
   const [foundationPairs, setFoundationPairs] = useState<FoundationMatch[][]>([]);
   const [selectedMatch, setSelectedMatch] = useState<FoundationMatch | null>(null);
@@ -51,7 +47,7 @@ const EnhancedFoundationMatcher = () => {
   const [showFulfillment, setShowFulfillment] = useState(false);
   const [inclusiveAnalysis, setInclusiveAnalysis] = useState<any>(null);
 
-  // Fetch cosmetics products from ALL datasets
+  // Fetch cosmetics products
   const { data: cosmeticsProducts } = useQuery({
     queryKey: ['cosmetics-products'],
     queryFn: async () => {
@@ -63,11 +59,9 @@ const EnhancedFoundationMatcher = () => {
         `)
         .eq('product_type', 'foundation')
         .not('brand_id', 'is', null)
-        .order('rating', { ascending: false })
-        .limit(300); // Increased to get more variety
+        .limit(100);
       
       if (error) throw error;
-      console.log(`Loaded ${data?.length || 0} cosmetics products from GCS datasets`);
       return data;
     },
   });
@@ -83,11 +77,9 @@ const EnhancedFoundationMatcher = () => {
           brands!inner(name, logo_url),
           foundation_shades(*)
         `)
-        .eq('is_active', true)
-        .order('created_at', { ascending: false });
+        .eq('is_active', true);
       
       if (error) throw error;
-      console.log(`Loaded ${data?.length || 0} foundation products with shades`);
       return data;
     },
   });
@@ -131,8 +123,6 @@ const EnhancedFoundationMatcher = () => {
       ...(foundationProducts || []),
       ...(cosmeticsProducts || [])
     ];
-    
-    console.log(`Generating pairs from ${allProducts.length} total products (${foundationProducts?.length || 0} foundation + ${cosmeticsProducts?.length || 0} cosmetics)`);
 
     // Convert to SkinToneAnalysis format for the new matching system
     const skinToneAnalysis: SkinToneAnalysis = {
@@ -227,11 +217,6 @@ const EnhancedFoundationMatcher = () => {
     skinToneAnalysis: SkinToneAnalysis, 
     type: 'primary' | 'contour'
   ): FoundationMatch => {
-    // Get the actual hex color from the shade data if available
-    const hexColor = shadeMatch.shade?.hex_color || 
-                    (shadeMatch.shade as any)?.hexColor ||
-                    skinToneAnalysis.hexColor;
-
     return {
       id: `${shadeMatch.product.id}-${shadeMatch.shade.id || 'generated'}-${type}`,
       brand: getBrandName(shadeMatch.product),
@@ -251,7 +236,6 @@ const EnhancedFoundationMatcher = () => {
       coverage: shadeMatch.shade.coverage || extractCoverage(shadeMatch.product) || 'medium',
       finish: shadeMatch.shade.finish || extractFinish(shadeMatch.product) || 'natural',
       imageUrl: shadeMatch.product.image_url || '/placeholder.svg',
-      hexColor: hexColor, // Add the actual hex color to the match
       primaryShade: type === 'primary' ? {
         name: shadeMatch.shade.shade_name || generateShadeName(skinToneAnalysis.depth, skinToneAnalysis.undertone),
         purpose: 'face_center' as const
@@ -346,17 +330,8 @@ const EnhancedFoundationMatcher = () => {
                       <Button variant="outline" size="sm" onClick={() => handleTryVirtual(match)}>
                         Try Virtual
                       </Button>
-                      <Button 
-                        size="sm" 
-                        onClick={() => {
-                          addToCart(match);
-                          toast({
-                            title: "Added to Cart",
-                            description: `${match.brand} ${match.shade} added to cart. Go to cart to checkout with Stripe.`,
-                          });
-                        }}
-                      >
-                        Add to Cart
+                      <Button size="sm" onClick={() => handleProductSelection([match])}>
+                        Purchase
                       </Button>
                     </div>
                   </div>
@@ -382,11 +357,7 @@ const EnhancedFoundationMatcher = () => {
             />
           )}
         </div>
-      </div>
 
-      {/* Foundation Brand Chart */}
-      <div className="mt-12">
-        <FoundationBrandChart />
       </div>
 
       {/* Questionnaire Modal */}

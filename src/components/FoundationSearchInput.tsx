@@ -8,7 +8,6 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Search, Package } from 'lucide-react';
 import { FoundationMatch } from '../types/foundation';
-import { generateRealisticFleshTone } from '../lib/fleshToneColorWheel';
 
 interface FoundationSearchInputProps {
   onMatchFound: (matches: FoundationMatch[]) => void;
@@ -34,14 +33,13 @@ const FoundationSearchInput: React.FC<FoundationSearchInputProps> = ({ onMatchFo
     },
   });
 
-  // Fetch products when brand is selected (search both tables)
+  // Fetch products when brand is selected
   const { data: products } = useQuery({
     queryKey: ['brand-products', selectedBrand],
     queryFn: async () => {
       if (!selectedBrand) return [];
       
-      // Search foundation_products table
-      const { data: foundationProducts, error: foundationError } = await supabase
+      const { data, error } = await supabase
         .from('foundation_products')
         .select(`
           *,
@@ -50,28 +48,8 @@ const FoundationSearchInput: React.FC<FoundationSearchInputProps> = ({ onMatchFo
         .eq('brand_id', selectedBrand)
         .eq('is_active', true);
       
-      if (foundationError) console.error('Foundation products error:', foundationError);
-      
-      // Search cosmetics_products table
-      const { data: cosmeticsProducts, error: cosmeticsError } = await supabase
-        .from('cosmetics_products')
-        .select(`
-          *,
-          brand:brands(name, logo_url)
-        `)
-        .eq('brand_id', selectedBrand)
-        .eq('product_type', 'foundation');
-      
-      if (cosmeticsError) console.error('Cosmetics products error:', cosmeticsError);
-      
-      // Combine both results
-      const allProducts = [
-        ...(foundationProducts || []),
-        ...(cosmeticsProducts || [])
-      ];
-      
-      console.log('Combined products for brand:', selectedBrand, allProducts);
-      return allProducts;
+      if (error) throw error;
+      return data;
     },
     enabled: !!selectedBrand,
   });
@@ -83,35 +61,27 @@ const FoundationSearchInput: React.FC<FoundationSearchInputProps> = ({ onMatchFo
     }
 
     console.log('Starting search for:', productName);
-    console.log('Selected brand:', selectedBrand);
-    console.log('Available brands:', brands?.length);
-    console.log('Available products for selected brand:', products?.length);
 
     try {
       // If brand is selected, search within that brand's products
       if (selectedBrand && products) {
-        console.log('Searching within selected brand products:', products);
-        const matchingProduct = products.find(p => {
-          const productNameField = (p as any).name || (p as any).product_name;
-          return productNameField.toLowerCase().includes(productName.toLowerCase());
-        });
-
-        console.log('Matching product in brand:', matchingProduct);
+        console.log('Searching within selected brand:', selectedBrand);
+        const matchingProduct = products.find(p => 
+          p.name.toLowerCase().includes(productName.toLowerCase())
+        );
 
         if (matchingProduct) {
           const brand = brands?.find(b => b.id === selectedBrand);
           const match = createFoundationMatch(matchingProduct, brand);
-          console.log('Created brand-specific match:', match);
+          console.log('Found brand-specific match:', match);
           onMatchFound([match]);
           return;
         }
       }
 
-      // If no brand selected or no match found, search across all brands and both tables
-      console.log('Searching across all brands for product name:', productName);
-      
-      // Search foundation_products table
-      const { data: foundationProducts, error: foundationError } = await supabase
+      // If no brand selected or no match found, search across all brands
+      console.log('Searching across all brands...');
+      const { data: allProducts, error } = await supabase
         .from('foundation_products')
         .select(`
           *,
@@ -122,41 +92,19 @@ const FoundationSearchInput: React.FC<FoundationSearchInputProps> = ({ onMatchFo
         .eq('is_active', true)
         .limit(5);
 
-      // Search cosmetics_products table  
-      const { data: cosmeticsProducts, error: cosmeticsError } = await supabase
-        .from('cosmetics_products')
-        .select(`
-          *,
-          brand:brands!inner(name, logo_url)
-        `)
-        .ilike('product_name', `%${productName}%`)
-        .eq('product_type', 'foundation')
-        .limit(5);
-
-      if (foundationError) {
-        console.error('Error searching foundation products:', foundationError);
-      }
-      
-      if (cosmeticsError) {
-        console.error('Error searching cosmetics products:', cosmeticsError);
+      if (error) {
+        console.error('Error searching products:', error);
+        return;
       }
 
-      // Combine results from both tables
-      const allProducts = [
-        ...(foundationProducts || []),
-        ...(cosmeticsProducts || [])
-      ];
-
-      console.log('Combined search results:', allProducts);
+      console.log('Search results:', allProducts);
 
       if (allProducts && allProducts.length > 0) {
         const matches = allProducts.map(product => {
-          console.log('Creating match for product:', product);
-          const brandData = (product as any).brands || (product as any).brand;
-          return createFoundationMatch(product, brandData);
+          return createFoundationMatch(product, product.brands);
         }).filter(Boolean);
         
-        console.log('Final created matches:', matches);
+        console.log('Created matches:', matches);
         onMatchFound(matches);
       } else {
         console.log('No products found matching:', productName);
@@ -176,46 +124,20 @@ const FoundationSearchInput: React.FC<FoundationSearchInputProps> = ({ onMatchFo
 
   const createFoundationMatch = (product: any, brand: any): FoundationMatch => {
     let matchingShade = null;
-    
-    // Handle different shade data structures
-    if (shadeName) {
-      if (product.foundation_shades) {
-        // Foundation products table structure
-        matchingShade = product.foundation_shades.find((shade: any) =>
-          shade.shade_name.toLowerCase().includes(shadeName.toLowerCase())
-        );
-      }
-      // For cosmetics products, shade info might be in metadata
+    if (shadeName && product.foundation_shades) {
+      matchingShade = product.foundation_shades.find((shade: any) =>
+        shade.shade_name.toLowerCase().includes(shadeName.toLowerCase())
+      );
     }
-
-    // Handle different product name fields
-    const productNameField = (product as any).name || (product as any).product_name;
-    
-    // Handle different coverage/finish fields
-    const coverage = (product as any).coverage || 
-                    ((product as any).metadata?.coverage) || 
-                    ((product as any).description?.toLowerCase().includes('full') ? 'full' : 
-                     (product as any).description?.toLowerCase().includes('light') ? 'light' : 'medium');
-                     
-    const finish = (product as any).finish || 
-                  ((product as any).metadata?.finish) ||
-                  ((product as any).description?.toLowerCase().includes('matte') ? 'matte' :
-                   (product as any).description?.toLowerCase().includes('dewy') ? 'dewy' : 'natural');
-
-    // Get actual hex color if available, otherwise use professional flesh tone color wheel
-    const hexColor = matchingShade?.hex_color || 
-                    (matchingShade as any)?.hexColor ||
-                    ((product as any).metadata?.hex_color) ||
-                    generateRealisticFleshTone(matchingShade?.shade_name || shadeName || 'Medium', matchingShade?.undertone || 'neutral');
 
     const foundationMatch: FoundationMatch = {
       id: `search-${product.id}`,
       brand: brand?.name || 'Unknown',
-      product: productNameField,
+      product: product.name,
       shade: matchingShade?.shade_name || shadeName || 'Custom Shade',
-      price: (product as any).price || 35,
-      rating: (product as any).rating || 4.2,
-      reviewCount: (product as any).total_reviews || 156,
+      price: product.price || 35,
+      rating: 4.2,
+      reviewCount: 156,
       availability: {
         online: true,
         inStore: true,
@@ -224,10 +146,9 @@ const FoundationSearchInput: React.FC<FoundationSearchInputProps> = ({ onMatchFo
       },
       matchPercentage: 95,
       undertone: matchingShade?.undertone || 'neutral',
-      coverage: coverage,
-      finish: finish,
-      imageUrl: (product as any).image_url || '/placeholder.svg',
-      hexColor: hexColor // Add the actual hex color
+      coverage: product.coverage || 'medium',
+      finish: product.finish || 'natural',
+      imageUrl: product.image_url || '/placeholder.svg'
     };
 
     return foundationMatch;

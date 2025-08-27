@@ -322,35 +322,21 @@ const BulkGCSImporter = () => {
         <CardContent>
           <div className="space-y-4 text-sm">
             <div>
-              <h4 className="font-medium text-blue-800 mb-2">Supported File Types & Data Flow:</h4>
+              <h4 className="font-medium text-blue-800 mb-2">What gets imported:</h4>
               <ul className="list-disc list-inside space-y-1 text-blue-700">
-                <li><strong>CSV & JSON files</strong> are automatically processed</li>
-                <li><strong>Skin Tone:</strong> Quantify user color with alphanumeric codes</li>
-                <li><strong>Foundation Shades:</strong> Find close matches to skin tones</li>
-                <li><strong>Products:</strong> Curated offerings that match user skin tones</li>
-                <li><strong>Reviews:</strong> Supplement product recommendations</li>
+                <li><strong>Foundations:</strong> Products matching patterns like "*foundation*", "*base*", "*concealer*"</li>
+                <li><strong>Cosmetics:</strong> General beauty products from files containing "*cosmetics*", "*makeup*", "*beauty*"</li>
+                <li><strong>Shades:</strong> Skin tone and color reference data from "*shade*", "*color*", "*tone*" files</li>
               </ul>
             </div>
             
             <div>
-              <h4 className="font-medium text-green-800 mb-2">Recommendation Flow:</h4>
-              <div className="p-3 bg-green-50 dark:bg-green-950 rounded-md">
-                <p className="text-green-800 dark:text-green-200 font-medium text-center">
-                  Skin Tone → Categories & Shades → Products → Reviews
-                </p>
-                <p className="text-green-600 dark:text-green-400 text-xs mt-1 text-center">
-                  Each step validates color matching throughout the process
-                </p>
-              </div>
-            </div>
-            
-            <div>
-              <h4 className="font-medium text-purple-800 mb-2">Automatic Processing:</h4>
-              <ul className="list-disc list-inside space-y-1 text-purple-700">
-                <li>Files categorized by filename patterns and folder structure</li>
-                <li>CSV and JSON data mapped to appropriate database tables</li>
-                <li>Duplicate records handled via upsert operations</li>
-                <li>Brand information automatically linked or created</li>
+              <h4 className="font-medium text-green-800 mb-2">Automatic Processing:</h4>
+              <ul className="list-disc list-inside space-y-1 text-green-700">
+                <li>Files are automatically categorized based on filename patterns</li>
+                <li>CSV data is mapped to appropriate database tables</li>
+                <li>Duplicate records are handled via upsert operations</li>
+                <li>Brand information is automatically linked or created</li>
               </ul>
             </div>
           </div>

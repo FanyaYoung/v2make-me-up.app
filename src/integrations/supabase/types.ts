@@ -518,48 +518,6 @@ export type Database = {
           },
         ]
       }
-      foundation_shade_matches: {
-        Row: {
-          created_at: string
-          delta_e_distance: number
-          foundation_brand: string
-          foundation_product: string
-          id: string
-          lightness_rank: number | null
-          match_score: number
-          shade_hex: string
-          shade_name: string
-          skin_hex: string
-          undertone_match: boolean
-        }
-        Insert: {
-          created_at?: string
-          delta_e_distance: number
-          foundation_brand: string
-          foundation_product: string
-          id?: string
-          lightness_rank?: number | null
-          match_score: number
-          shade_hex: string
-          shade_name: string
-          skin_hex: string
-          undertone_match?: boolean
-        }
-        Update: {
-          created_at?: string
-          delta_e_distance?: number
-          foundation_brand?: string
-          foundation_product?: string
-          id?: string
-          lightness_rank?: number | null
-          match_score?: number
-          shade_hex?: string
-          shade_name?: string
-          skin_hex?: string
-          undertone_match?: boolean
-        }
-        Relationships: []
-      }
       foundation_shades: {
         Row: {
           created_at: string | null
@@ -1248,48 +1206,6 @@ export type Database = {
         }
         Relationships: []
       }
-      shade_ladders: {
-        Row: {
-          brand: string
-          created_at: string
-          id: string
-          lab_a: number
-          lab_b: number
-          lab_l: number
-          lightness_rank: number
-          product_name: string
-          shade_hex: string
-          shade_name: string
-          undertone: string
-        }
-        Insert: {
-          brand: string
-          created_at?: string
-          id?: string
-          lab_a: number
-          lab_b: number
-          lab_l: number
-          lightness_rank: number
-          product_name: string
-          shade_hex: string
-          shade_name: string
-          undertone: string
-        }
-        Update: {
-          brand?: string
-          created_at?: string
-          id?: string
-          lab_a?: number
-          lab_b?: number
-          lab_l?: number
-          lightness_rank?: number
-          product_name?: string
-          shade_hex?: string
-          shade_name?: string
-          undertone?: string
-        }
-        Relationships: []
-      }
       shade_matches: {
         Row: {
           confidence_score: number | null
@@ -1331,42 +1247,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      skin_tone_hex_references: {
-        Row: {
-          created_at: string
-          depth_category: string
-          hex_color: string
-          id: string
-          lab_a: number
-          lab_b: number
-          lab_l: number
-          undertone: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          depth_category: string
-          hex_color: string
-          id?: string
-          lab_a: number
-          lab_b: number
-          lab_l: number
-          undertone: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          depth_category?: string
-          hex_color?: string
-          id?: string
-          lab_a?: number
-          lab_b?: number
-          lab_l?: number
-          undertone?: string
-          updated_at?: string
-        }
-        Relationships: []
       }
       skin_tone_references: {
         Row: {
@@ -1488,79 +1368,7 @@ export type Database = {
         }
         Relationships: []
       }
-      subscribers_new: {
-        Row: {
-          created_at: string
-          email: string
-          id: string
-          stripe_customer_id: string | null
-          subscribed: boolean
-          subscription_end: string | null
-          subscription_tier: string | null
-          updated_at: string
-          user_id: string | null
-        }
-        Insert: {
-          created_at?: string
-          email: string
-          id?: string
-          stripe_customer_id?: string | null
-          subscribed?: boolean
-          subscription_end?: string | null
-          subscription_tier?: string | null
-          updated_at?: string
-          user_id?: string | null
-        }
-        Update: {
-          created_at?: string
-          email?: string
-          id?: string
-          stripe_customer_id?: string | null
-          subscribed?: boolean
-          subscription_end?: string | null
-          subscription_tier?: string | null
-          updated_at?: string
-          user_id?: string | null
-        }
-        Relationships: []
-      }
       subscription_data: {
-        Row: {
-          created_at: string
-          email: string
-          id: string
-          stripe_customer_id: string | null
-          subscribed: boolean
-          subscription_end: string | null
-          subscription_tier: string | null
-          updated_at: string
-          user_id: string | null
-        }
-        Insert: {
-          created_at?: string
-          email: string
-          id?: string
-          stripe_customer_id?: string | null
-          subscribed?: boolean
-          subscription_end?: string | null
-          subscription_tier?: string | null
-          updated_at?: string
-          user_id?: string | null
-        }
-        Update: {
-          created_at?: string
-          email?: string
-          id?: string
-          stripe_customer_id?: string | null
-          subscribed?: boolean
-          subscription_end?: string | null
-          subscription_tier?: string | null
-          updated_at?: string
-          user_id?: string | null
-        }
-        Relationships: []
-      }
-      subscription_info: {
         Row: {
           created_at: string
           email: string
@@ -2144,18 +1952,6 @@ export type Database = {
           updated_at: string | null
         }
       }
-      find_closest_shade_matches: {
-        Args: { match_limit?: number; user_hex: string }
-        Returns: {
-          brand: string
-          delta_e_distance: number
-          match_score: number
-          product_name: string
-          shade_hex: string
-          shade_name: string
-          undertone_match: boolean
-        }[]
-      }
       generate_order_number: {
         Args: Record<PropertyKey, never>
         Returns: string
@@ -2172,23 +1968,9 @@ export type Database = {
           total_products: number
         }[]
       }
-      get_shade_ladder: {
-        Args: { brand_name: string; product_name: string }
-        Returns: {
-          lab_l: number
-          lightness_rank: number
-          shade_hex: string
-          shade_name: string
-          undertone: string
-        }[]
-      }
       get_user_match_stats: {
         Args: { user_uuid: string }
         Returns: Json
-      }
-      is_admin_user: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
       }
       link_foundation_products: {
         Args: Record<PropertyKey, never>

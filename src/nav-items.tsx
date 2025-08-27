@@ -1,5 +1,5 @@
 
-import { Home, User, Palette, Camera, Crown, Package, CreditCard, Sparkles, Star, ShoppingCart, Cloud, Hexagon } from "lucide-react";
+import { Home, User, Palette, Camera, Crown, Package, CreditCard, Sparkles, Star, ShoppingCart, Cloud } from "lucide-react";
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import ShadeMatcher from "./pages/ShadeMatcher";
@@ -14,7 +14,6 @@ import TrueMatchAI from "./pages/TrueMatchAI";
 import PerfectMatches from "./pages/PerfectMatches";
 import Cart from "./pages/Cart";
 import GoogleStorageFoundations from "./pages/GoogleStorageFoundations";
-import HexShadeMatcher from "./pages/HexShadeMatcher";
 
 export const navItems = [
   {
@@ -28,12 +27,6 @@ export const navItems = [
     to: "/truematch-ai",
     icon: <Sparkles className="h-4 w-4" />,
     page: <TrueMatchAI />,
-  },
-  {
-    title: "HEX Shade Matcher",
-    to: "/hex-shade-matcher",
-    icon: <Hexagon className="h-4 w-4" />,
-    page: <HexShadeMatcher />,
   },
   {
     title: "Shade Matcher", 

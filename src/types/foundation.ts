@@ -18,7 +18,6 @@ export interface FoundationMatch {
   coverage: string;
   finish: string;
   imageUrl: string;
-  hexColor?: string; // Add hex color field for actual pigment colors
   // Dual recommendation support
   primaryShade?: {
     name: string;

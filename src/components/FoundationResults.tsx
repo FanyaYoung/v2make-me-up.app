@@ -7,7 +7,6 @@ import { FoundationMatch } from '../types/foundation';
 import { useCart } from '@/contexts/CartContext';
 import { toast } from '@/hooks/use-toast';
 import EnhancedFoundationFeedback from './EnhancedFoundationFeedback';
-import { generateRealisticFleshTone } from '../lib/fleshToneColorWheel';
 
 interface FoundationResultsProps {
   matches: FoundationMatch[];
@@ -65,14 +64,20 @@ const FoundationResults = ({
     return stars;
   };
 
-  const getShadeColor = (match: FoundationMatch): string => {
-    // First check if we have the actual hex color from the database
-    if (match.hexColor) {
-      return match.hexColor;
+  const getShadeColor = (shade: string, undertone: string) => {
+    // Generate a realistic foundation color based on shade name and undertone
+    const shadeLower = shade.toLowerCase();
+    let baseColor = '#D4A574'; // Default medium tone
+    
+    if (shadeLower.includes('fair') || shadeLower.includes('light')) {
+      baseColor = undertone === 'cool' ? '#F5DCC4' : undertone === 'warm' ? '#F0D0A6' : '#F2D3B3';
+    } else if (shadeLower.includes('medium')) {
+      baseColor = undertone === 'cool' ? '#E8C2A0' : undertone === 'warm' ? '#D4A574' : '#DEBA8A';
+    } else if (shadeLower.includes('deep') || shadeLower.includes('dark')) {
+      baseColor = undertone === 'cool' ? '#B5967A' : undertone === 'warm' ? '#A0835C' : '#AA8B6E';
     }
     
-    // Use professional flesh tone color wheel for realistic pigmentation
-    return generateRealisticFleshTone(match.shade, match.undertone);
+    return baseColor;
   };
 
   return (
@@ -99,7 +104,7 @@ const FoundationResults = ({
                     <div 
                       className="w-20 h-20 rounded-lg border shadow-sm mb-2"
                       style={{ 
-                        backgroundColor: getShadeColor(match)
+                        backgroundColor: getShadeColor(match.shade, match.undertone)
                       }}
                     />
                     <p className="text-xs text-gray-600 font-medium">{match.brand}</p>
@@ -122,7 +127,7 @@ const FoundationResults = ({
                           </span>
                           <div 
                             className="w-4 h-4 rounded-full border"
-                            style={{ backgroundColor: getShadeColor(match) }}
+                            style={{ backgroundColor: getShadeColor(match.primaryShade?.name || match.shade, match.undertone) }}
                           />
                         </div>
                         
@@ -134,7 +139,7 @@ const FoundationResults = ({
                             </span>
                             <div 
                               className="w-4 h-4 rounded-full border"
-                              style={{ backgroundColor: getShadeColor(match) }}
+                              style={{ backgroundColor: getShadeColor(match.contourShade.name, match.undertone) }}
                             />
                             {match.contourShade.mixable && (
                               <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
@@ -220,13 +225,13 @@ const FoundationResults = ({
                       View Details
                     </Button>
                     
-                    {/* Add to Cart and Buy Now Buttons */}
+                    {/* Add to Cart Buttons */}
                     <Button 
                       className="bg-gradient-to-r from-rose-500 to-purple-500 text-white"
                       onClick={() => handleAddToCart(match, 'primary')}
                     >
                       <ShoppingCart className="w-4 h-4 mr-2" />
-                      Add to Cart
+                      Add Main Shade
                     </Button>
                     
                     {match.contourShade && (

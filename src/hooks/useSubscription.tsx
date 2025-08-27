@@ -1,11 +1,10 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
 export interface SubscriptionStatus {
   subscribed: boolean;
-  subscription_tier: 'weekly' | 'monthly' | 'yearly' | null;
+  subscription_tier: 'one_time' | 'weekly' | 'monthly' | 'yearly' | null;
   subscription_end: string | null;
   loading: boolean;
 }
@@ -50,7 +49,7 @@ export const useSubscription = () => {
     }
   };
 
-  const createCheckout = async (tier: 'weekly' | 'monthly' | 'yearly') => {
+  const createCheckout = async (tier: 'one_time' | 'weekly' | 'monthly' | 'yearly') => {
     try {
       const { data, error } = await supabase.functions.invoke('create-checkout', {
         body: { tier }
@@ -88,13 +87,14 @@ export const useSubscription = () => {
     checkSubscription();
   }, [user]);
 
-  // Everyone must be a premium subscriber now
   const isPremium = subscription.subscribed && subscription.subscription_tier !== null;
+  const isOneTime = subscription.subscription_tier === 'one_time';
   const isRecurring = subscription.subscription_tier === 'weekly' || subscription.subscription_tier === 'monthly' || subscription.subscription_tier === 'yearly';
 
   return {
     ...subscription,
     isPremium,
+    isOneTime,
     isRecurring,
     checkSubscription,
     createCheckout,
