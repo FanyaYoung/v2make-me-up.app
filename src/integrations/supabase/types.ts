@@ -1230,6 +1230,7 @@ export type Database = {
           imgSrc: string
           lightness: number
           name: string
+          oklab_vec: string | null
           product: string
           specific: string
           "Swatch: hex": string
@@ -1245,6 +1246,7 @@ export type Database = {
           imgSrc: string
           lightness: number
           name: string
+          oklab_vec?: string | null
           product: string
           specific: string
           "Swatch: hex": string
@@ -1260,6 +1262,7 @@ export type Database = {
           imgSrc?: string
           lightness?: number
           name?: string
+          oklab_vec?: string | null
           product?: string
           specific?: string
           "Swatch: hex"?: string
@@ -1677,6 +1680,36 @@ export type Database = {
           source?: string
           undertone?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      skin_tones: {
+        Row: {
+          created_at: string | null
+          hex: string
+          id: string
+          swatch_data_uri: string | null
+          tone_group: string
+          tone_name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          hex: string
+          id?: string
+          swatch_data_uri?: string | null
+          tone_group: string
+          tone_name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          hex?: string
+          id?: string
+          swatch_data_uri?: string | null
+          tone_group?: string
+          tone_name?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -2590,7 +2623,36 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      hex_catalog: {
+        Row: {
+          brand: string | null
+          description: string | null
+          hex: string | null
+          imgsrc: string | null
+          name: string | null
+          product: string | null
+          url: string | null
+        }
+        Insert: {
+          brand?: string | null
+          description?: string | null
+          hex?: string | null
+          imgsrc?: string | null
+          name?: string | null
+          product?: string | null
+          url?: string | null
+        }
+        Update: {
+          brand?: string | null
+          description?: string | null
+          hex?: string | null
+          imgsrc?: string | null
+          name?: string | null
+          product?: string | null
+          url?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       add_makeup_brand: {
@@ -2641,6 +2703,10 @@ export type Database = {
           updated_at: string | null
         }
       }
+      binary_quantize: {
+        Args: { "": string } | { "": unknown }
+        Returns: unknown
+      }
       find_closest_product_matches: {
         Args: { match_limit?: number; user_hex: string }
         Returns: {
@@ -2664,6 +2730,19 @@ export type Database = {
           shade_hex: string
           shade_name: string
           undertone_match: boolean
+        }[]
+      }
+      find_matches_for_tone: {
+        Args: { match_limit?: number; tone_name: string }
+        Returns: {
+          brand: string
+          color_distance: number
+          description: string
+          hex: string
+          imgsrc: string
+          name: string
+          product: string
+          url: string
         }[]
       }
       generate_order_number: {
@@ -2696,6 +2775,42 @@ export type Database = {
         Args: { user_uuid: string }
         Returns: Json
       }
+      gtrgm_compress: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gtrgm_decompress: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gtrgm_in: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gtrgm_options: {
+        Args: { "": unknown }
+        Returns: undefined
+      }
+      gtrgm_out: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      halfvec_avg: {
+        Args: { "": number[] }
+        Returns: unknown
+      }
+      halfvec_out: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      halfvec_send: {
+        Args: { "": unknown }
+        Returns: string
+      }
+      halfvec_typmod_in: {
+        Args: { "": unknown[] }
+        Returns: number
+      }
       hex_to_oklab: {
         Args: { hex: string }
         Returns: {
@@ -2704,9 +2819,45 @@ export type Database = {
           l: number
         }[]
       }
+      hnsw_bit_support: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      hnsw_halfvec_support: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      hnsw_sparsevec_support: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      hnswhandler: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
       is_admin_user: {
         Args: Record<PropertyKey, never>
         Returns: boolean
+      }
+      ivfflat_bit_support: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      ivfflat_halfvec_support: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      ivfflathandler: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      l2_norm: {
+        Args: { "": unknown } | { "": unknown }
+        Returns: number
+      }
+      l2_normalize: {
+        Args: { "": string } | { "": unknown } | { "": unknown }
+        Returns: unknown
       }
       link_foundation_products: {
         Args: Record<PropertyKey, never>
@@ -2719,6 +2870,54 @@ export type Database = {
       match_cosmetics_brands: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      set_limit: {
+        Args: { "": number }
+        Returns: number
+      }
+      show_limit: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
+      show_trgm: {
+        Args: { "": string }
+        Returns: string[]
+      }
+      sparsevec_out: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      sparsevec_send: {
+        Args: { "": unknown }
+        Returns: string
+      }
+      sparsevec_typmod_in: {
+        Args: { "": unknown[] }
+        Returns: number
+      }
+      vector_avg: {
+        Args: { "": number[] }
+        Returns: string
+      }
+      vector_dims: {
+        Args: { "": string } | { "": unknown }
+        Returns: number
+      }
+      vector_norm: {
+        Args: { "": string }
+        Returns: number
+      }
+      vector_out: {
+        Args: { "": string }
+        Returns: unknown
+      }
+      vector_send: {
+        Args: { "": string }
+        Returns: string
+      }
+      vector_typmod_in: {
+        Args: { "": unknown[] }
+        Returns: number
       }
     }
     Enums: {
