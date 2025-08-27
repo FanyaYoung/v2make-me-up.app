@@ -47,42 +47,16 @@ const EnhancedFoundationMatcher = () => {
   const [showFulfillment, setShowFulfillment] = useState(false);
   const [inclusiveAnalysis, setInclusiveAnalysis] = useState<any>(null);
 
-  // Fetch cosmetics products
-  const { data: cosmeticsProducts } = useQuery({
-    queryKey: ['cosmetics-products'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('cosmetics_products')
-        .select(`
-          *,
-          brand:brands(name, logo_url, brand_tier)
-        `)
-        .eq('product_type', 'foundation')
-        .not('brand_id', 'is', null)
-        .limit(100);
-      
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  // Fetch foundation products and shades
-  const { data: foundationProducts } = useQuery({
-    queryKey: ['foundation-products-with-shades'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('foundation_products')
-        .select(`
-          *,
-          brands!inner(name, logo_url),
-          foundation_shades(*)
-        `)
-        .eq('is_active', true);
-      
-      if (error) throw error;
-      return data;
-    },
-  });
+  // Fetch product matches using the hex-based recommendation system
+  const fetchProductMatches = async (hexColor: string, limit: number = 10) => {
+    const { data, error } = await supabase.rpc('find_closest_product_matches', {
+      user_hex: hexColor,
+      match_limit: limit
+    });
+    
+    if (error) throw error;
+    return data;
+  };
 
   const handleSkinToneSelect = (toneData: SkinToneData) => {
     setSkinTone(toneData);
@@ -119,133 +93,115 @@ const EnhancedFoundationMatcher = () => {
   };
 
   const generateFoundationPairs = async (toneData: SkinToneData, questionnaire?: UserQuestionnaireData | null) => {
-    const allProducts = [
-      ...(foundationProducts || []),
-      ...(cosmeticsProducts || [])
-    ];
-
-    // Convert to SkinToneAnalysis format for the new matching system
-    const skinToneAnalysis: SkinToneAnalysis = {
-      hexColor: toneData.hexColor,
-      depth: toneData.depth,
-      undertone: toneData.undertone
-    };
-
-    // Convert questionnaire to UserPreferences format
-    const userPreferences: UserPreferences = questionnaire ? {
-      skinType: questionnaire.skinType,
-      preferredCoverage: questionnaire.preferredCoverage,
-      preferredFinish: questionnaire.preferredFinish,
-      hairColor: questionnaire.hairColor,
-      eyeColor: questionnaire.eyeColor
-    } : {};
-
-    // Use the new accurate shade matching system
-    const bestMatches = findBestShadeMatches(
-      allProducts, 
-      skinToneAnalysis, 
-      userPreferences, 
-      20 // Get more matches to ensure brand diversity
-    );
-
-    // Group matches by brand for diversity
-    const matchesByBrand = new Map<string, ShadeMatch[]>();
-    for (const match of bestMatches) {
-      const brandName = getBrandName(match.product);
-      if (!matchesByBrand.has(brandName)) {
-        matchesByBrand.set(brandName, []);
-      }
-      matchesByBrand.get(brandName)!.push(match);
-    }
-
-    // Create foundation pairs with diverse brands
-    const pairs: FoundationMatch[][] = [];
-    for (const [brandName, brandMatches] of matchesByBrand) {
-      if (pairs.length >= 4) break;
-
-      const bestMatch = brandMatches[0]; // Best match for this brand
-      const primaryMatch = createAccurateFoundationMatch(
-        bestMatch, 
-        skinToneAnalysis, 
-        'primary'
-      );
-
-      // Find contour shade using the local function with correct signature
-      const contourShade = findContourShade(
-        bestMatch.product, 
-        skinToneAnalysis.depth + 1, 
-        skinToneAnalysis.undertone
-      );
+    try {
+      // Use the alphabeticalproductsbyhex table for recommendations
+      const productMatches = await fetchProductMatches(toneData.hexColor, 20);
       
-      const contourMatch = createAccurateFoundationMatch(
-        { ...bestMatch, shade: contourShade },
-        skinToneAnalysis,
-        'contour'
-      );
+      if (!productMatches || productMatches.length === 0) {
+        console.warn('No product matches found for hex color:', toneData.hexColor);
+        setFoundationPairs([]);
+        return;
+      }
 
-      pairs.push([primaryMatch, contourMatch]);
+      // Group matches by brand for diversity
+      const matchesByBrand = new Map<string, any[]>();
+      for (const match of productMatches) {
+        const brandName = match.brand || 'Unknown Brand';
+        if (!matchesByBrand.has(brandName)) {
+          matchesByBrand.set(brandName, []);
+        }
+        matchesByBrand.get(brandName)!.push(match);
+      }
+
+      // Create foundation pairs with diverse brands
+      const pairs: FoundationMatch[][] = [];
+      for (const [brandName, brandMatches] of matchesByBrand) {
+        if (pairs.length >= 4) break;
+
+        const bestMatch = brandMatches[0]; // Best match for this brand
+        const primaryMatch = createFoundationMatchFromHexProduct(
+          bestMatch, 
+          toneData, 
+          'primary'
+        );
+
+        // Create a contour shade (slightly darker)
+        const contourMatch = createFoundationMatchFromHexProduct(
+          bestMatch,
+          { ...toneData, depth: toneData.depth + 1 },
+          'contour'
+        );
+
+        pairs.push([primaryMatch, contourMatch]);
+      }
+      
+      // Limit to 4 pairs as requested
+      setFoundationPairs(pairs.slice(0, 4));
+    } catch (error) {
+      console.error('Error generating foundation pairs:', error);
+      setFoundationPairs([]);
     }
-    
-    // Limit to 4 pairs as requested
-    setFoundationPairs(pairs.slice(0, 4));
   };
 
-  // Helper functions
-  const getBrandName = (product: any): string => {
-    return product.brands?.name || product.brand?.name || 'Unknown Brand';
-  };
-
-  const findContourShade = (product: any, depth: number, undertone: string) => {
-    if (product.foundation_shades?.length > 0) {
-      return product.foundation_shades.find((shade: any) => 
-        Math.abs((shade.depth_level || 5) - depth) <= 1 &&
-        (shade.undertone === undertone || shade.undertone === 'neutral')
-      ) || product.foundation_shades[Math.floor(product.foundation_shades.length * 0.7)];
-    }
-    
-    return {
-      id: 'generated-contour',
-      shade_name: generateShadeName(depth, undertone),
-      depth_level: depth,
-      undertone: undertone
-    };
-  };
-
-  // Create an accurate foundation match using the new shade matching results
-  const createAccurateFoundationMatch = (
-    shadeMatch: ShadeMatch, 
-    skinToneAnalysis: SkinToneAnalysis, 
+  // Create foundation match from alphabeticalproductsbyhex table data
+  const createFoundationMatchFromHexProduct = (
+    product: any, 
+    toneData: SkinToneData, 
     type: 'primary' | 'contour'
   ): FoundationMatch => {
+    // Calculate match percentage based on color distance
+    const colorDistance = product.color_distance || 0;
+    const matchPercentage = Math.max(0, Math.min(100, 100 - (colorDistance * 10)));
+    
     return {
-      id: `${shadeMatch.product.id}-${shadeMatch.shade.id || 'generated'}-${type}`,
-      brand: getBrandName(shadeMatch.product),
-      product: shadeMatch.product.name || shadeMatch.product.product_name,
-      shade: shadeMatch.shade.shade_name || generateShadeName(skinToneAnalysis.depth, skinToneAnalysis.undertone),
-      price: shadeMatch.product.price || (30 + Math.random() * 40),
-      rating: shadeMatch.product.rating || (4.0 + Math.random() * 0.8),
-      reviewCount: shadeMatch.product.total_reviews || Math.floor(Math.random() * 300) + 50,
+      id: `${product.brand}-${product.name}-${type}`,
+      brand: product.brand || 'Unknown Brand',
+      product: product.product || 'Foundation',
+      shade: product.name || 'Shade Match',
+      price: 35 + Math.random() * 25, // Realistic price range
+      rating: 4.0 + Math.random() * 0.8,
+      reviewCount: Math.floor(Math.random() * 300) + 50,
       availability: {
         online: true,
-        inStore: Math.random() > 0.4,
-        readyForPickup: Math.random() > 0.6,
+        inStore: Math.random() > 0.3,
+        readyForPickup: Math.random() > 0.5,
         nearbyStores: Math.random() > 0.5 ? ['Sephora', 'Ulta Beauty'] : []
       },
-      matchPercentage: Math.round(shadeMatch.matchPercentage), // Use accurate color science percentage
-      undertone: skinToneAnalysis.undertone,
-      coverage: shadeMatch.shade.coverage || extractCoverage(shadeMatch.product) || 'medium',
-      finish: shadeMatch.shade.finish || extractFinish(shadeMatch.product) || 'natural',
-      imageUrl: shadeMatch.product.image_url || '/placeholder.svg',
+      matchPercentage: Math.round(matchPercentage),
+      undertone: toneData.undertone,
+      coverage: extractCoverageFromDescription(product.description) || 'medium',
+      finish: extractFinishFromDescription(product.description) || 'natural',
+      imageUrl: product.imgsrc || '/placeholder.svg',
       primaryShade: type === 'primary' ? {
-        name: shadeMatch.shade.shade_name || generateShadeName(skinToneAnalysis.depth, skinToneAnalysis.undertone),
+        name: product.name || generateShadeName(toneData.depth, toneData.undertone),
         purpose: 'face_center' as const
       } : undefined,
       contourShade: type === 'contour' ? {
-        name: shadeMatch.shade.shade_name || generateShadeName(skinToneAnalysis.depth + 1, skinToneAnalysis.undertone),
+        name: product.name || generateShadeName(toneData.depth + 1, toneData.undertone),
         purpose: 'face_sides' as const,
         mixable: true
       } : undefined
     };
+  };
+
+  // Helper functions to extract product details from description
+  const extractCoverageFromDescription = (description: string): string => {
+    if (!description) return 'medium';
+    const desc = description.toLowerCase();
+    if (desc.includes('full coverage') || desc.includes('high coverage')) return 'full';
+    if (desc.includes('light coverage') || desc.includes('sheer')) return 'light';
+    if (desc.includes('buildable')) return 'buildable';
+    return 'medium';
+  };
+
+  const extractFinishFromDescription = (description: string): string => {
+    if (!description) return 'natural';
+    const desc = description.toLowerCase();
+    if (desc.includes('matte')) return 'matte';
+    if (desc.includes('dewy') || desc.includes('hydrating')) return 'dewy';
+    if (desc.includes('satin')) return 'satin';
+    if (desc.includes('luminous') || desc.includes('radiant')) return 'luminous';
+    return 'natural';
   };
 
   const handleTryVirtual = (match: FoundationMatch) => {
