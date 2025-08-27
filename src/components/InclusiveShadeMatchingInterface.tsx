@@ -44,7 +44,14 @@ export default function InclusiveShadeMatchingInterface({
   const [stream, setStream] = useState<MediaStream | null>(null);
 
   const startCamera = useCallback(async () => {
+    console.log('Starting camera...');
     try {
+      // Check if getUserMedia is available
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Camera not supported in this browser');
+      }
+
+      console.log('Requesting camera permission...');
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: {
           width: { ideal: 1280 },
@@ -53,13 +60,33 @@ export default function InclusiveShadeMatchingInterface({
         }
       });
       
+      console.log('Camera permission granted, setting up video stream...');
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
         setStream(mediaStream);
+        console.log('Video stream set up successfully');
+        
+        // Ensure video starts playing
+        videoRef.current.onloadedmetadata = () => {
+          console.log('Video metadata loaded, starting playback...');
+          videoRef.current?.play().catch(e => console.error('Error starting video playback:', e));
+        };
       }
     } catch (err) {
       console.error('Error accessing camera:', err);
-      toast.error('Unable to access camera. Please try uploading an image instead.');
+      if (err instanceof Error) {
+        if (err.name === 'NotAllowedError') {
+          toast.error('Camera permission denied. Please allow camera access and try again.');
+        } else if (err.name === 'NotFoundError') {
+          toast.error('No camera found. Please connect a camera and try again.');
+        } else if (err.name === 'NotReadableError') {
+          toast.error('Camera is already in use by another application.');
+        } else {
+          toast.error(`Camera error: ${err.message}`);
+        }
+      } else {
+        toast.error('Unable to access camera. Please try uploading an image instead.');
+      }
     }
   }, []);
 
@@ -71,19 +98,39 @@ export default function InclusiveShadeMatchingInterface({
   }, [stream]);
 
   const capturePhoto = useCallback(() => {
-    if (!videoRef.current || !canvasRef.current) return;
+    console.log('Capturing photo...');
+    
+    if (!videoRef.current || !canvasRef.current) {
+      console.error('Video or canvas reference not found');
+      toast.error('Camera not ready. Please try again.');
+      return;
+    }
 
     const canvas = canvasRef.current;
     const video = videoRef.current;
     const ctx = canvas.getContext('2d');
     
-    if (!ctx) return;
+    if (!ctx) {
+      console.error('Could not get canvas context');
+      toast.error('Failed to capture photo. Please try again.');
+      return;
+    }
 
+    // Check if video is ready
+    if (video.videoWidth === 0 || video.videoHeight === 0) {
+      console.error('Video not ready - no dimensions');
+      toast.error('Camera not ready. Please wait a moment and try again.');
+      return;
+    }
+
+    console.log(`Capturing photo with dimensions: ${video.videoWidth}x${video.videoHeight}`);
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     ctx.drawImage(video, 0, 0);
     
     const imageDataUrl = canvas.toDataURL('image/jpeg', 0.9);
+    console.log('Photo captured successfully, data URL length:', imageDataUrl.length);
+    
     setCapturedImage(imageDataUrl);
     stopCamera();
     
@@ -220,11 +267,19 @@ export default function InclusiveShadeMatchingInterface({
                   ref={videoRef}
                   autoPlay
                   playsInline
-                  className="w-full rounded-lg"
+                  muted
+                  className="w-full rounded-lg border-2 border-dashed border-gray-300"
+                  style={{ aspectRatio: '16/9', minHeight: '200px' }}
                 />
-                <Button onClick={capturePhoto} className="w-full">
-                  Capture Photo
-                </Button>
+                <div className="flex gap-2">
+                  <Button onClick={capturePhoto} className="flex-1">
+                    <Camera className="w-4 h-4 mr-2" />
+                    Capture Photo
+                  </Button>
+                  <Button onClick={stopCamera} variant="outline">
+                    Stop Camera
+                  </Button>
+                </div>
               </div>
             )}
             <canvas ref={canvasRef} className="hidden" />
