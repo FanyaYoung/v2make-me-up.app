@@ -10,7 +10,9 @@ import {
   DualPointAnalysis, 
   RecommendationGroup, 
   findPairedShadeMatches, 
-  generateRecommendationGroups 
+  generateRecommendationGroups,
+  trackMatchUsage,
+  saveVirtualTryOnSession
 } from '../lib/dualPointShadeMatching';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,6 +22,7 @@ import AuthGuard from '../components/AuthGuard';
 import { Toaster } from '@/components/ui/toaster';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useMatchTracking } from '@/hooks/useMatchTracking';
+import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { FoundationMatch } from '../types/foundation';
 import { useToast } from '@/hooks/use-toast';
@@ -29,6 +32,7 @@ const VirtualTryOnPage = () => {
   const { toast } = useToast();
   const subscription = useSubscription();
   const { matchUsage, recordMatch } = useMatchTracking();
+  const { user } = useAuth();
   
   // Dual-point analysis and recommendations
   const [dualPointAnalysis, setDualPointAnalysis] = useState<DualPointAnalysis | null>(null);
@@ -93,21 +97,27 @@ const VirtualTryOnPage = () => {
     try {
       setDualPointAnalysis(analysis);
       
-      // Record match usage when analysis is performed
-      await recordMatch('virtual_try_on', {
-        analysis_type: 'dual_point',
-        primary_hex: analysis.primaryTone.hex,
-        secondary_hex: analysis.secondaryTone.hex,
-        undertone_consistency: analysis.undertoneConsistency
-      });
+      // Track match usage using the new user_match_usage table
+      if (user?.id) {
+        await trackMatchUsage(user.id, 'dual_point_analysis', {
+          primary_hex: analysis.primaryTone.hex,
+          secondary_hex: analysis.secondaryTone.hex,
+          undertone_consistency: analysis.undertoneConsistency
+        });
+      }
       
-      // Find paired shade matches
+      // Find paired shade matches using new database structure
       const pairedMatches = await findPairedShadeMatches(analysis, 30);
       
       // Generate recommendation groups (4 different brands)
       const groups = generateRecommendationGroups(pairedMatches);
       
       setRecommendationGroups(groups);
+      
+      // Save virtual try-on session to new table
+      if (user?.id) {
+        await saveVirtualTryOnSession(analysis, groups, user.id);
+      }
       
       // Convert to legacy format for skin tone display
       setSkinToneAnalysis({

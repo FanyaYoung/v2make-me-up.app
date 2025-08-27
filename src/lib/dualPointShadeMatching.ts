@@ -53,6 +53,39 @@ export interface RecommendationGroup {
   coverageType: 'light' | 'medium' | 'full';
 }
 
+// Calculate shade matches using foundation products from new database structure
+function calculateShadeMatches(userHex: string, foundationProducts: any[], limit: number = 20) {
+  const matches: any[] = [];
+  
+  for (const product of foundationProducts) {
+    if (!product.foundation_shades || product.foundation_shades.length === 0) continue;
+    
+    for (const shade of product.foundation_shades) {
+      if (!shade.hex_color) continue;
+      
+      const userLab = hexToLab(userHex);
+      const shadeLab = hexToLab(shade.hex_color);
+      const deltaE = calculateDeltaE76(userLab, shadeLab);
+      
+      // Calculate match score (lower delta E = higher score)
+      const matchScore = Math.max(0, 100 - deltaE * 2);
+      
+      matches.push({
+        brand: product.brands?.name || 'Unknown Brand',
+        product_name: product.name,
+        shade_name: shade.shade_name,
+        shade_hex: shade.hex_color,
+        delta_e_distance: deltaE,
+        match_score: matchScore,
+      });
+    }
+  }
+  
+  // Sort by match score and return top matches
+  matches.sort((a, b) => b.match_score - a.match_score);
+  return matches.slice(0, limit);
+}
+
 // Analyze dual-point skin tone from two hex colors
 export function analyzeDualPointSkinTone(
   primaryHex: string,
@@ -95,25 +128,38 @@ export async function findPairedShadeMatches(
   limit: number = 20
 ): Promise<PairedShadeMatch[]> {
   try {
-    // Get matches for both primary and secondary tones
-    const [primaryMatches, secondaryMatches] = await Promise.all([
-      supabase.rpc('find_closest_shade_matches', {
-        user_hex: analysis.primaryTone.hex,
-        match_limit: limit * 2
-      }),
-      supabase.rpc('find_closest_shade_matches', {
-        user_hex: analysis.secondaryTone.hex,
-        match_limit: limit * 2
-      })
-    ]);
+    // Query the new skintone table and foundation products with shades
+    const { data: skinToneRefs, error: skinError } = await supabase
+      .from('skin_tone_references')
+      .select('*');
 
-    if (primaryMatches.error || secondaryMatches.error) {
-      console.error('Error finding matches:', primaryMatches.error || secondaryMatches.error);
+    if (skinError) {
+      console.error('Error fetching skin tone references:', skinError);
+    }
+
+    // Get foundation products with their shades from the new database structure
+    const { data: foundationProducts, error: productsError } = await supabase
+      .from('foundation_products')
+      .select(`
+        *,
+        brands(name, logo_url),
+        foundation_shades(*)
+      `)
+      .eq('is_active', true);
+
+    if (productsError) {
+      console.error('Error fetching foundation products:', productsError);
       return [];
     }
 
-    const primary = primaryMatches.data || [];
-    const secondary = secondaryMatches.data || [];
+    if (!foundationProducts || foundationProducts.length === 0) {
+      console.warn('No foundation products found');
+      return [];
+    }
+
+    // Calculate matches for both primary and secondary tones
+    const primary = calculateShadeMatches(analysis.primaryTone.hex, foundationProducts, limit * 2);
+    const secondary = calculateShadeMatches(analysis.secondaryTone.hex, foundationProducts, limit * 2);
 
     // Create paired matches
     const pairedMatches: PairedShadeMatch[] = [];
@@ -302,4 +348,68 @@ export function getStandardFaceRegions(
       height: width * 0.15
     }
   };
+}
+
+// Save virtual try-on session to the new virtual_try_on_sessions table
+export async function saveVirtualTryOnSession(
+  analysis: DualPointAnalysis,
+  recommendationGroups: RecommendationGroup[],
+  userId?: string
+): Promise<string | null> {
+  try {
+    const { data, error } = await supabase
+      .from('virtual_try_on_sessions')
+      .insert([
+        {
+          user_id: userId,
+          analysis_data: {
+            primary_tone: analysis.primaryTone,
+            secondary_tone: analysis.secondaryTone,
+            tone_difference: analysis.toneDifference,
+            undertone_consistency: analysis.undertoneConsistency
+          },
+          recommendations: recommendationGroups,
+          session_type: 'dual_point_analysis',
+          created_at: new Date().toISOString()
+        }
+      ])
+      .select('id')
+      .single();
+
+    if (error) {
+      console.error('Error saving virtual try-on session:', error);
+      return null;
+    }
+
+    return data?.id || null;
+  } catch (error) {
+    console.error('Error saving virtual try-on session:', error);
+    return null;
+  }
+}
+
+// Track match usage in the new user_match_usage table
+export async function trackMatchUsage(
+  userId: string,
+  matchType: string,
+  metadata: Record<string, any> = {}
+): Promise<void> {
+  try {
+    const { error } = await supabase
+      .from('user_match_usage')
+      .insert([
+        {
+          user_id: userId,
+          match_type: matchType,
+          metadata,
+          created_at: new Date().toISOString()
+        }
+      ]);
+
+    if (error) {
+      console.error('Error tracking match usage:', error);
+    }
+  } catch (error) {
+    console.error('Error tracking match usage:', error);
+  }
 }
