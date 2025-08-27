@@ -159,22 +159,14 @@ class SkinToneAnalyzer {
   // Find closest skin tone match from Skintonehexwithswatches database
   private async findClosestSkinToneMatch(hexColor: string) {
     try {
-      // Use raw query since the table isn't in the typed schema
-      const { data: skinTones, error } = await supabase
-        .rpc('get_closest_skin_tone_matches', { target_hex: hexColor });
+      // First try to get skin tone data from Skintonehexwithswatches table
+      const { data: skinTones, error: skinToneError } = await supabase
+        .from('Skintonehexwithswatches')
+        .select('*')
+        .limit(10);
       
-      if (error) {
-        console.error('Error fetching skin tones with RPC:', error);
-        // Fallback to direct query
-        const { data: fallbackData, error: fallbackError } = await supabase
-          .from('cosmetics_products') // Use a known table for the connection
-          .select('*')
-          .limit(0); // Just to test connection
-        
-        if (fallbackError) {
-          return this.createFallbackMatch(hexColor);
-        }
-        
+      if (skinToneError) {
+        console.error('Error fetching skin tones:', skinToneError);
         return this.createFallbackMatch(hexColor);
       }
 
@@ -182,19 +174,36 @@ class SkinToneAnalyzer {
         return this.createFallbackMatch(hexColor);
       }
 
-      const bestMatch = skinTones[0];
+      // Find closest match based on hex color distance
+      const bestMatch = this.findClosestHexMatch(hexColor, skinTones);
       return {
-        hex: bestMatch.hex_number || hexColor,
-        category: bestMatch.category || 'Medium',
-        undertones: bestMatch.undertones || 'Neutral',
-        traits: bestMatch.traits || 'Analyzed from database',
-        overtone: bestMatch.overtone || 'Neutral',
+        hex: bestMatch['Hex Number'] || hexColor,
+        category: bestMatch.Category || 'Medium',
+        undertones: bestMatch.Undertones || 'Neutral',
+        traits: bestMatch.Traits || 'Analyzed from database',
+        overtone: bestMatch.Overtone || 'Neutral',
         confidence: Math.max(0.7, 1 - (bestMatch.distance || 20) / 100)
       };
     } catch (error) {
       console.error('Error finding skin tone match:', error);
       return this.createFallbackMatch(hexColor);
     }
+  }
+
+  // Find closest match based on hex color distance
+  private findClosestHexMatch(targetHex: string, skinTones: any[]) {
+    let bestMatch = skinTones[0];
+    let minDistance = this.colorDistance(targetHex, bestMatch['Hex Number']);
+    
+    for (const tone of skinTones) {
+      const distance = this.colorDistance(targetHex, tone['Hex Number']);
+      if (distance < minDistance) {
+        minDistance = distance;
+        bestMatch = tone;
+      }
+    }
+    
+    return { ...bestMatch, distance: minDistance };
   }
 
   // Calculate color distance between two hex colors
@@ -284,24 +293,6 @@ class SkinToneAnalyzer {
     if (luminance > 120) return 'Medium';
     if (luminance > 80) return 'Deep';
     return 'Very Deep';
-  }
-
-  private findDominantTone(tones: any[]) {
-    // For simplicity, use the cheek tone as dominant (most representative)
-    return tones[1]; // cheeks
-  }
-
-  private findSecondaryTone(tones: any[], dominantTone: any) {
-    // Check if there's significant variation between regions
-    const variations = tones.filter(tone => 
-      tone.depth !== dominantTone.depth || tone.undertone !== dominantTone.undertone
-    );
-    
-    if (variations.length > 0) {
-      return { ...variations[0], confidence: 0.7 };
-    }
-    
-    return undefined;
   }
 }
 

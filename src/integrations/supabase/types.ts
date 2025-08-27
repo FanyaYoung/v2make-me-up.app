@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      alphabeticalproductsbyhex: {
+        Row: {
+          brand: string
+          description: string
+          imgAlt: string
+          imgSrc: string
+          name: string
+          product: string
+          specific: string
+          "Swatch: imgSrc": string
+          "Swatch: url": string
+          url: string
+        }
+        Insert: {
+          brand: string
+          description: string
+          imgAlt: string
+          imgSrc: string
+          name: string
+          product: string
+          specific: string
+          "Swatch: imgSrc": string
+          "Swatch: url": string
+          url: string
+        }
+        Update: {
+          brand?: string
+          description?: string
+          imgAlt?: string
+          imgSrc?: string
+          name?: string
+          product?: string
+          specific?: string
+          "Swatch: imgSrc"?: string
+          "Swatch: url"?: string
+          url?: string
+        }
+        Relationships: []
+      }
       brand_referral_codes: {
         Row: {
           affiliate_code: string | null
@@ -462,6 +501,36 @@ export type Database = {
           },
         ]
       }
+      foundation_palette: {
+        Row: {
+          created_at: string
+          group_name: string
+          hex_color: string
+          id: string
+          swatch_data_uri: string | null
+          tone_name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          group_name: string
+          hex_color: string
+          id?: string
+          swatch_data_uri?: string | null
+          tone_name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          group_name?: string
+          hex_color?: string
+          id?: string
+          swatch_data_uri?: string | null
+          tone_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       foundation_products: {
         Row: {
           brand_id: string | null
@@ -517,6 +586,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      foundation_shade_matches: {
+        Row: {
+          created_at: string
+          delta_e_distance: number
+          foundation_brand: string
+          foundation_product: string
+          id: string
+          lightness_rank: number | null
+          match_score: number
+          shade_hex: string
+          shade_name: string
+          skin_hex: string
+          undertone_match: boolean
+        }
+        Insert: {
+          created_at?: string
+          delta_e_distance: number
+          foundation_brand: string
+          foundation_product: string
+          id?: string
+          lightness_rank?: number | null
+          match_score: number
+          shade_hex: string
+          shade_name: string
+          skin_hex: string
+          undertone_match?: boolean
+        }
+        Update: {
+          created_at?: string
+          delta_e_distance?: number
+          foundation_brand?: string
+          foundation_product?: string
+          id?: string
+          lightness_rank?: number | null
+          match_score?: number
+          shade_hex?: string
+          shade_name?: string
+          skin_hex?: string
+          undertone_match?: boolean
+        }
+        Relationships: []
       }
       foundation_shades: {
         Row: {
@@ -771,6 +882,45 @@ export type Database = {
         }
         Relationships: []
       }
+      "Primary Tables": {
+        Row: {
+          brand: string
+          description: string
+          imgAlt: string
+          imgSrc: string
+          name: string
+          product: string
+          specific: string
+          "Swatch: imgSrc": string
+          "Swatch: url": string
+          url: string
+        }
+        Insert: {
+          brand: string
+          description: string
+          imgAlt: string
+          imgSrc: string
+          name: string
+          product: string
+          specific: string
+          "Swatch: imgSrc": string
+          "Swatch: url": string
+          url: string
+        }
+        Update: {
+          brand?: string
+          description?: string
+          imgAlt?: string
+          imgSrc?: string
+          name?: string
+          product?: string
+          specific?: string
+          "Swatch: imgSrc"?: string
+          "Swatch: url"?: string
+          url?: string
+        }
+        Relationships: []
+      }
       product_availability: {
         Row: {
           id: string
@@ -1006,6 +1156,120 @@ export type Database = {
           },
         ]
       }
+      products_by_pigmentation: {
+        Row: {
+          brand: string
+          colorspace: string
+          description: string
+          hex: string
+          hue: string
+          imgAlt: string
+          imgSrc: string
+          lightness: number
+          name: string
+          product: string
+          sat: number
+          specific: string
+          "Swatch: hex": string
+          "Swatch: hue": string
+          "Swatch: imgSrc": string
+          "Swatch: lightness": string
+          "Swatch: sat": string
+          "Swatch: url": string
+          url: string
+        }
+        Insert: {
+          brand: string
+          colorspace: string
+          description: string
+          hex: string
+          hue: string
+          imgAlt: string
+          imgSrc: string
+          lightness: number
+          name: string
+          product: string
+          sat: number
+          specific: string
+          "Swatch: hex": string
+          "Swatch: hue": string
+          "Swatch: imgSrc": string
+          "Swatch: lightness": string
+          "Swatch: sat": string
+          "Swatch: url": string
+          url: string
+        }
+        Update: {
+          brand?: string
+          colorspace?: string
+          description?: string
+          hex?: string
+          hue?: string
+          imgAlt?: string
+          imgSrc?: string
+          lightness?: number
+          name?: string
+          product?: string
+          sat?: number
+          specific?: string
+          "Swatch: hex"?: string
+          "Swatch: hue"?: string
+          "Swatch: imgSrc"?: string
+          "Swatch: lightness"?: string
+          "Swatch: sat"?: string
+          "Swatch: url"?: string
+          url?: string
+        }
+        Relationships: []
+      }
+      productsandshadeswithimages: {
+        Row: {
+          brand: string
+          categories: string
+          hex: string
+          imgSrc: string
+          lightness: number
+          name: string
+          product: string
+          specific: string
+          "Swatch: hex": string
+          "Swatch: imgSrc": string
+          "Swatch: lightness": string
+          "Swatch: url": string
+          url: string
+        }
+        Insert: {
+          brand: string
+          categories: string
+          hex: string
+          imgSrc: string
+          lightness: number
+          name: string
+          product: string
+          specific: string
+          "Swatch: hex": string
+          "Swatch: imgSrc": string
+          "Swatch: lightness": string
+          "Swatch: url": string
+          url: string
+        }
+        Update: {
+          brand?: string
+          categories?: string
+          hex?: string
+          imgSrc?: string
+          lightness?: number
+          name?: string
+          product?: string
+          specific?: string
+          "Swatch: hex"?: string
+          "Swatch: imgSrc"?: string
+          "Swatch: lightness"?: string
+          "Swatch: url"?: string
+          url?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           age_range: string | null
@@ -1206,6 +1470,87 @@ export type Database = {
         }
         Relationships: []
       }
+      sephoraproductsbyskintone: {
+        Row: {
+          brand: string
+          description: string
+          imgAlt: string
+          imgSrc: string
+          name: string
+          product: string
+          specific: string
+          "Swatch: imgSrc": string
+          "Swatch: url": string
+          url: string
+        }
+        Insert: {
+          brand: string
+          description: string
+          imgAlt: string
+          imgSrc: string
+          name: string
+          product: string
+          specific: string
+          "Swatch: imgSrc": string
+          "Swatch: url": string
+          url: string
+        }
+        Update: {
+          brand?: string
+          description?: string
+          imgAlt?: string
+          imgSrc?: string
+          name?: string
+          product?: string
+          specific?: string
+          "Swatch: imgSrc"?: string
+          "Swatch: url"?: string
+          url?: string
+        }
+        Relationships: []
+      }
+      shade_ladders: {
+        Row: {
+          brand: string
+          created_at: string
+          id: string
+          lab_a: number
+          lab_b: number
+          lab_l: number
+          lightness_rank: number
+          product_name: string
+          shade_hex: string
+          shade_name: string
+          undertone: string
+        }
+        Insert: {
+          brand: string
+          created_at?: string
+          id?: string
+          lab_a: number
+          lab_b: number
+          lab_l: number
+          lightness_rank: number
+          product_name: string
+          shade_hex: string
+          shade_name: string
+          undertone: string
+        }
+        Update: {
+          brand?: string
+          created_at?: string
+          id?: string
+          lab_a?: number
+          lab_b?: number
+          lab_l?: number
+          lightness_rank?: number
+          product_name?: string
+          shade_hex?: string
+          shade_name?: string
+          undertone?: string
+        }
+        Relationships: []
+      }
       shade_matches: {
         Row: {
           confidence_score: number | null
@@ -1248,6 +1593,42 @@ export type Database = {
           },
         ]
       }
+      skin_tone_hex_references: {
+        Row: {
+          created_at: string
+          depth_category: string
+          hex_color: string
+          id: string
+          lab_a: number
+          lab_b: number
+          lab_l: number
+          undertone: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          depth_category: string
+          hex_color: string
+          id?: string
+          lab_a: number
+          lab_b: number
+          lab_l: number
+          undertone: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          depth_category?: string
+          hex_color?: string
+          id?: string
+          lab_a?: number
+          lab_b?: number
+          lab_l?: number
+          undertone?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       skin_tone_references: {
         Row: {
           category: string
@@ -1281,6 +1662,96 @@ export type Database = {
           source?: string
           undertone?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      skintone: {
+        Row: {
+          Category: string
+          Color: string
+          "Hex Number": string
+          Overtone: string
+          "Swatch: Hex Number": string
+          Traits: string
+          Undertones: string
+        }
+        Insert: {
+          Category: string
+          Color: string
+          "Hex Number": string
+          Overtone: string
+          "Swatch: Hex Number": string
+          Traits: string
+          Undertones: string
+        }
+        Update: {
+          Category?: string
+          Color?: string
+          "Hex Number"?: string
+          Overtone?: string
+          "Swatch: Hex Number"?: string
+          Traits?: string
+          Undertones?: string
+        }
+        Relationships: []
+      }
+      Skintonehexwithswatches: {
+        Row: {
+          Category: string
+          Color: string
+          "Hex Number": string
+          Overtone: string
+          "Swatch: Hex Number": string
+          Traits: string
+          Undertones: string
+        }
+        Insert: {
+          Category: string
+          Color: string
+          "Hex Number": string
+          Overtone: string
+          "Swatch: Hex Number": string
+          Traits: string
+          Undertones: string
+        }
+        Update: {
+          Category?: string
+          Color?: string
+          "Hex Number"?: string
+          Overtone?: string
+          "Swatch: Hex Number"?: string
+          Traits?: string
+          Undertones?: string
+        }
+        Relationships: []
+      }
+      SkintoneOvertoneUndertone: {
+        Row: {
+          created_at: string
+          id: number
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+        }
+        Update: {
+          created_at?: string
+          id?: number
+        }
+        Relationships: []
+      }
+      "skintonetomatachwith products": {
+        Row: {
+          created_at: string
+          id: number
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+        }
+        Update: {
+          created_at?: string
+          id?: number
         }
         Relationships: []
       }
@@ -1368,7 +1839,79 @@ export type Database = {
         }
         Relationships: []
       }
+      subscribers_new: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          stripe_customer_id: string | null
+          subscribed: boolean
+          subscription_end: string | null
+          subscription_tier: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          stripe_customer_id?: string | null
+          subscribed?: boolean
+          subscription_end?: string | null
+          subscription_tier?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          stripe_customer_id?: string | null
+          subscribed?: boolean
+          subscription_end?: string | null
+          subscription_tier?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       subscription_data: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          stripe_customer_id: string | null
+          subscribed: boolean
+          subscription_end: string | null
+          subscription_tier: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          stripe_customer_id?: string | null
+          subscribed?: boolean
+          subscription_end?: string | null
+          subscription_tier?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          stripe_customer_id?: string | null
+          subscribed?: boolean
+          subscription_end?: string | null
+          subscription_tier?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      subscription_info: {
         Row: {
           created_at: string
           email: string
@@ -1746,6 +2289,50 @@ export type Database = {
         }
         Relationships: []
       }
+      user_recommendations: {
+        Row: {
+          analysis_id: string | null
+          confidence_score: number | null
+          created_at: string
+          foundation_matches: Json
+          id: string
+          recommendation_type: string
+          recommended_products: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          analysis_id?: string | null
+          confidence_score?: number | null
+          created_at?: string
+          foundation_matches?: Json
+          id?: string
+          recommendation_type?: string
+          recommended_products?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          analysis_id?: string | null
+          confidence_score?: number | null
+          created_at?: string
+          foundation_matches?: Json
+          id?: string
+          recommendation_type?: string
+          recommended_products?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_recommendations_analysis_id_fkey"
+            columns: ["analysis_id"]
+            isOneToOne: false
+            referencedRelation: "user_skin_analysis"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_reviews: {
         Row: {
           coverage_rating: number | null
@@ -1808,6 +2395,57 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_skin_analysis: {
+        Row: {
+          analysis_data: Json | null
+          analysis_method: string
+          average_hex: string | null
+          confidence_score: number | null
+          created_at: string
+          darker_hex: string
+          face_regions: Json | null
+          id: string
+          lighter_hex: string
+          overtone: string | null
+          session_id: string | null
+          undertone: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          analysis_data?: Json | null
+          analysis_method: string
+          average_hex?: string | null
+          confidence_score?: number | null
+          created_at?: string
+          darker_hex: string
+          face_regions?: Json | null
+          id?: string
+          lighter_hex: string
+          overtone?: string | null
+          session_id?: string | null
+          undertone?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          analysis_data?: Json | null
+          analysis_method?: string
+          average_hex?: string | null
+          confidence_score?: number | null
+          created_at?: string
+          darker_hex?: string
+          face_regions?: Json | null
+          id?: string
+          lighter_hex?: string
+          overtone?: string | null
+          session_id?: string | null
+          undertone?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       user_social_profiles: {
         Row: {
@@ -1952,6 +2590,31 @@ export type Database = {
           updated_at: string | null
         }
       }
+      find_closest_product_matches: {
+        Args: { match_limit?: number; user_hex: string }
+        Returns: {
+          brand: string
+          color_distance: number
+          description: string
+          hex: string
+          imgsrc: string
+          name: string
+          product: string
+          url: string
+        }[]
+      }
+      find_closest_shade_matches: {
+        Args: { match_limit?: number; user_hex: string }
+        Returns: {
+          brand: string
+          delta_e_distance: number
+          match_score: number
+          product_name: string
+          shade_hex: string
+          shade_name: string
+          undertone_match: boolean
+        }[]
+      }
       generate_order_number: {
         Args: Record<PropertyKey, never>
         Returns: string
@@ -1968,9 +2631,31 @@ export type Database = {
           total_products: number
         }[]
       }
+      get_shade_ladder: {
+        Args: { brand_name: string; product_name: string }
+        Returns: {
+          lab_l: number
+          lightness_rank: number
+          shade_hex: string
+          shade_name: string
+          undertone: string
+        }[]
+      }
       get_user_match_stats: {
         Args: { user_uuid: string }
         Returns: Json
+      }
+      hex_to_oklab: {
+        Args: { hex: string }
+        Returns: {
+          a: number
+          b: number
+          l: number
+        }[]
+      }
+      is_admin_user: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
       }
       link_foundation_products: {
         Args: Record<PropertyKey, never>

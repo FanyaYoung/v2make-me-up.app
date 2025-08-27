@@ -17,25 +17,35 @@ interface SkinToneMatch {
   'Color': string;
 }
 
+interface ProductMatch {
+  brand: string;
+  product: string;
+  name: string;
+  hex: string;
+  color_distance: number;
+  url: string;
+  imgsrc: string; // Changed from imgSrc to match database return
+  description: string;
+}
+
 const DatabaseSkinToneMatcher = () => {
   const [selectedHex, setSelectedHex] = useState('#FFDBAC');
   const [searchHex, setSearchHex] = useState('');
-  const [closestMatches, setClosestMatches] = useState<SkinToneMatch[]>([]);
+  const [closestMatches, setClosestMatches] = useState<ProductMatch[]>([]);
 
-//   // Fetch all skin tone data using raw SQL since table isn't typed
-//   const { data: skinTones, isLoading } = useQuery({
-//     queryKey: ['skintonehexwithswatches'],
-//     queryFn: async () => {
-//       // Use the skin_tone_references table instead since it's properly typed
-//       const { data, error } = await supabase
-//         .from('skin_tone_references')
-//         .select('*')
-//         .order('category');
+  // Fetch all skin tone data from Skintonehexwithswatches table
+  const { data: skinTones, isLoading } = useQuery({
+    queryKey: ['skintonehexwithswatches'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('Skintonehexwithswatches')
+        .select('*')
+        .order('Category');
       
-//       if (error) throw error;
-//       return data as SkinToneMatch[];
-//     },
-//   });
+      if (error) throw error;
+      return data as SkinToneMatch[];
+    },
+  });
 
   // Calculate color distance between two hex colors
   const colorDistance = (hex1: string, hex2: string): number => {
@@ -61,32 +71,35 @@ const DatabaseSkinToneMatcher = () => {
     } : null;
   };
 
-  // Find closest matches for a given hex color
-  const findClosestMatches = (targetHex: string) => {
-    if (!skinTones || !targetHex) return;
+  // Find closest product matches using the new database function
+  const findClosestMatches = async (targetHex: string) => {
+    if (!targetHex) return;
 
-    const matches = skinTones
-      .map(tone => ({
-        ...tone,
-        distance: colorDistance(targetHex, tone['Hex Number'])
-      }))
-      .sort((a, b) => a.distance - b.distance)
-      .slice(0, 5);
+    try {
+      const { data, error } = await supabase.rpc('find_closest_product_matches', {
+        user_hex: targetHex,
+        match_limit: 10
+      });
 
-    setClosestMatches(matches);
-  };
-
-  const handleHexSearch = () => {
-    if (searchHex) {
-      setSelectedHex(searchHex);
-      findClosestMatches(searchHex);
+      if (error) throw error;
+      setClosestMatches(data || []);
+    } catch (error) {
+      console.error('Error finding matches:', error);
+      setClosestMatches([]);
     }
   };
 
-  const handleColorSelect = (hex: string) => {
+  const handleHexSearch = async () => {
+    if (searchHex) {
+      setSelectedHex(searchHex);
+      await findClosestMatches(searchHex);
+    }
+  };
+
+  const handleColorSelect = async (hex: string) => {
     setSelectedHex(hex);
     setSearchHex(hex);
-    findClosestMatches(hex);
+    await findClosestMatches(hex);
   };
 
   // Group skin tones by category
@@ -152,13 +165,13 @@ const DatabaseSkinToneMatcher = () => {
         </CardContent>
       </Card>
 
-      {/* Closest Matches */}
+      {/* Closest Product Matches */}
       {closestMatches.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Eye className="w-5 h-5" />
-              Closest Matches
+              Closest Product Matches
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -167,19 +180,30 @@ const DatabaseSkinToneMatcher = () => {
                 <div key={index} className="flex items-center gap-4 p-3 border rounded-lg">
                   <div 
                     className="w-12 h-12 rounded border-2 border-gray-300 flex-shrink-0"
-                    style={{ backgroundColor: match['Hex Number'] }}
+                    style={{ backgroundColor: match.hex }}
                   />
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <Badge variant="secondary">{match.Category}</Badge>
-                      <Badge variant="outline">{match.Undertones}</Badge>
+                      <Badge variant="secondary">{match.brand}</Badge>
+                      <Badge variant="outline">{match.product}</Badge>
                       <span className="font-mono text-sm text-muted-foreground">
-                        {match['Hex Number']}
+                        {match.hex}
                       </span>
                     </div>
-                    <p className="text-sm text-muted-foreground">{match.Traits}</p>
-                    {match.Overtone && (
-                      <p className="text-xs text-muted-foreground">Overtone: {match.Overtone}</p>
+                    <h4 className="font-medium">{match.name}</h4>
+                    <p className="text-sm text-muted-foreground">{match.description}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Color Distance: {match.color_distance?.toFixed(3)}
+                    </p>
+                    {match.url && (
+                      <a 
+                        href={match.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-xs text-primary hover:underline"
+                      >
+                        View Product
+                      </a>
                     )}
                   </div>
                 </div>
@@ -203,7 +227,7 @@ const DatabaseSkinToneMatcher = () => {
               <div key={category}>
                 <h4 className="font-semibold mb-2">{category}</h4>
                 <div className="grid grid-cols-6 md:grid-cols-8 lg:grid-cols-12 gap-2">
-                  {tones.map((tone, index) => (
+                  {(tones as SkinToneMatch[]).map((tone, index) => (
                     <button
                       key={index}
                       onClick={() => handleColorSelect(tone['Hex Number'])}
