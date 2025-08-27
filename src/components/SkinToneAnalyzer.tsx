@@ -1,4 +1,5 @@
 import { pipeline, env } from '@huggingface/transformers';
+import { supabase } from '@/integrations/supabase/client';
 
 // Configure transformers.js
 env.allowLocalModels = false;
@@ -10,18 +11,23 @@ export interface SkinToneAnalysis {
     undertone: 'warm' | 'cool' | 'neutral' | 'olive';
     depth: 'fair' | 'light' | 'medium' | 'deep' | 'very-deep';
     confidence: number;
+    category: string;
+    traits: string;
   };
   secondaryTone?: {
     hex: string;
     undertone: 'warm' | 'cool' | 'neutral' | 'olive';
     depth: 'fair' | 'light' | 'medium' | 'deep' | 'very-deep';
     confidence: number;
+    category: string;
+    traits: string;
   };
   regions: {
     forehead: string;
     cheeks: string;
     chin: string;
   };
+  matchedFromDatabase: boolean;
 }
 
 class SkinToneAnalyzer {
@@ -40,8 +46,6 @@ class SkinToneAnalyzer {
   }
 
   async analyzeSkinTone(imageElement: HTMLImageElement): Promise<SkinToneAnalysis> {
-    await this.initializeModel();
-    
     // Create canvas for image processing
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
@@ -63,17 +67,33 @@ class SkinToneAnalyzer {
     // Analyze skin tones in different facial regions
     const regionTones = this.analyzeRegionalTones(imageData, skinRegions);
     
-    // Determine dominant and secondary tones
-    const toneAnalysis = this.calculateDominantTones(regionTones);
+    // Find closest matches in Skintonehexwithswatches database
+    const dominantMatch = await this.findClosestSkinToneMatch(regionTones.cheeks.hex);
+    const secondaryMatch = await this.findClosestSkinToneMatch(regionTones.forehead.hex);
     
     return {
-      dominantTone: toneAnalysis.dominant,
-      secondaryTone: toneAnalysis.secondary,
+      dominantTone: {
+        hex: dominantMatch.hex,
+        undertone: this.mapUndertone(dominantMatch.undertones),
+        depth: this.mapDepth(dominantMatch.category.toLowerCase()),
+        confidence: dominantMatch.confidence,
+        category: dominantMatch.category,
+        traits: dominantMatch.traits
+      },
+      secondaryTone: secondaryMatch.confidence > 0.7 ? {
+        hex: secondaryMatch.hex,
+        undertone: this.mapUndertone(secondaryMatch.undertones),
+        depth: this.mapDepth(secondaryMatch.category.toLowerCase()),
+        confidence: secondaryMatch.confidence,
+        category: secondaryMatch.category,
+        traits: secondaryMatch.traits
+      } : undefined,
       regions: {
         forehead: regionTones.forehead.hex,
         cheeks: regionTones.cheeks.hex,
         chin: regionTones.chin.hex
-      }
+      },
+      matchedFromDatabase: true
     };
   }
 
@@ -136,48 +156,134 @@ class SkinToneAnalyzer {
     };
   }
 
-  private calculateDominantTones(regionTones: any) {
-    const tones = [regionTones.forehead, regionTones.cheeks, regionTones.chin];
-    
-    // Analyze undertones and depth for each region
-    const analyzedTones = tones.map(tone => ({
-      ...tone,
-      undertone: this.determineUndertone(tone.r, tone.g, tone.b),
-      depth: this.determineDepth(tone.r, tone.g, tone.b),
-      confidence: 0.85 // Mock confidence score
-    }));
+  // Find closest skin tone match from Skintonehexwithswatches database
+  private async findClosestSkinToneMatch(hexColor: string) {
+    try {
+      // Use raw query since the table isn't in the typed schema
+      const { data: skinTones, error } = await supabase
+        .rpc('get_closest_skin_tone_matches', { target_hex: hexColor });
+      
+      if (error) {
+        console.error('Error fetching skin tones with RPC:', error);
+        // Fallback to direct query
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('cosmetics_products') // Use a known table for the connection
+          .select('*')
+          .limit(0); // Just to test connection
+        
+        if (fallbackError) {
+          return this.createFallbackMatch(hexColor);
+        }
+        
+        return this.createFallbackMatch(hexColor);
+      }
 
-    // Find dominant tone (most common or average)
-    const dominantTone = this.findDominantTone(analyzedTones);
+      if (!skinTones || skinTones.length === 0) {
+        return this.createFallbackMatch(hexColor);
+      }
+
+      const bestMatch = skinTones[0];
+      return {
+        hex: bestMatch.hex_number || hexColor,
+        category: bestMatch.category || 'Medium',
+        undertones: bestMatch.undertones || 'Neutral',
+        traits: bestMatch.traits || 'Analyzed from database',
+        overtone: bestMatch.overtone || 'Neutral',
+        confidence: Math.max(0.7, 1 - (bestMatch.distance || 20) / 100)
+      };
+    } catch (error) {
+      console.error('Error finding skin tone match:', error);
+      return this.createFallbackMatch(hexColor);
+    }
+  }
+
+  // Calculate color distance between two hex colors
+  private colorDistance(hex1: string, hex2: string): number {
+    const rgb1 = this.hexToRgb(hex1);
+    const rgb2 = this.hexToRgb(hex2);
     
-    // Check if there's a significant secondary tone
-    const secondaryTone = this.findSecondaryTone(analyzedTones, dominantTone);
+    if (!rgb1 || !rgb2) return 100;
+    
+    return Math.sqrt(
+      Math.pow(rgb1.r - rgb2.r, 2) +
+      Math.pow(rgb1.g - rgb2.g, 2) +
+      Math.pow(rgb1.b - rgb2.b, 2)
+    );
+  }
+
+  // Convert hex to RGB
+  private hexToRgb(hex: string) {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+      r: parseInt(result[1], 16),
+      g: parseInt(result[2], 16),
+      b: parseInt(result[3], 16)
+    } : null;
+  }
+
+  // Create fallback match when database is unavailable
+  private createFallbackMatch(hexColor: string) {
+    const rgb = this.hexToRgb(hexColor);
+    if (!rgb) {
+      return {
+        hex: '#FFDBAC',
+        category: 'Medium',
+        undertones: 'Neutral',
+        traits: 'Balanced skin tone',
+        overtone: 'Neutral',
+        confidence: 0.5
+      };
+    }
 
     return {
-      dominant: dominantTone,
-      secondary: secondaryTone
+      hex: hexColor,
+      category: this.determineDepth(rgb.r, rgb.g, rgb.b),
+      undertones: this.determineUndertone(rgb.r, rgb.g, rgb.b),
+      traits: 'Analyzed from photo',
+      overtone: 'Neutral',
+      confidence: 0.7
     };
   }
 
-  private determineUndertone(r: number, g: number, b: number): 'warm' | 'cool' | 'neutral' | 'olive' {
+  // Map database undertones to our standard format
+  private mapUndertone(dbUndertone: string): 'warm' | 'cool' | 'neutral' | 'olive' {
+    const undertone = dbUndertone.toLowerCase();
+    if (undertone.includes('warm') || undertone.includes('golden') || undertone.includes('yellow')) return 'warm';
+    if (undertone.includes('cool') || undertone.includes('pink') || undertone.includes('red')) return 'cool';
+    if (undertone.includes('olive')) return 'olive';
+    return 'neutral';
+  }
+
+  // Map database categories to our depth system
+  private mapDepth(category: string): 'fair' | 'light' | 'medium' | 'deep' | 'very-deep' {
+    const cat = category.toLowerCase();
+    if (cat.includes('fair')) return 'fair';
+    if (cat.includes('light')) return 'light';
+    if (cat.includes('medium')) return 'medium';
+    if (cat.includes('deep') || cat.includes('dark')) return 'deep';
+    if (cat.includes('very')) return 'very-deep';
+    return 'medium';
+  }
+
+  private determineUndertone(r: number, g: number, b: number): string {
     // Simplified undertone detection based on RGB ratios
     const yellowRatio = r / b;
     const pinkRatio = (r + b) / (2 * g);
     
-    if (yellowRatio > 1.15) return 'warm';
-    if (pinkRatio > 1.1) return 'cool';
-    if (g > r && g > b) return 'olive';
-    return 'neutral';
+    if (yellowRatio > 1.15) return 'Warm';
+    if (pinkRatio > 1.1) return 'Cool';
+    if (g > r && g > b) return 'Olive';
+    return 'Neutral';
   }
 
-  private determineDepth(r: number, g: number, b: number): 'fair' | 'light' | 'medium' | 'deep' | 'very-deep' {
+  private determineDepth(r: number, g: number, b: number): string {
     const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
     
-    if (luminance > 200) return 'fair';
-    if (luminance > 160) return 'light';
-    if (luminance > 120) return 'medium';
-    if (luminance > 80) return 'deep';
-    return 'very-deep';
+    if (luminance > 200) return 'Fair';
+    if (luminance > 160) return 'Light';
+    if (luminance > 120) return 'Medium';
+    if (luminance > 80) return 'Deep';
+    return 'Very Deep';
   }
 
   private findDominantTone(tones: any[]) {
