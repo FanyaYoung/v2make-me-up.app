@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import Header from '../components/Header';
 import VirtualTryOn from '../components/VirtualTryOn';
-import EnhancedProductRecommendations from '../components/EnhancedProductRecommendations';
+import DualPointSkinAnalyzer from '../components/DualPointSkinAnalyzer';
+import PairedRecommendations from '../components/PairedRecommendations';
 import SkinToneAnalysisDisplay from '../components/SkinToneAnalysisDisplay';
 import UpgradePrompt from '../components/UpgradePrompt';
 import { Button } from '@/components/ui/button';
@@ -22,6 +23,11 @@ const VirtualTryOnPage = () => {
   const subscription = useSubscription();
   const { matchUsage, recordMatch } = useMatchTracking();
   
+  // Dual-point analysis and recommendations
+  const [dualPointAnalysis, setDualPointAnalysis] = useState<DualPointAnalysis | null>(null);
+  const [recommendationGroups, setRecommendationGroups] = useState<RecommendationGroup[]>([]);
+  
+  // Legacy single-point recommendations (fallback)
   const [recommendations, setRecommendations] = useState<{
     shade: FoundationMatch;
     confidence: number;
@@ -76,9 +82,57 @@ const VirtualTryOnPage = () => {
     }
   };
 
+  const handleDualPointAnalysis = async (analysis: DualPointAnalysis) => {
+    try {
+      setDualPointAnalysis(analysis);
+      
+      // Record match usage when analysis is performed
+      await recordMatch('virtual_try_on', {
+        analysis_type: 'dual_point',
+        primary_hex: analysis.primaryTone.hex,
+        secondary_hex: analysis.secondaryTone.hex,
+        undertone_consistency: analysis.undertoneConsistency
+      });
+      
+      // Find paired shade matches
+      const pairedMatches = await findPairedShadeMatches(analysis, 30);
+      
+      // Generate recommendation groups (4 different brands)
+      const groups = generateRecommendationGroups(pairedMatches);
+      
+      setRecommendationGroups(groups);
+      
+      // Convert to legacy format for skin tone display
+      setSkinToneAnalysis({
+        dominantTone: {
+          undertone: analysis.primaryTone.undertone.toLowerCase(),
+          depth: analysis.primaryTone.depth > 80 ? 'fair' :
+                 analysis.primaryTone.depth > 60 ? 'light' :
+                 analysis.primaryTone.depth > 40 ? 'medium' : 'deep',
+          confidence: analysis.primaryTone.confidence
+        },
+        secondaryTone: {
+          undertone: analysis.secondaryTone.undertone.toLowerCase(),
+          depth: analysis.secondaryTone.depth > 80 ? 'fair' :
+                 analysis.secondaryTone.depth > 60 ? 'light' :
+                 analysis.secondaryTone.depth > 40 ? 'medium' : 'deep',
+          confidence: analysis.secondaryTone.confidence
+        }
+      });
+      
+    } catch (error) {
+      console.error('Error processing dual-point analysis:', error);
+      toast({
+        title: "Error",
+        description: "Failed to process skin analysis",
+        variant: "destructive"
+      });
+    }
+  };
+
   const handleShadeRecommendations = async (newRecommendations: typeof recommendations) => {
     try {
-      // Record match usage when analysis is performed
+      // Record match usage when analysis is performed (fallback method)
       await recordMatch('virtual_try_on', {
         recommendations_count: newRecommendations.length,
         skin_analysis_performed: true
@@ -87,8 +141,6 @@ const VirtualTryOnPage = () => {
       setRecommendations(newRecommendations);
       // Extract skin tone analysis from the first recommendation if available
       if (newRecommendations.length > 0) {
-        // This would typically come from the actual skin analysis in VirtualTryOn
-        // For now, we'll create a sample analysis based on the recommendations
         const firstShade = newRecommendations[0].shade;
         setSkinToneAnalysis({
           dominantTone: {
@@ -178,43 +230,12 @@ const VirtualTryOnPage = () => {
 
             {canTryOn ? (
               <>
-                {/* Quick Start Options */}
-                <div className="grid md:grid-cols-2 gap-6 mb-8 max-w-4xl mx-auto">
-                  <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-                    <CardHeader className="text-center">
-                      <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Camera className="h-8 w-8 text-purple-600" />
-                      </div>
-                      <CardTitle>Use Camera</CardTitle>
-                      <CardDescription>
-                        Take a photo with your device camera for instant try-on
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <Button className="w-full" size="lg">
-                        <Camera className="w-5 h-5 mr-2" />
-                        Start Camera
-                      </Button>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-                    <CardHeader className="text-center">
-                      <div className="w-16 h-16 bg-rose-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Upload className="h-8 w-8 text-rose-600" />
-                      </div>
-                      <CardTitle>Upload Photo</CardTitle>
-                      <CardDescription>
-                        Upload an existing photo from your device
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <Button variant="outline" className="w-full" size="lg">
-                        <Upload className="w-5 h-5 mr-2" />
-                        Choose File
-                      </Button>
-                    </CardContent>
-                  </Card>
+                {/* Dual-Point Skin Analyzer */}
+                <div className="mb-8">
+                  <DualPointSkinAnalyzer 
+                    onAnalysisComplete={handleDualPointAnalysis}
+                    disabled={!canTryOn}
+                  />
                 </div>
 
                 {/* Show upgrade prompt for non-premium users who are running low on matches */}
@@ -230,54 +251,68 @@ const VirtualTryOnPage = () => {
                   </div>
                 )}
 
-                {/* Virtual Try-On Component */}
-                <div className="grid lg:grid-cols-3 gap-8">
-                  <div className="lg:col-span-1">
-                    <VirtualTryOn 
-                      selectedMatch={selectedMatch} 
-                      onShadeRecommendations={handleShadeRecommendations}
-                    />
+                {/* Skin Tone Analysis Display */}
+                {skinToneAnalysis && (
+                  <div className="mb-8">
+                    <SkinToneAnalysisDisplay analysis={{
+                      faceRegions: [],
+                      dominantTone: {
+                        hexColor: dualPointAnalysis?.primaryTone.hex || '#E8C5A0',
+                        undertone: skinToneAnalysis.dominantTone.undertone,
+                        depthLevel: skinToneAnalysis.dominantTone.depth === 'fair' ? 2 : 
+                                  skinToneAnalysis.dominantTone.depth === 'light' ? 4 :
+                                  skinToneAnalysis.dominantTone.depth === 'medium' ? 6 : 8,
+                        confidence: skinToneAnalysis.dominantTone.confidence
+                      },
+                      secondaryTone: skinToneAnalysis.secondaryTone ? {
+                        hexColor: dualPointAnalysis?.secondaryTone.hex || '#D4B896',
+                        undertone: skinToneAnalysis.secondaryTone.undertone,
+                        depthLevel: skinToneAnalysis.secondaryTone.depth === 'fair' ? 2 : 
+                                  skinToneAnalysis.secondaryTone.depth === 'light' ? 4 :
+                                  skinToneAnalysis.secondaryTone.depth === 'medium' ? 6 : 8,
+                        confidence: skinToneAnalysis.secondaryTone.confidence
+                      } : {
+                        hexColor: '#D4B896',
+                        undertone: 'neutral',
+                        depthLevel: 6,
+                        confidence: 0.7
+                      },
+                      overallConfidence: skinToneAnalysis.dominantTone.confidence
+                    }} />
                   </div>
-                  
-                  {/* Enhanced Product Recommendations */}
-                  <div className="lg:col-span-2 space-y-8">
-                    {/* Skin Tone Analysis */}
-                    {skinToneAnalysis && (
-                      <SkinToneAnalysisDisplay analysis={{
-                        faceRegions: [],
-                        dominantTone: {
-                          hexColor: '#E8C5A0',
-                          undertone: skinToneAnalysis.dominantTone.undertone,
-                          depthLevel: skinToneAnalysis.dominantTone.depth === 'fair' ? 2 : 
-                                    skinToneAnalysis.dominantTone.depth === 'light' ? 4 :
-                                    skinToneAnalysis.dominantTone.depth === 'medium' ? 6 : 8,
-                          confidence: skinToneAnalysis.dominantTone.confidence
-                        },
-                        secondaryTone: skinToneAnalysis.secondaryTone ? {
-                          hexColor: '#D4B896',
-                          undertone: skinToneAnalysis.secondaryTone.undertone,
-                          depthLevel: 6,
-                          confidence: skinToneAnalysis.secondaryTone.confidence
-                        } : {
-                          hexColor: '#D4B896',
-                          undertone: 'neutral',
-                          depthLevel: 6,
-                          confidence: 0.7
-                        },
-                        overallConfidence: skinToneAnalysis.dominantTone.confidence
-                      }} />
-                    )}
-                    
-                    {/* Product Recommendations - Limited to 4 groups */}
-                    {recommendations.length > 0 && (
-                      <EnhancedProductRecommendations 
-                        recommendations={recommendations.slice(0, 4)}
-                        onVirtualTryOn={handleVirtualTryOn}
-                        enableCart={true}
+                )}
+
+                {/* Paired Recommendations */}
+                {recommendationGroups.length > 0 && (
+                  <PairedRecommendations 
+                    recommendationGroups={recommendationGroups}
+                    onVirtualTryOn={handleVirtualTryOn}
+                    enableCart={true}
+                  />
+                )}
+
+                {/* Legacy Virtual Try-On (fallback) */}
+                {recommendationGroups.length === 0 && (
+                  <div className="grid lg:grid-cols-3 gap-8">
+                    <div className="lg:col-span-1">
+                      <VirtualTryOn 
+                        selectedMatch={selectedMatch} 
+                        onShadeRecommendations={handleShadeRecommendations}
                       />
-                    )}
+                    </div>
+                    
+                    <div className="lg:col-span-2 space-y-8">
+                      {/* Legacy Product Recommendations */}
+                      {recommendations.length > 0 && (
+                        <EnhancedProductRecommendations 
+                          recommendations={recommendations.slice(0, 4)}
+                          onVirtualTryOn={handleVirtualTryOn}
+                          enableCart={true}
+                        />
+                      )}
+                    </div>
                   </div>
-                </div>
+                )}
               </>
             ) : (
               /* Upgrade Prompt */

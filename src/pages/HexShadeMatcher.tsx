@@ -2,12 +2,21 @@ import React, { useState, useEffect } from 'react';
 import Header from '../components/Header';
 import SkinHexSwatches from '../components/SkinHexSwatches';
 import HexDataImporter from '../components/HexDataImporter';
+import DualPointSkinAnalyzer from '../components/DualPointSkinAnalyzer';
+import PairedRecommendations from '../components/PairedRecommendations';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Toaster } from '@/components/ui/toaster';
 import { analyzeSkinHex, findClosestShades, getSkinToneReferences, type ShadeMatch, type SkinToneHex } from '@/lib/hexShadeMatching';
+import { 
+  findPairedShadeMatches, 
+  generateRecommendationGroups, 
+  type DualPointAnalysis,
+  type RecommendationGroup 
+} from '@/lib/dualPointShadeMatching';
 import AuthGuard from '../components/AuthGuard';
 
 // Quick shade selection from database
@@ -33,13 +42,21 @@ const QuickShadeSelector = ({ skinTones, onSelect }: { skinTones: SkinToneHex[],
 };
 
 const HexShadeMatcher = () => {
+  // Single HEX analysis (legacy mode)
   const [userHex, setUserHex] = useState('#D4AA78');
   const [matches, setMatches] = useState<ShadeMatch[]>([]);
   const [analysis, setAnalysis] = useState<any>(null);
+  
+  // Dual-point analysis (new mode)
+  const [dualPointAnalysis, setDualPointAnalysis] = useState<DualPointAnalysis | null>(null);
+  const [recommendationGroups, setRecommendationGroups] = useState<RecommendationGroup[]>([]);
+  
+  // UI State
   const [showSwatches, setShowSwatches] = useState(false);
   const [skinTones, setSkinTones] = useState<SkinToneHex[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [activeTab, setActiveTab] = useState('dual-point');
 
   // Load skin tone references on component mount
   useEffect(() => {
@@ -79,6 +96,26 @@ const HexShadeMatcher = () => {
     }
   };
 
+  const handleDualPointAnalysis = async (analysis: DualPointAnalysis) => {
+    setDualPointAnalysis(analysis);
+    setIsAnalyzing(true);
+    
+    try {
+      // Find paired shade matches
+      const pairedMatches = await findPairedShadeMatches(analysis, 30);
+      
+      // Generate recommendation groups (4 different brands)
+      const groups = generateRecommendationGroups(pairedMatches);
+      
+      setRecommendationGroups(groups);
+    } catch (error) {
+      console.error('Error generating recommendations:', error);
+      alert('Error generating recommendations. Please try again.');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
   const getUndertoneColor = (undertone: string) => {
     switch (undertone) {
       case 'Cool': return 'bg-blue-100 text-blue-800';
@@ -97,62 +134,78 @@ const HexShadeMatcher = () => {
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-8">
               <h1 className="text-4xl font-bold text-gray-900 mb-4">
-                Advanced HEX Shade Matching
+                Professional Shade Matching
               </h1>
               <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-                Revolutionary shade matching using HEX-based color analysis, Lab color space calculations, 
-                and ΔE76 color difference algorithms for precise cross-brand recommendations.
+                Advanced dual-point skin analysis identifies your primary and secondary tones for 
+                the most accurate foundation matches across all lighting conditions.
               </p>
             </div>
 
-            {/* HEX Input and Analysis */}
-            <Card className="mb-8">
-              <CardHeader>
-                <CardTitle>Enter Your Skin HEX Color</CardTitle>
-                <CardDescription>
-                  Input your skin tone as a HEX color code for precise analysis and matching
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex gap-4 items-end">
-                  <div className="flex-1">
-                    <Input
-                      type="text"
-                      placeholder="#D4AA78"
-                      value={userHex}
-                      onChange={(e) => setUserHex(e.target.value)}
-                      className="font-mono text-lg"
-                    />
-                  </div>
-                  <div 
-                    className="w-16 h-10 rounded border-2 border-gray-300"
-                    style={{ backgroundColor: userHex }}
-                  />
-                  <Button onClick={handleAnalyze} size="lg" disabled={isAnalyzing}>
-                    {isAnalyzing ? 'Analyzing...' : 'Analyze & Match'}
-                  </Button>
-                </div>
-                
-                 {!isLoading && (
-                   <QuickShadeSelector 
-                     skinTones={skinTones} 
-                     onSelect={(hex) => {
-                       setUserHex(hex);
-                       handleAnalyze();
-                     }} 
-                   />
-                 )}
-                 
-                 <div className="mt-4 flex gap-2">
-                   <Button 
-                     variant="outline" 
-                     onClick={() => setShowSwatches(!showSwatches)}
-                   >
-                     {showSwatches ? 'Hide' : 'Show'} HEX Reference Swatches
-                   </Button>
-                 </div>
-              </CardContent>
-            </Card>
+            {/* Analysis Method Tabs */}
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-8">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="dual-point">Dual-Point Analysis (Recommended)</TabsTrigger>
+                <TabsTrigger value="single-hex">Single HEX Analysis</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="dual-point" className="space-y-6">
+                <DualPointSkinAnalyzer 
+                  onAnalysisComplete={handleDualPointAnalysis}
+                  disabled={isAnalyzing}
+                />
+              </TabsContent>
+              
+              <TabsContent value="single-hex" className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Enter Your Skin HEX Color</CardTitle>
+                    <CardDescription>
+                      Input your skin tone as a HEX color code for basic analysis and matching
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex gap-4 items-end">
+                      <div className="flex-1">
+                        <Input
+                          type="text"
+                          placeholder="#D4AA78"
+                          value={userHex}
+                          onChange={(e) => setUserHex(e.target.value)}
+                          className="font-mono text-lg"
+                        />
+                      </div>
+                      <div 
+                        className="w-16 h-10 rounded border-2 border-gray-300"
+                        style={{ backgroundColor: userHex }}
+                      />
+                      <Button onClick={handleAnalyze} size="lg" disabled={isAnalyzing}>
+                        {isAnalyzing ? 'Analyzing...' : 'Analyze & Match'}
+                      </Button>
+                    </div>
+                    
+                     {!isLoading && (
+                       <QuickShadeSelector 
+                         skinTones={skinTones} 
+                         onSelect={(hex) => {
+                           setUserHex(hex);
+                           handleAnalyze();
+                         }} 
+                       />
+                     )}
+                     
+                     <div className="mt-4 flex gap-2">
+                       <Button 
+                         variant="outline" 
+                         onClick={() => setShowSwatches(!showSwatches)}
+                       >
+                         {showSwatches ? 'Hide' : 'Show'} HEX Reference Swatches
+                       </Button>
+                     </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
 
             {/* Analysis Results */}
             {analysis && (
@@ -270,33 +323,34 @@ const HexShadeMatcher = () => {
             {/* How It Works */}
             <Card>
               <CardHeader>
-                <CardTitle>How The HEX Matching System Works</CardTitle>
+                <CardTitle>How Our Advanced Matching Works</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <h4 className="font-semibold mb-2">1. HEX to Lab Conversion</h4>
+                    <h4 className="font-semibold mb-2">1. Dual-Point Analysis</h4>
                     <p className="text-sm text-gray-600 mb-4">
-                      Your skin HEX is converted to Lab color space for perceptually uniform color analysis.
+                      Analyzes both your primary skin tone (front of face) and secondary tone (shadow areas) 
+                      for comprehensive matching that works in all lighting.
                     </p>
                     
-                    <h4 className="font-semibold mb-2">2. Undertone Classification</h4>
+                    <h4 className="font-semibold mb-2">2. Paired Recommendations</h4>
                     <p className="text-sm text-gray-600 mb-4">
-                      Based on a* and b* values: Cool (negative a*), Warm (positive a* + b*), 
-                      Olive (negative a*, low b*), or Neutral.
+                      Matches products for both tones, prioritizing same-brand pairs for consistent 
+                      formulation and finish.
                     </p>
                   </div>
                   <div>
-                    <h4 className="font-semibold mb-2">3. ΔE76 Color Distance</h4>
+                    <h4 className="font-semibold mb-2">3. Cross-Brand Grouping</h4>
                     <p className="text-sm text-gray-600 mb-4">
-                      Calculate precise color difference between your skin and foundation shades 
-                      using the ΔE76 formula.
+                      Presents 4 recommendation groups from different brands, each with multiple 
+                      shade pairs ranked by compatibility.
                     </p>
                     
-                    <h4 className="font-semibold mb-2">4. Undertone Compatibility</h4>
+                    <h4 className="font-semibold mb-2">4. Lab Color Precision</h4>
                     <p className="text-sm text-gray-600">
-                      Apply penalties for undertone mismatches to ensure natural-looking results 
-                      across different brands and products.
+                      Uses Lab color space and ΔE76 calculations for scientifically accurate 
+                      color matching across all skin tones.
                     </p>
                   </div>
                 </div>
