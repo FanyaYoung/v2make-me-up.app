@@ -13,6 +13,8 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Palette, Camera, Search, Sparkles } from 'lucide-react';
+import { useCart } from '@/contexts/CartContext';
+import { toast } from '@/hooks/use-toast';
 import { 
   findBestShadeMatches, 
   SkinToneAnalysis, 
@@ -38,6 +40,7 @@ interface UserQuestionnaireData {
 }
 
 const EnhancedFoundationMatcher = () => {
+  const { addToCart } = useCart();
   const [skinTone, setSkinTone] = useState<SkinToneData | null>(null);
   const [foundationPairs, setFoundationPairs] = useState<FoundationMatch[][]>([]);
   const [selectedMatch, setSelectedMatch] = useState<FoundationMatch | null>(null);
@@ -343,8 +346,17 @@ const EnhancedFoundationMatcher = () => {
                       <Button variant="outline" size="sm" onClick={() => handleTryVirtual(match)}>
                         Try Virtual
                       </Button>
-                      <Button size="sm" onClick={() => handleProductSelection([match])}>
-                        Purchase
+                      <Button 
+                        size="sm" 
+                        onClick={() => {
+                          addToCart(match);
+                          toast({
+                            title: "Added to Cart",
+                            description: `${match.brand} ${match.shade} added to cart. Go to cart to checkout with Stripe.`,
+                          });
+                        }}
+                      >
+                        Add to Cart
                       </Button>
                     </div>
                   </div>

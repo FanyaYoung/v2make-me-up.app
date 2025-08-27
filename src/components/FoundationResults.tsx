@@ -220,13 +220,13 @@ const FoundationResults = ({
                       View Details
                     </Button>
                     
-                    {/* Add to Cart Buttons */}
+                    {/* Add to Cart and Buy Now Buttons */}
                     <Button 
                       className="bg-gradient-to-r from-rose-500 to-purple-500 text-white"
                       onClick={() => handleAddToCart(match, 'primary')}
                     >
                       <ShoppingCart className="w-4 h-4 mr-2" />
-                      Add Main Shade
+                      Add to Cart
                     </Button>
                     
                     {match.contourShade && (
