@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
+import { useSubscription } from './useSubscription';
+import { useUserRole } from './useUserRole';
 
 interface MatchStats {
   total_matches_today: number;
@@ -23,6 +25,8 @@ interface MatchUsage {
 
 export const useMatchTracking = () => {
   const { user } = useAuth();
+  const { isPremium } = useSubscription();
+  const { hasUnlimitedAccess } = useUserRole();
   const [matchUsage, setMatchUsage] = useState<MatchUsage>({
     usedToday: 0,
     usedThisWeek: 0,
@@ -59,6 +63,13 @@ export const useMatchTracking = () => {
     }
   };
 
+  const canPerformMatch = (): boolean => {
+    if (!user) return false;
+    if (hasUnlimitedAccess) return true; // SuperAdmin bypass
+    if (isPremium) return true; // Premium users have unlimited matches
+    return matchUsage.usedToday < 3; // Free users get 3 matches per day
+  };
+
   const recordMatch = async (matchType: 'virtual_try_on' | 'shade_match' | 'skin_analysis', metadata?: any) => {
     if (!user?.id) return;
 
@@ -91,6 +102,8 @@ export const useMatchTracking = () => {
   return {
     matchUsage,
     recordMatch,
-    refreshStats: fetchMatchStats
+    refreshStats: fetchMatchStats,
+    canPerformMatch,
+    hasUnlimitedAccess
   };
 };

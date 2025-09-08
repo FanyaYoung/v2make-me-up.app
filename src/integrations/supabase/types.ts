@@ -2480,6 +2480,30 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_skin_analysis: {
         Row: {
           analysis_data: Json | null
@@ -2775,6 +2799,10 @@ export type Database = {
         Args: { user_uuid: string }
         Returns: Json
       }
+      get_user_role: {
+        Args: { _user_id: string }
+        Returns: Database["public"]["Enums"]["app_role"]
+      }
       gtrgm_compress: {
         Args: { "": unknown }
         Returns: unknown
@@ -2811,6 +2839,13 @@ export type Database = {
         Args: { "": unknown[] }
         Returns: number
       }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       hex_to_oklab: {
         Args: { hex: string }
         Returns: {
@@ -2837,6 +2872,10 @@ export type Database = {
       }
       is_admin_user: {
         Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      is_superadmin: {
+        Args: { _user_id?: string }
         Returns: boolean
       }
       ivfflat_bit_support: {
@@ -2921,6 +2960,7 @@ export type Database = {
       }
     }
     Enums: {
+      app_role: "superadmin" | "admin" | "premium" | "user"
       coverage_level: "light" | "medium" | "full" | "buildable"
       finish_type: "matte" | "satin" | "natural" | "dewy" | "radiant"
       skin_type: "dry" | "oily" | "combination" | "sensitive" | "normal"
@@ -3052,6 +3092,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_role: ["superadmin", "admin", "premium", "user"],
       coverage_level: ["light", "medium", "full", "buildable"],
       finish_type: ["matte", "satin", "natural", "dewy", "radiant"],
       skin_type: ["dry", "oily", "combination", "sensitive", "normal"],

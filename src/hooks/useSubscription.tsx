@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
+import { useUserRole } from './useUserRole';
 
 export interface SubscriptionStatus {
   subscribed: boolean;
@@ -11,6 +12,7 @@ export interface SubscriptionStatus {
 
 export const useSubscription = () => {
   const { user } = useAuth();
+  const { hasUnlimitedAccess, isSuperAdmin } = useUserRole();
   const [subscription, setSubscription] = useState<SubscriptionStatus>({
     subscribed: false,
     subscription_tier: null,
@@ -87,7 +89,7 @@ export const useSubscription = () => {
     checkSubscription();
   }, [user]);
 
-  const isPremium = subscription.subscribed && subscription.subscription_tier !== null;
+  const isPremium = (subscription.subscribed && subscription.subscription_tier !== null) || hasUnlimitedAccess;
   const isOneTime = subscription.subscription_tier === 'one_time';
   const isRecurring = subscription.subscription_tier === 'weekly' || subscription.subscription_tier === 'monthly' || subscription.subscription_tier === 'yearly';
 
@@ -99,5 +101,7 @@ export const useSubscription = () => {
     checkSubscription,
     createCheckout,
     openCustomerPortal,
+    hasUnlimitedAccess,
+    isSuperAdmin,
   };
 };
