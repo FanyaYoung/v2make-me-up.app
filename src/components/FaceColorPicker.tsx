@@ -206,92 +206,127 @@ export const FaceColorPicker: React.FC<FaceColorPickerProps> = ({
 
   const matchWithFoundations = async (light: { r: number; g: number; b: number }, dark: { r: number; g: number; b: number }) => {
     try {
-      // Fetch products from productsandshadeswithimages table
+      // Fetch ALL products with hex colors
       const { data: products, error } = await supabase
         .from('productsandshadeswithimages')
-        .select('brand, product, name, hex, url, "imgSrc"')
+        .select('brand, product, name, hex, "Swatch: hex"')
         .not('hex', 'is', null);
 
       if (error) throw error;
+      if (!products || products.length === 0) return [];
 
-      const matches: FoundationMatch[] = [];
-
-      // Convert our sampled colors to Lab
+      // Convert sampled colors to Lab
       const lightRgb = hexToRgb(toHex(light.r, light.g, light.b));
       const darkRgb = hexToRgb(toHex(dark.r, dark.g, dark.b));
-      
       if (!lightRgb || !darkRgb) return [];
 
       const lightLab = xyzToLab(rgbToXyz(lightRgb));
       const darkLab = xyzToLab(rgbToXyz(darkRgb));
 
-      // Calculate blended mid-tone
-      const blendedRgb = {
-        r: Math.round((light.r + dark.r) / 2),
-        g: Math.round((light.g + dark.g) / 2),
-        b: Math.round((light.b + dark.b) / 2),
-      };
-      const blendedLab = xyzToLab(rgbToXyz(blendedRgb));
+      // Group products by brand and find best light + dark per brand
+      const brandMap = new Map<string, {
+        lightMatch: { product: any; deltaE: number } | null;
+        darkMatch: { product: any; deltaE: number } | null;
+      }>();
 
-      // Find closest matches for each
-      products?.forEach((product: any) => {
-        if (!product.hex) return;
+      products.forEach((product: any) => {
+        if (!product.hex || !product.brand) return;
 
         const productRgb = hexToRgb(product.hex);
         if (!productRgb) return;
 
         const productLab = xyzToLab(rgbToXyz(productRgb));
-
-        // Calculate Delta E for each target
         const lightDelta = deltaE2000(lightLab, productLab);
         const darkDelta = deltaE2000(darkLab, productLab);
-        const blendedDelta = deltaE2000(blendedLab, productLab);
 
-        matches.push({
-          brand: product.brand,
-          product: product.product,
-          shade: product.name,
-          hex: product.hex,
-          deltaE: lightDelta,
-          purpose: 'lightest',
-        });
+        const brand = product.brand;
+        if (!brandMap.has(brand)) {
+          brandMap.set(brand, { lightMatch: null, darkMatch: null });
+        }
 
-        matches.push({
-          brand: product.brand,
-          product: product.product,
-          shade: product.name,
-          hex: product.hex,
-          deltaE: darkDelta,
-          purpose: 'darkest',
-        });
+        const entry = brandMap.get(brand)!;
+        
+        // Update best light match for this brand
+        if (!entry.lightMatch || lightDelta < entry.lightMatch.deltaE) {
+          entry.lightMatch = { product, deltaE: lightDelta };
+        }
 
-        matches.push({
-          brand: product.brand,
-          product: product.product,
-          shade: product.name,
-          hex: product.hex,
-          deltaE: blendedDelta,
-          purpose: 'blended',
-        });
+        // Update best dark match for this brand
+        if (!entry.darkMatch || darkDelta < entry.darkMatch.deltaE) {
+          entry.darkMatch = { product, deltaE: darkDelta };
+        }
       });
 
-      // Sort and get top 3 for each purpose
-      const topLightest = matches
-        .filter(m => m.purpose === 'lightest')
-        .sort((a, b) => a.deltaE - b.deltaE)
-        .slice(0, 3);
+      // Create brand pairs with combined distance
+      interface BrandPair {
+        brand: string;
+        pairDistance: number;
+        lightMatch: FoundationMatch;
+        darkMatch: FoundationMatch;
+        tier?: 'high' | 'mid' | 'low';
+      }
 
-      const topDarkest = matches
-        .filter(m => m.purpose === 'darkest')
-        .sort((a, b) => a.deltaE - b.deltaE)
-        .slice(0, 3);
+      const brandPairs: BrandPair[] = [];
+      brandMap.forEach((value, brand) => {
+        if (value.lightMatch && value.darkMatch) {
+          const pairDistance = value.lightMatch.deltaE + value.darkMatch.deltaE;
+          
+          brandPairs.push({
+            brand,
+            pairDistance,
+            lightMatch: {
+              brand,
+              product: value.lightMatch.product.product,
+              shade: value.lightMatch.product.name,
+              hex: value.lightMatch.product.hex,
+              deltaE: value.lightMatch.deltaE,
+              purpose: 'lightest',
+            },
+            darkMatch: {
+              brand,
+              product: value.darkMatch.product.product,
+              shade: value.darkMatch.product.name,
+              hex: value.darkMatch.product.hex,
+              deltaE: value.darkMatch.deltaE,
+              purpose: 'darkest',
+            },
+          });
+        }
+      });
 
-      const topBlended = matches
-        .filter(m => m.purpose === 'blended')
-        .sort((a, b) => a.deltaE - b.deltaE)
-        .slice(0, 3);
+      // Sort by pair distance (best color match first)
+      brandPairs.sort((a, b) => a.pairDistance - b.pairDistance);
 
-      return [...topLightest, ...topDarkest, ...topBlended];
+      // Simple tier assignment based on brand name patterns
+      // High-end: Fenty, NARS, MAC, Charlotte Tilbury, Tom Ford, etc.
+      // Mid: Maybelline, L'Oreal, Revlon, NYX, etc.
+      // Low: e.l.f., Wet n Wild, etc.
+      const highEndBrands = ['fenty', 'nars', 'mac', 'charlotte tilbury', 'tom ford', 'ysl', 'dior', 'chanel', 'estee lauder', 'lancome', 'giorgio armani'];
+      const lowEndBrands = ['e.l.f', 'elf', 'wet n wild', 'essence', 'nyx'];
+
+      brandPairs.forEach(pair => {
+        const brandLower = pair.brand.toLowerCase();
+        if (highEndBrands.some(b => brandLower.includes(b))) {
+          pair.tier = 'high';
+        } else if (lowEndBrands.some(b => brandLower.includes(b))) {
+          pair.tier = 'low';
+        } else {
+          pair.tier = 'mid';
+        }
+      });
+
+      // Select top matches per tier: 6 high, 8 mid, 1 low
+      const highEnd = brandPairs.filter(p => p.tier === 'high').slice(0, 6);
+      const mid = brandPairs.filter(p => p.tier === 'mid').slice(0, 8);
+      const low = brandPairs.filter(p => p.tier === 'low').slice(0, 1);
+
+      // Combine all matches
+      const finalMatches: FoundationMatch[] = [];
+      [...highEnd, ...mid, ...low].forEach(pair => {
+        finalMatches.push(pair.lightMatch, pair.darkMatch);
+      });
+
+      return finalMatches;
     } catch (error) {
       console.error('Error matching foundations:', error);
       toast.error('Failed to match with foundations');
@@ -569,64 +604,167 @@ export const FaceColorPicker: React.FC<FaceColorPickerProps> = ({
 
             {result.matches && result.matches.length > 0 && (
               <div className="space-y-4">
-                <h3 className="font-semibold">Foundation Matches</h3>
+                <h3 className="font-semibold">Foundation Matches by Price Tier</h3>
                 
-                <div className="space-y-3">
-                  <h4 className="text-sm font-medium text-muted-foreground">For Highlight Areas</h4>
-                  {result.matches
-                    .filter(m => m.purpose === 'lightest')
-                    .map((match, idx) => (
-                      <div key={`light-${idx}`} className="flex items-center gap-3 p-3 border rounded-lg">
-                        <div
-                          className="w-12 h-12 rounded border flex-shrink-0"
-                          style={{ backgroundColor: match.hex }}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate">{match.brand} - {match.product}</p>
-                          <p className="text-sm text-muted-foreground truncate">{match.shade}</p>
-                          <p className="text-xs text-muted-foreground">ΔE: {match.deltaE.toFixed(2)}</p>
-                        </div>
-                      </div>
-                    ))}
-                </div>
+                {/* Group matches by brand and tier */}
+                {(() => {
+                  const brands = new Map<string, { light?: any; dark?: any }>();
+                  result.matches.forEach(match => {
+                    if (!brands.has(match.brand)) {
+                      brands.set(match.brand, {});
+                    }
+                    const brandEntry = brands.get(match.brand)!;
+                    if (match.purpose === 'lightest') {
+                      brandEntry.light = match;
+                    } else if (match.purpose === 'darkest') {
+                      brandEntry.dark = match;
+                    }
+                  });
 
-                <div className="space-y-3">
-                  <h4 className="text-sm font-medium text-muted-foreground">For Contour Areas</h4>
-                  {result.matches
-                    .filter(m => m.purpose === 'darkest')
-                    .map((match, idx) => (
-                      <div key={`dark-${idx}`} className="flex items-center gap-3 p-3 border rounded-lg">
-                        <div
-                          className="w-12 h-12 rounded border flex-shrink-0"
-                          style={{ backgroundColor: match.hex }}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate">{match.brand} - {match.product}</p>
-                          <p className="text-sm text-muted-foreground truncate">{match.shade}</p>
-                          <p className="text-xs text-muted-foreground">ΔE: {match.deltaE.toFixed(2)}</p>
-                        </div>
-                      </div>
-                    ))}
-                </div>
+                  // Determine tier for display grouping
+                  const highEndBrands = ['fenty', 'nars', 'mac', 'charlotte tilbury', 'tom ford', 'ysl', 'dior', 'chanel', 'estee lauder', 'lancome', 'giorgio armani'];
+                  const lowEndBrands = ['e.l.f', 'elf', 'wet n wild', 'essence', 'nyx'];
+                  
+                  const brandsByTier = {
+                    high: [] as Array<{ brand: string; light?: any; dark?: any }>,
+                    mid: [] as Array<{ brand: string; light?: any; dark?: any }>,
+                    low: [] as Array<{ brand: string; light?: any; dark?: any }>,
+                  };
 
-                <div className="space-y-3">
-                  <h4 className="text-sm font-medium text-muted-foreground">Blended Mid-Tone</h4>
-                  {result.matches
-                    .filter(m => m.purpose === 'blended')
-                    .map((match, idx) => (
-                      <div key={`blend-${idx}`} className="flex items-center gap-3 p-3 border rounded-lg">
-                        <div
-                          className="w-12 h-12 rounded border flex-shrink-0"
-                          style={{ backgroundColor: match.hex }}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate">{match.brand} - {match.product}</p>
-                          <p className="text-sm text-muted-foreground truncate">{match.shade}</p>
-                          <p className="text-xs text-muted-foreground">ΔE: {match.deltaE.toFixed(2)}</p>
+                  brands.forEach((matches, brand) => {
+                    const brandLower = brand.toLowerCase();
+                    let tier: 'high' | 'mid' | 'low' = 'mid';
+                    if (highEndBrands.some(b => brandLower.includes(b))) {
+                      tier = 'high';
+                    } else if (lowEndBrands.some(b => brandLower.includes(b))) {
+                      tier = 'low';
+                    }
+                    if (matches.light && matches.dark) {
+                      brandsByTier[tier].push({ brand, ...matches });
+                    }
+                  });
+
+                  return (
+                    <>
+                      {brandsByTier.high.length > 0 && (
+                        <div className="space-y-3">
+                          <h4 className="text-sm font-medium text-muted-foreground">High-End Options</h4>
+                          {brandsByTier.high.map((entry) => (
+                            <div key={entry.brand} className="p-4 border rounded-lg">
+                              <div className="font-medium mb-3">{entry.brand}</div>
+                              <div className="grid grid-cols-2 gap-4">
+                                {entry.light && (
+                                  <div>
+                                    <div className="text-xs text-muted-foreground mb-2">Light/Highlight</div>
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-10 h-10 rounded border flex-shrink-0" style={{ backgroundColor: entry.light.hex }} />
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium truncate">{entry.light.product}</p>
+                                        <p className="text-xs text-muted-foreground truncate">{entry.light.shade}</p>
+                                        <p className="text-xs text-muted-foreground">ΔE: {entry.light.deltaE.toFixed(2)}</p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                                {entry.dark && (
+                                  <div>
+                                    <div className="text-xs text-muted-foreground mb-2">Dark/Contour</div>
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-10 h-10 rounded border flex-shrink-0" style={{ backgroundColor: entry.dark.hex }} />
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium truncate">{entry.dark.product}</p>
+                                        <p className="text-xs text-muted-foreground truncate">{entry.dark.shade}</p>
+                                        <p className="text-xs text-muted-foreground">ΔE: {entry.dark.deltaE.toFixed(2)}</p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                      </div>
-                    ))}
-                </div>
+                      )}
+
+                      {brandsByTier.mid.length > 0 && (
+                        <div className="space-y-3">
+                          <h4 className="text-sm font-medium text-muted-foreground">Mid-Range Options</h4>
+                          {brandsByTier.mid.map((entry) => (
+                            <div key={entry.brand} className="p-4 border rounded-lg">
+                              <div className="font-medium mb-3">{entry.brand}</div>
+                              <div className="grid grid-cols-2 gap-4">
+                                {entry.light && (
+                                  <div>
+                                    <div className="text-xs text-muted-foreground mb-2">Light/Highlight</div>
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-10 h-10 rounded border flex-shrink-0" style={{ backgroundColor: entry.light.hex }} />
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium truncate">{entry.light.product}</p>
+                                        <p className="text-xs text-muted-foreground truncate">{entry.light.shade}</p>
+                                        <p className="text-xs text-muted-foreground">ΔE: {entry.light.deltaE.toFixed(2)}</p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                                {entry.dark && (
+                                  <div>
+                                    <div className="text-xs text-muted-foreground mb-2">Dark/Contour</div>
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-10 h-10 rounded border flex-shrink-0" style={{ backgroundColor: entry.dark.hex }} />
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium truncate">{entry.dark.product}</p>
+                                        <p className="text-xs text-muted-foreground truncate">{entry.dark.shade}</p>
+                                        <p className="text-xs text-muted-foreground">ΔE: {entry.dark.deltaE.toFixed(2)}</p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {brandsByTier.low.length > 0 && (
+                        <div className="space-y-3">
+                          <h4 className="text-sm font-medium text-muted-foreground">Budget Option</h4>
+                          {brandsByTier.low.map((entry) => (
+                            <div key={entry.brand} className="p-4 border rounded-lg">
+                              <div className="font-medium mb-3">{entry.brand}</div>
+                              <div className="grid grid-cols-2 gap-4">
+                                {entry.light && (
+                                  <div>
+                                    <div className="text-xs text-muted-foreground mb-2">Light/Highlight</div>
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-10 h-10 rounded border flex-shrink-0" style={{ backgroundColor: entry.light.hex }} />
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium truncate">{entry.light.product}</p>
+                                        <p className="text-xs text-muted-foreground truncate">{entry.light.shade}</p>
+                                        <p className="text-xs text-muted-foreground">ΔE: {entry.light.deltaE.toFixed(2)}</p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                                {entry.dark && (
+                                  <div>
+                                    <div className="text-xs text-muted-foreground mb-2">Dark/Contour</div>
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-10 h-10 rounded border flex-shrink-0" style={{ backgroundColor: entry.dark.hex }} />
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium truncate">{entry.dark.product}</p>
+                                        <p className="text-xs text-muted-foreground truncate">{entry.dark.shade}</p>
+                                        <p className="text-xs text-muted-foreground">ΔE: {entry.dark.deltaE.toFixed(2)}</p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             )}
           </div>
