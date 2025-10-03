@@ -206,11 +206,11 @@ export const FaceColorPicker: React.FC<FaceColorPickerProps> = ({
 
   const matchWithFoundations = async (light: { r: number; g: number; b: number }, dark: { r: number; g: number; b: number }) => {
     try {
-      // Fetch foundation shades from database
-      const { data: shades, error } = await supabase
-        .from('foundation_shades')
-        .select('id, product_id, shade_name, hex_color, products(brand_name, product_name)')
-        .not('hex_color', 'is', null);
+      // Fetch products from productsandshadeswithimages table
+      const { data: products, error } = await supabase
+        .from('productsandshadeswithimages')
+        .select('brand, product, name, hex, url, "imgSrc"')
+        .not('hex', 'is', null);
 
       if (error) throw error;
 
@@ -234,42 +234,42 @@ export const FaceColorPicker: React.FC<FaceColorPickerProps> = ({
       const blendedLab = xyzToLab(rgbToXyz(blendedRgb));
 
       // Find closest matches for each
-      shades?.forEach((shade: any) => {
-        if (!shade.hex_color || !shade.products) return;
+      products?.forEach((product: any) => {
+        if (!product.hex) return;
 
-        const shadeRgb = hexToRgb(shade.hex_color);
-        if (!shadeRgb) return;
+        const productRgb = hexToRgb(product.hex);
+        if (!productRgb) return;
 
-        const shadeLab = xyzToLab(rgbToXyz(shadeRgb));
+        const productLab = xyzToLab(rgbToXyz(productRgb));
 
         // Calculate Delta E for each target
-        const lightDelta = deltaE2000(lightLab, shadeLab);
-        const darkDelta = deltaE2000(darkLab, shadeLab);
-        const blendedDelta = deltaE2000(blendedLab, shadeLab);
+        const lightDelta = deltaE2000(lightLab, productLab);
+        const darkDelta = deltaE2000(darkLab, productLab);
+        const blendedDelta = deltaE2000(blendedLab, productLab);
 
         matches.push({
-          brand: shade.products.brand_name,
-          product: shade.products.product_name,
-          shade: shade.shade_name,
-          hex: shade.hex_color,
+          brand: product.brand,
+          product: product.product,
+          shade: product.name,
+          hex: product.hex,
           deltaE: lightDelta,
           purpose: 'lightest',
         });
 
         matches.push({
-          brand: shade.products.brand_name,
-          product: shade.products.product_name,
-          shade: shade.shade_name,
-          hex: shade.hex_color,
+          brand: product.brand,
+          product: product.product,
+          shade: product.name,
+          hex: product.hex,
           deltaE: darkDelta,
           purpose: 'darkest',
         });
 
         matches.push({
-          brand: shade.products.brand_name,
-          product: shade.products.product_name,
-          shade: shade.shade_name,
-          hex: shade.hex_color,
+          brand: product.brand,
+          product: product.product,
+          shade: product.name,
+          hex: product.hex,
           deltaE: blendedDelta,
           purpose: 'blended',
         });
