@@ -46,7 +46,7 @@ const CosmeticsBrowser = () => {
     { value: 'database', label: 'Other Stores' }
   ];
 
-  // Fetch cosmetics products
+  // Fetch cosmetics products with proper image handling
   const { data: products, isLoading } = useQuery({
     queryKey: ['cosmetics-products', searchTerm, categoryFilter, retailerFilter, sortBy],
     queryFn: async () => {
@@ -70,12 +70,11 @@ const CosmeticsBrowser = () => {
 
       // Apply retailer filter
       if (retailerFilter !== 'all') {
-        // Filter based on dataset_name or metadata that indicates retailer
         const retailerPatterns: Record<string, string[]> = {
           ulta: ['ulta', 'Ulta'],
           sephora: ['sephora', 'Sephora'],
           macys: ['macys', "macy's", "Macy's"],
-          database: [] // Will show products not matching other retailers
+          database: []
         };
         
         const patterns = retailerPatterns[retailerFilter];
@@ -110,7 +109,7 @@ const CosmeticsBrowser = () => {
         console.error('Error fetching cosmetics products:', error);
         throw error;
       }
-      console.log('Cosmetics products fetched:', data);
+      
       return data as CosmeticsProduct[];
     },
   });
@@ -220,70 +219,75 @@ const CosmeticsBrowser = () => {
 
       {/* Products Grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-        {products?.map((product) => (
-          <Card key={product.id} className="group bg-white shadow hover:shadow-xl transition-all duration-300 overflow-hidden border-0">
-            <div className="aspect-square relative overflow-hidden bg-gray-100">
-              {product.image_url ? (
-                <img
-                  src={product.image_url}
-                  alt={product.product_name}
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.style.display = 'none';
-                    const fallback = target.nextElementSibling as HTMLDivElement;
-                    if (fallback) fallback.style.display = 'flex';
-                  }}
-                />
-              ) : null}
-              {/* Fallback color swatch */}
-              <div 
-                className={`absolute inset-0 ${product.image_url ? 'hidden' : 'flex'} items-center justify-center text-white font-medium text-xs`}
-                style={{ backgroundColor: generateShadeColor(product.metadata) }}
-              >
-                {product.brands?.name}
-              </div>
-              
-              {product.product_type && (
-                <Badge className="absolute top-2 left-2 bg-white/90 text-gray-800 text-xs">
-                  {product.product_type}
-                </Badge>
-              )}
-            </div>
-
-            <CardContent className="p-3">
-              <div className="space-y-1">
-                <div className="text-xs text-gray-500 font-medium truncate">
-                  {product.brands?.name}
-                </div>
-                <h3 className="font-semibold text-sm text-gray-800 line-clamp-2 min-h-[2.5rem]">
-                  {product.product_name}
-                </h3>
+        {products?.map((product) => {
+          const displayImage = product.image_url || product.brands?.logo_url;
+          
+          return (
+            <Card key={product.id} className="group bg-white shadow hover:shadow-xl transition-all duration-300 overflow-hidden border-0">
+              <div className="aspect-square relative overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200">
+                {displayImage ? (
+                  <img
+                    src={displayImage}
+                    alt={product.product_name}
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                    }}
+                  />
+                ) : (
+                  <div 
+                    className="absolute inset-0 flex items-center justify-center"
+                    style={{ backgroundColor: generateShadeColor(product.metadata) }}
+                  >
+                    <div className="text-center p-4">
+                      <div className="text-white font-bold text-xs mb-1">{product.brands?.name}</div>
+                      <div className="text-white/80 text-[10px] leading-tight line-clamp-2">{product.product_type}</div>
+                    </div>
+                  </div>
+                )}
                 
-                <div className="flex items-center justify-between pt-1">
-                  {product.price && (
-                    <div className="text-base font-bold text-gray-800">
-                      ${product.price.toFixed(2)}
-                    </div>
-                  )}
-                  {product.rating && (
-                    <div className="flex items-center gap-1">
-                      <Star className="w-3 h-3 text-yellow-400 fill-current" />
-                      <span className="text-xs text-gray-600">
-                        {product.rating.toFixed(1)}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                <Button size="sm" className="w-full mt-2" variant="outline">
-                  <ShoppingCart className="w-3 h-3 mr-1" />
-                  Shop
-                </Button>
+                {product.product_type && (
+                  <Badge className="absolute top-2 left-2 bg-white/90 text-gray-800 text-xs backdrop-blur-sm">
+                    {product.product_type}
+                  </Badge>
+                )}
               </div>
-            </CardContent>
-          </Card>
-        ))}
+
+              <CardContent className="p-3">
+                <div className="space-y-1">
+                  <div className="text-xs text-muted-foreground font-medium truncate">
+                    {product.brands?.name}
+                  </div>
+                  <h3 className="font-semibold text-sm line-clamp-2 min-h-[2.5rem]">
+                    {product.product_name}
+                  </h3>
+                  
+                  <div className="flex items-center justify-between pt-1">
+                    {product.price && (
+                      <div className="text-base font-bold">
+                        ${product.price.toFixed(2)}
+                      </div>
+                    )}
+                    {product.rating && (
+                      <div className="flex items-center gap-1">
+                        <Star className="w-3 h-3 text-yellow-400 fill-current" />
+                        <span className="text-xs text-muted-foreground">
+                          {product.rating.toFixed(1)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <Button size="sm" className="w-full mt-2" variant="outline">
+                    <ShoppingCart className="w-3 h-3 mr-1" />
+                    Shop
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       {products?.length === 0 && (
