@@ -3,7 +3,6 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
@@ -30,17 +29,26 @@ export default function LightingAwareFoundationMatcher() {
     e.preventDefault();
     setLoading(true);
 
+    const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+    const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    const FN_PATH = `${SUPABASE_URL}/functions/v1/match-foundations`;
+
     try {
-      const { data, error } = await supabase.functions.invoke('match-foundations', {
-        body: {
+      const res = await fetch(FN_PATH, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
+        },
+        body: JSON.stringify({
           user_hex: userHex,
           lighting_cct_k: Number(cct),
           lighting_cri: Number(cri),
           n_results: 5
-        }
+        })
       });
 
-      if (error) throw error;
+      const data = await res.json();
       if (!data.ok) throw new Error(data.error || "Unknown error");
 
       setTopMatches(data.top_matches || []);
@@ -130,33 +138,45 @@ export default function LightingAwareFoundationMatcher() {
 
 function MatchTable({ items }: { items: FoundationMatch[] }) {
   if (!items || items.length === 0) {
-    return <div className="text-muted-foreground text-center py-8">No results yet</div>;
+    return <div className="text-muted-foreground text-center py-8">Run the matcher to see results</div>;
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full">
-        <thead>
-          <tr className="border-b">
-            <th className="text-left py-2 px-2 text-sm font-medium">Swatch</th>
-            <th className="text-left py-2 px-2 text-sm font-medium">Shade</th>
-            <th className="text-left py-2 px-2 text-sm font-medium">Brand</th>
-            <th className="text-left py-2 px-2 text-sm font-medium">Undertone</th>
+    <div className="border rounded-lg overflow-hidden">
+      <table className="w-full border-collapse">
+        <thead className="bg-muted/50">
+          <tr>
+            <th className="text-left py-2 px-3 text-xs font-medium">Shade</th>
+            <th className="text-left py-2 px-3 text-xs font-medium">Brand</th>
+            <th className="text-left py-2 px-3 text-xs font-medium">Product</th>
+            <th className="text-left py-2 px-3 text-xs font-medium">UT</th>
+            <th className="text-left py-2 px-3 text-xs font-medium">Swatch</th>
+            <th className="text-left py-2 px-3 text-xs font-medium">Link</th>
           </tr>
         </thead>
         <tbody>
           {items.map((item, i) => (
-            <tr key={i} className="border-b hover:bg-muted/50">
-              <td className="py-3 px-2">
+            <tr key={i} className="border-t hover:bg-muted/30 transition-colors">
+              <td className="py-3 px-3 text-sm">{item.shade_name}</td>
+              <td className="py-3 px-3 text-sm">{item.brand}</td>
+              <td className="py-3 px-3 text-sm">{item.product}</td>
+              <td className="py-3 px-3 text-sm capitalize">{item.undertone}</td>
+              <td className="py-3 px-3">
                 <div
-                  className="w-8 h-8 rounded-md border"
+                  className="w-5 h-5 rounded border"
                   style={{ backgroundColor: item.hex }}
                   title={item.hex}
                 />
               </td>
-              <td className="py-3 px-2 text-sm">{item.shade_name}</td>
-              <td className="py-3 px-2 text-sm">{item.brand}</td>
-              <td className="py-3 px-2 text-sm capitalize">{item.undertone}</td>
+              <td className="py-3 px-3 text-sm">
+                {item.url ? (
+                  <a href={item.url} target="_blank" rel="noreferrer" className="text-primary hover:underline">
+                    View
+                  </a>
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )}
+              </td>
             </tr>
           ))}
         </tbody>

@@ -1,10 +1,11 @@
 
-import { Home, User, Palette, ShoppingCart, Package } from "lucide-react";
+import { Home, User, Palette, ShoppingCart, Package, Lightbulb } from "lucide-react";
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import ShadeMatcher from "./pages/ShadeMatcher";
 import CosmeticsLibrary from "./pages/CosmeticsLibrary";
 import Cart from "./pages/Cart";
+import LightingMatcher from "./pages/LightingMatcher";
 
 export const navItems = [
   {
@@ -18,6 +19,12 @@ export const navItems = [
     to: "/shade-matcher",
     icon: <Palette className="h-4 w-4" />,
     page: <ShadeMatcher />,
+  },
+  {
+    title: "Lighting Matcher",
+    to: "/lighting-matcher",
+    icon: <Lightbulb className="h-4 w-4" />,
+    page: <LightingMatcher />,
   },
   {
     title: "Browse Products",
