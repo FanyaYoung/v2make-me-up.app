@@ -116,122 +116,84 @@ const CosmeticsLibrary = () => {
       
       <div className="container mx-auto px-4 py-8">
         {/* Hero Image Section */}
-        <div className="relative rounded-lg overflow-hidden mb-8 max-w-4xl mx-auto">
+        <div className="relative rounded-3xl overflow-hidden mb-8 h-[400px]">
           <img 
             src="/lovable-uploads/85b7b25a-dc58-4496-afbd-3d128c5bce59.png"
             alt="Cosmetics library model"
-            className="w-full h-64 object-cover"
+            className="w-full h-full object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end">
-            <div className="p-6 text-white">
-              <h1 className="text-4xl font-bold mb-2">Cosmetics Library</h1>
-              <p className="text-lg text-gray-200">
-                Explore thousands of beauty products from top brands
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent flex items-end">
+            <div className="p-8 text-white max-w-2xl">
+              <Badge className="mb-4 bg-white/20 text-white border-0">
+                Beauty Products
+              </Badge>
+              <h1 className="text-5xl font-bold mb-3">Browse Makeup</h1>
+              <p className="text-xl text-gray-200">
+                Ulta · Sephora · Macy's & more
               </p>
             </div>
           </div>
         </div>
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Products</CardTitle>
-              <Package className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <Card className="bg-gradient-to-br from-rose-50 to-pink-50 border-0">
+            <CardContent className="p-6">
+              <Package className="h-8 w-8 text-rose-600 mb-2" />
+              <div className="text-3xl font-bold text-gray-800">
                 {totalStats ? (totalStats.total_cosmetics + totalStats.total_foundations).toLocaleString() : '0'}
               </div>
-              <p className="text-xs text-muted-foreground">
-                {totalStats?.total_cosmetics} cosmetics + {totalStats?.total_foundations} foundations
-              </p>
+              <p className="text-sm text-gray-600">Products</p>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Brands</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalStats?.total_brands || 0}</div>
-              <p className="text-xs text-muted-foreground">Active brands</p>
+          <Card className="bg-gradient-to-br from-purple-50 to-indigo-50 border-0">
+            <CardContent className="p-6">
+              <TrendingUp className="h-8 w-8 text-purple-600 mb-2" />
+              <div className="text-3xl font-bold text-gray-800">{totalStats?.total_brands || 0}</div>
+              <p className="text-sm text-gray-600">Brands</p>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Datasets</CardTitle>
-              <Database className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {importStats?.length || 0}
+          <Card className="bg-gradient-to-br from-pink-50 to-rose-50 border-0">
+            <CardContent className="p-6">
+              <Database className="h-8 w-8 text-pink-600 mb-2" />
+              <div className="text-3xl font-bold text-gray-800">{importStats?.length || 0}</div>
+              <p className="text-sm text-gray-600">Datasets</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-indigo-50 to-purple-50 border-0">
+            <CardContent className="p-6">
+              <Download className="h-8 w-8 text-indigo-600 mb-2" />
+              <div className="space-y-2">
+                <Button 
+                  onClick={handleImportFromKaggle}
+                  disabled={isImporting}
+                  className="w-full"
+                  size="sm"
+                  variant="outline"
+                >
+                  Import
+                </Button>
               </div>
-              <p className="text-xs text-muted-foreground">Imported from Kaggle</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Import Data</CardTitle>
-              <Download className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Button 
-                onClick={handleImportFromKaggle}
-                disabled={isImporting}
-                className="w-full"
-                size="sm"
-              >
-                {isImporting ? 'Importing...' : 'Import from Kaggle'}
-              </Button>
-              <Button 
-                onClick={handleImportFromGigasheet}
-                disabled={isImporting}
-                className="w-full"
-                size="sm"
-                variant="outline"
-              >
-                {isImporting ? 'Importing...' : 'Import from Gigasheet'}
-              </Button>
             </CardContent>
           </Card>
         </div>
 
-        {/* Import Statistics */}
+        {/* Import Statistics - Condensed */}
         {importStats && importStats.length > 0 && (
-          <Card className="mb-8">
-            <CardHeader>
-              <CardTitle>Dataset Import Statistics</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {importStats.map((stat: any, index: number) => (
-                  <div key={index} className="space-y-2 p-4 bg-gray-50 rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <Badge variant="outline">{stat.dataset_name}</Badge>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div>Products: <span className="font-semibold">{stat.total_products}</span></div>
-                      <div>Brands: <span className="font-semibold">{stat.brands_count}</span></div>
-                      <div>Avg Price: <span className="font-semibold">${stat.avg_price?.toFixed(2) || 'N/A'}</span></div>
-                      <div>Avg Rating: <span className="font-semibold">{stat.avg_rating?.toFixed(1) || 'N/A'}</span></div>
-                    </div>
-                  </div>
-                ))}
+          <div className="mb-8 flex gap-3 overflow-x-auto pb-2">
+            {importStats.map((stat: any, index: number) => (
+              <div key={index} className="flex-shrink-0 bg-white rounded-lg p-4 border border-gray-200 min-w-[200px]">
+                <Badge variant="outline" className="mb-2">{stat.dataset_name}</Badge>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div><span className="font-semibold">{stat.total_products}</span> items</div>
+                  <div><span className="font-semibold">{stat.brands_count}</span> brands</div>
+                </div>
               </div>
-            </CardContent>
-          </Card>
+            ))}
+          </div>
         )}
-
-        {/* Info Alert */}
-        <Alert className="mb-8">
-          <Database className="h-4 w-4" />
-          <AlertDescription>
-            This cosmetics library contains products imported from multiple Kaggle datasets, including foundations, lipsticks, eyeshadows, and more makeup products from major beauty brands worldwide.
-          </AlertDescription>
-        </Alert>
 
         {/* Cosmetics Browser */}
         <CosmeticsBrowser />

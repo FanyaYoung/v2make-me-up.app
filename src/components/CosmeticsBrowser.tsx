@@ -162,20 +162,12 @@ const CosmeticsBrowser = () => {
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
-      {/* Header and Search */}
-      <div className="text-center mb-8">
-        <h2 className="text-3xl font-bold text-gray-800 mb-2">Browse Makeup Products</h2>
-        <p className="text-gray-600">
-          Shop from Ulta, Sephora, Macy's, and more trusted retailers
-        </p>
-      </div>
-
       {/* Filters and Search */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
           <Input
-            placeholder="Search products..."
+            placeholder="Search..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
@@ -184,7 +176,7 @@ const CosmeticsBrowser = () => {
 
         <Select value={retailerFilter} onValueChange={setRetailerFilter}>
           <SelectTrigger>
-            <SelectValue placeholder="All Retailers" />
+            <SelectValue placeholder="Retailer" />
           </SelectTrigger>
           <SelectContent>
             {retailers.map((retailer) => (
@@ -197,7 +189,7 @@ const CosmeticsBrowser = () => {
         
         <Select value={categoryFilter} onValueChange={setCategoryFilter}>
           <SelectTrigger>
-            <SelectValue placeholder="All Categories" />
+            <SelectValue placeholder="Category" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Categories</SelectItem>
@@ -211,7 +203,7 @@ const CosmeticsBrowser = () => {
 
         <Select value={sortBy} onValueChange={setSortBy}>
           <SelectTrigger>
-            <SelectValue placeholder="Sort by" />
+            <SelectValue placeholder="Sort" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="name">Name A-Z</SelectItem>
@@ -221,21 +213,21 @@ const CosmeticsBrowser = () => {
           </SelectContent>
         </Select>
 
-        <div className="text-sm text-gray-600 flex items-center">
-          Showing {products?.length || 0} products
-        </div>
+        <Badge variant="outline" className="flex items-center justify-center">
+          {products?.length || 0} items
+        </Badge>
       </div>
 
       {/* Products Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
         {products?.map((product) => (
-          <Card key={product.id} className="bg-white shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
+          <Card key={product.id} className="group bg-white shadow hover:shadow-xl transition-all duration-300 overflow-hidden border-0">
             <div className="aspect-square relative overflow-hidden bg-gray-100">
               {product.image_url ? (
                 <img
                   src={product.image_url}
                   alt={product.product_name}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                   onError={(e) => {
                     const target = e.target as HTMLImageElement;
                     target.style.display = 'none';
@@ -246,87 +238,48 @@ const CosmeticsBrowser = () => {
               ) : null}
               {/* Fallback color swatch */}
               <div 
-                className={`absolute inset-0 ${product.image_url ? 'hidden' : 'flex'} items-center justify-center text-white font-medium text-sm`}
+                className={`absolute inset-0 ${product.image_url ? 'hidden' : 'flex'} items-center justify-center text-white font-medium text-xs`}
                 style={{ backgroundColor: generateShadeColor(product.metadata) }}
               >
                 {product.brands?.name}
               </div>
               
-              {/* Product type badge */}
               {product.product_type && (
-                <Badge className="absolute top-2 left-2 bg-white/90 text-gray-800">
+                <Badge className="absolute top-2 left-2 bg-white/90 text-gray-800 text-xs">
                   {product.product_type}
                 </Badge>
               )}
             </div>
 
-            <CardContent className="p-4">
-              <div className="space-y-2">
-                <div className="text-sm text-gray-600 font-medium">
+            <CardContent className="p-3">
+              <div className="space-y-1">
+                <div className="text-xs text-gray-500 font-medium truncate">
                   {product.brands?.name}
                 </div>
-                <h3 className="font-semibold text-gray-800 line-clamp-2 min-h-[2.5rem]">
+                <h3 className="font-semibold text-sm text-gray-800 line-clamp-2 min-h-[2.5rem]">
                   {product.product_name}
                 </h3>
                 
-                {product.metadata?.shade_name && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-600">Shade:</span>
-                    <span className="text-sm font-medium text-rose-600">
-                      {product.metadata.shade_name}
-                    </span>
-                    {product.metadata.hex_color && (
-                      <div 
-                        className="w-4 h-4 rounded-full border border-gray-300"
-                        style={{ backgroundColor: product.metadata.hex_color }}
-                        title={product.metadata.shade_name}
-                      />
-                    )}
-                  </div>
-                )}
-
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    {product.price && (
-                      <div className="text-lg font-bold text-gray-800">
-                        ${product.price.toFixed(2)}
-                      </div>
-                    )}
-                    {product.rating && (
-                      <div className="flex items-center gap-1">
-                        <div className="flex">
-                          {[...Array(5)].map((_, i) => (
-                            <Star 
-                              key={i} 
-                              className={`w-3 h-3 ${i < Math.floor(product.rating!) ? 'text-yellow-400 fill-current' : 'text-gray-300'}`} 
-                            />
-                          ))}
-                        </div>
-                        <span className="text-xs text-gray-600">
-                          {product.rating.toFixed(1)}
-                          {product.total_reviews && ` (${product.total_reviews})`}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex gap-2 pt-2">
-                  <Button size="sm" className="flex-1" variant="outline">
-                    <Eye className="w-3 h-3 mr-1" />
-                    View
-                  </Button>
-                  {product.product_url && (
-                    <Button 
-                      size="sm" 
-                      className="flex-1"
-                      onClick={() => window.open(product.product_url, '_blank')}
-                    >
-                      <ShoppingCart className="w-3 h-3 mr-1" />
-                      Shop
-                    </Button>
+                <div className="flex items-center justify-between pt-1">
+                  {product.price && (
+                    <div className="text-base font-bold text-gray-800">
+                      ${product.price.toFixed(2)}
+                    </div>
+                  )}
+                  {product.rating && (
+                    <div className="flex items-center gap-1">
+                      <Star className="w-3 h-3 text-yellow-400 fill-current" />
+                      <span className="text-xs text-gray-600">
+                        {product.rating.toFixed(1)}
+                      </span>
+                    </div>
                   )}
                 </div>
+
+                <Button size="sm" className="w-full mt-2" variant="outline">
+                  <ShoppingCart className="w-3 h-3 mr-1" />
+                  Shop
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -334,9 +287,8 @@ const CosmeticsBrowser = () => {
       </div>
 
       {products?.length === 0 && (
-        <div className="text-center py-12">
-          <div className="text-lg text-gray-600 mb-2">No products found</div>
-          <p className="text-gray-500">Try adjusting your search or filters</p>
+        <div className="text-center py-16">
+          <p className="text-gray-500">No products found</p>
         </div>
       )}
     </div>
