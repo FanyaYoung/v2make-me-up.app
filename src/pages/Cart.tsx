@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,11 +8,13 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import Header from '@/components/Header';
+import FulfillmentOptions from '@/components/FulfillmentOptions';
 
 const Cart = () => {
   const { items, removeFromCart, updateQuantity, clearCart, getTotalPrice, getTotalItems } = useCart();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const [showFulfillment, setShowFulfillment] = useState(false);
   const sessionId = searchParams.get('session_id');
   const success = searchParams.get('success');
   const canceled = searchParams.get('canceled');
@@ -53,56 +55,26 @@ const Cart = () => {
   };
 
   const handleCheckout = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        toast({
-          title: "Authentication Required",
-          description: "Please sign in to proceed with checkout.",
-          variant: "destructive",
-        });
-        navigate('/auth');
-        return;
-      }
-
-      const checkoutData = {
-        items: items.map(item => ({
-          id: item.id,
-          product: item.product,
-          quantity: item.quantity,
-          selectedShade: item.selectedShade,
-          shadeName: item.shadeName,
-        })),
-      };
-
-      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
-        body: checkoutData,
-      });
-
-      if (error) {
-        console.error('Checkout error:', error);
-        toast({
-          title: "Checkout Error",
-          description: "There was an error processing your checkout. Please try again.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (data?.checkout_url) {
-        // Redirect to Stripe checkout
-        window.location.href = data.checkout_url;
-      } else {
-        throw new Error('No checkout URL received');
-      }
-    } catch (error) {
-      console.error('Checkout error:', error);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
       toast({
-        title: "Checkout Error",
-        description: "There was an error processing your checkout. Please try again.",
+        title: "Authentication Required",
+        description: "Please sign in to proceed with checkout.",
         variant: "destructive",
       });
+      navigate('/auth');
+      return;
     }
+    setShowFulfillment(true);
+  };
+
+  const handlePurchaseComplete = (fulfillmentMethod: string, products: any[]) => {
+    toast({
+      title: "Order Confirmed!",
+      description: `Your order will be fulfilled via ${fulfillmentMethod}`,
+    });
+    clearCart();
+    setShowFulfillment(false);
   };
 
   if (items.length === 0) {
@@ -240,42 +212,52 @@ const Cart = () => {
               ))}
             </div>
 
-            {/* Order Summary */}
+            {/* Order Summary / Fulfillment Options */}
             <div className="lg:col-span-1">
-              <Card className="bg-white shadow-sm">
-                <CardHeader>
-                  <CardTitle>Order Summary</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex justify-between text-sm">
-                    <span>Subtotal ({getTotalItems()} items)</span>
-                    <span>${getTotalPrice().toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span>Shipping</span>
-                    <span className="text-green-600">Free</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span>Tax</span>
-                    <span>${(getTotalPrice() * 0.08).toFixed(2)}</span>
-                  </div>
-                  <div className="border-t pt-4">
-                    <div className="flex justify-between font-semibold text-lg">
-                      <span>Total</span>
-                      <span>${(getTotalPrice() * 1.08).toFixed(2)}</span>
+              {!showFulfillment ? (
+                <Card className="bg-white shadow-sm">
+                  <CardHeader>
+                    <CardTitle>Order Summary</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex justify-between text-sm">
+                      <span>Subtotal ({getTotalItems()} items)</span>
+                      <span>${getTotalPrice().toFixed(2)}</span>
                     </div>
-                  </div>
-                  <Button 
-                    className="w-full bg-gradient-to-r from-rose-500 to-purple-500 text-white"
-                    onClick={handleCheckout}
-                  >
-                    Proceed to Checkout
-                  </Button>
-                  <p className="text-xs text-gray-500 text-center">
-                    Secure checkout powered by Stripe
-                  </p>
-                </CardContent>
-              </Card>
+                    <div className="flex justify-between text-sm">
+                      <span>Tax</span>
+                      <span>${(getTotalPrice() * 0.08).toFixed(2)}</span>
+                    </div>
+                    <div className="border-t pt-4">
+                      <div className="flex justify-between font-semibold text-lg">
+                        <span>Total</span>
+                        <span>${(getTotalPrice() * 1.08).toFixed(2)}</span>
+                      </div>
+                    </div>
+                    <Button 
+                      className="w-full bg-gradient-to-r from-rose-500 to-purple-500 text-white"
+                      onClick={handleCheckout}
+                    >
+                      Continue to Fulfillment
+                    </Button>
+                    <p className="text-xs text-gray-500 text-center">
+                      Choose your delivery method on next step
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <FulfillmentOptions
+                  products={items.map(item => ({
+                    id: item.product.id,
+                    brand: item.product.brand,
+                    product: item.product.product,
+                    name: item.product.product,
+                    shade: item.shadeName,
+                    price: item.product.price * item.quantity,
+                  }))}
+                  onPurchase={handlePurchaseComplete}
+                />
+              )}
             </div>
           </div>
         </div>

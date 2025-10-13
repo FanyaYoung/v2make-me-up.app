@@ -16,7 +16,7 @@ interface FulfillmentOptionsProps {
   onPurchase: (fulfillmentMethod: string, products: any[]) => void;
 }
 
-type FulfillmentMethod = 'pickup' | 'shipping' | 'delivery';
+type FulfillmentMethod = 'pickup' | 'shipping' | 'delivery' | 'curbside';
 
 const FulfillmentOptions: React.FC<FulfillmentOptionsProps> = ({ products, onPurchase }) => {
   const [selectedMethod, setSelectedMethod] = useState<FulfillmentMethod>('shipping');
@@ -39,15 +39,6 @@ const FulfillmentOptions: React.FC<FulfillmentOptionsProps> = ({ products, onPur
 
   const fulfillmentOptions = [
     {
-      id: 'pickup' as FulfillmentMethod,
-      title: 'Store Pickup',
-      icon: <MapPin className="w-5 h-5" />,
-      description: 'Pick up at your local store',
-      timeframe: 'Ready in 2-4 hours',
-      price: 0,
-      badge: 'Free'
-    },
-    {
       id: 'shipping' as FulfillmentMethod,
       title: 'Standard Shipping',
       icon: <Truck className="w-5 h-5" />,
@@ -58,12 +49,30 @@ const FulfillmentOptions: React.FC<FulfillmentOptionsProps> = ({ products, onPur
     },
     {
       id: 'delivery' as FulfillmentMethod,
-      title: 'Same-Day Delivery',
+      title: 'Local Delivery',
       icon: <ShoppingCart className="w-5 h-5" />,
-      description: 'Via Instacart or Uber',
-      timeframe: 'Within 2 hours',
+      description: 'Via Uber - Same day',
+      timeframe: 'Within 2-4 hours',
       price: 9.99,
-      badge: 'Fastest'
+      badge: 'Fast'
+    },
+    {
+      id: 'curbside' as FulfillmentMethod,
+      title: 'Curbside Pickup',
+      icon: <MapPin className="w-5 h-5" />,
+      description: 'Pick up from store parking',
+      timeframe: 'Ready in 1-2 hours',
+      price: 0,
+      badge: 'Free'
+    },
+    {
+      id: 'pickup' as FulfillmentMethod,
+      title: 'In-Store Pickup',
+      icon: <MapPin className="w-5 h-5" />,
+      description: 'Pick up inside store',
+      timeframe: 'Ready in 2-4 hours',
+      price: 0,
+      badge: 'Free'
     }
   ];
 

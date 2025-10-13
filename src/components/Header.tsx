@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Palette, User, LogOut, Camera, Crown, ShoppingCart } from 'lucide-react';
+import { Palette, User, LogOut, ShoppingCart, Package } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useCart } from '@/contexts/CartContext';
 import { Button } from '@/components/ui/button';
@@ -35,15 +35,11 @@ const Header = () => {
             <Link to="/" className="text-gray-600 hover:text-rose-600 transition-colors font-medium">Home</Link>
             <Link to="/shade-matcher" className="text-gray-600 hover:text-rose-600 transition-colors font-medium flex items-center gap-1">
               <Palette className="w-4 h-4" />
-              Shade Matcher
+              AI Shade Match
             </Link>
-            <Link to="/virtual-try-on" className="text-gray-600 hover:text-rose-600 transition-colors font-medium flex items-center gap-1">
-              <Camera className="w-4 h-4" />
-              Virtual Try-On
-            </Link>
-            <Link to="/premium-looks" className="text-gray-600 hover:text-rose-600 transition-colors font-medium flex items-center gap-1">
-              <Crown className="w-4 h-4" />
-              Premium Looks
+            <Link to="/products" className="text-gray-600 hover:text-rose-600 transition-colors font-medium flex items-center gap-1">
+              <Package className="w-4 h-4" />
+              Browse Products
             </Link>
             
             {/* Cart Icon */}

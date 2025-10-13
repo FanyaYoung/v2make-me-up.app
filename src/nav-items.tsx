@@ -1,19 +1,10 @@
 
-import { Home, User, Palette, Camera, Crown, Package, CreditCard, Sparkles, Star, ShoppingCart, Cloud } from "lucide-react";
+import { Home, User, Palette, ShoppingCart, Package } from "lucide-react";
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import ShadeMatcher from "./pages/ShadeMatcher";
-import VirtualTryOnPage from "./pages/VirtualTryOn";
-import PremiumLooks from "./pages/PremiumLooks";
 import CosmeticsLibrary from "./pages/CosmeticsLibrary";
-import Subscription from "./pages/Subscription";
-import SubscriptionPlans from "./pages/SubscriptionPlans";
-import SubscriptionSuccess from "./pages/SubscriptionSuccess";
-import SubscriptionCanceled from "./pages/SubscriptionCanceled";
-import TrueMatchAI from "./pages/TrueMatchAI";
-import PerfectMatches from "./pages/PerfectMatches";
 import Cart from "./pages/Cart";
-import GoogleStorageFoundations from "./pages/GoogleStorageFoundations";
 
 export const navItems = [
   {
@@ -23,38 +14,14 @@ export const navItems = [
     page: <Landing />,
   },
   {
-    title: "TrueMatch AI",
-    to: "/truematch-ai",
-    icon: <Sparkles className="h-4 w-4" />,
-    page: <TrueMatchAI />,
-  },
-  {
-    title: "Shade Matcher", 
+    title: "AI Shade Match", 
     to: "/shade-matcher",
     icon: <Palette className="h-4 w-4" />,
     page: <ShadeMatcher />,
   },
   {
-    title: "Virtual Try-On",
-    to: "/virtual-try-on", 
-    icon: <Camera className="h-4 w-4" />,
-    page: <VirtualTryOnPage />,
-  },
-  {
-    title: "Perfect Matches",
-    to: "/perfect-matches",
-    icon: <Star className="h-4 w-4" />,
-    page: <PerfectMatches />,
-  },
-  {
-    title: "Premium Looks",
-    to: "/premium-looks",
-    icon: <Crown className="h-4 w-4" />,
-    page: <PremiumLooks />,
-  },
-  {
-    title: "Cosmetics Library",
-    to: "/cosmetics-library",
+    title: "Browse Products",
+    to: "/products",
     icon: <Package className="h-4 w-4" />,
     page: <CosmeticsLibrary />,
   },
@@ -63,36 +30,6 @@ export const navItems = [
     to: "/cart",
     icon: <ShoppingCart className="h-4 w-4" />,
     page: <Cart />,
-  },
-  {
-    title: "GCS Foundations",
-    to: "/gcs-foundations",
-    icon: <Cloud className="h-4 w-4" />,
-    page: <GoogleStorageFoundations />,
-  },
-  {
-    title: "Subscription",
-    to: "/subscription",
-    icon: <CreditCard className="h-4 w-4" />,
-    page: <Subscription />,
-  },
-  {
-    title: "Subscription Plans",
-    to: "/subscription-plans",
-    icon: <CreditCard className="h-4 w-4" />,
-    page: <SubscriptionPlans />,
-  },
-  {
-    title: "Subscription Success",
-    to: "/subscription-success",
-    icon: <CreditCard className="h-4 w-4" />,
-    page: <SubscriptionSuccess />,
-  },
-  {
-    title: "Subscription Canceled",
-    to: "/subscription-canceled",
-    icon: <CreditCard className="h-4 w-4" />,
-    page: <SubscriptionCanceled />,
   },
   {
     title: "Auth",

@@ -34,11 +34,21 @@ interface CosmeticsProduct {
 const CosmeticsBrowser = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [retailerFilter, setRetailerFilter] = useState('all');
   const [sortBy, setSortBy] = useState('name');
+
+  // Define approved retailers
+  const retailers = [
+    { value: 'all', label: 'All Retailers' },
+    { value: 'ulta', label: 'Ulta Beauty' },
+    { value: 'sephora', label: 'Sephora' },
+    { value: 'macys', label: "Macy's" },
+    { value: 'database', label: 'Other Stores' }
+  ];
 
   // Fetch cosmetics products
   const { data: products, isLoading } = useQuery({
-    queryKey: ['cosmetics-products', searchTerm, categoryFilter, sortBy],
+    queryKey: ['cosmetics-products', searchTerm, categoryFilter, retailerFilter, sortBy],
     queryFn: async () => {
       console.log('Fetching cosmetics products...');
       let query = supabase
@@ -56,6 +66,25 @@ const CosmeticsBrowser = () => {
       // Apply category filter
       if (categoryFilter !== 'all') {
         query = query.eq('category', categoryFilter);
+      }
+
+      // Apply retailer filter
+      if (retailerFilter !== 'all') {
+        // Filter based on dataset_name or metadata that indicates retailer
+        const retailerPatterns: Record<string, string[]> = {
+          ulta: ['ulta', 'Ulta'],
+          sephora: ['sephora', 'Sephora'],
+          macys: ['macys', "macy's", "Macy's"],
+          database: [] // Will show products not matching other retailers
+        };
+        
+        const patterns = retailerPatterns[retailerFilter];
+        if (patterns && patterns.length > 0) {
+          const orConditions = patterns.map(pattern => 
+            `dataset_name.ilike.%${pattern}%,product_url.ilike.%${pattern}%`
+          ).join(',');
+          query = query.or(orConditions);
+        }
       }
 
       // Apply sorting
@@ -135,14 +164,14 @@ const CosmeticsBrowser = () => {
     <div className="max-w-7xl mx-auto space-y-6">
       {/* Header and Search */}
       <div className="text-center mb-8">
-        <h2 className="text-3xl font-bold text-gray-800 mb-2">Browse All Cosmetics</h2>
+        <h2 className="text-3xl font-bold text-gray-800 mb-2">Browse Makeup Products</h2>
         <p className="text-gray-600">
-          Discover thousands of makeup products from top brands worldwide
+          Shop from Ulta, Sephora, Macy's, and more trusted retailers
         </p>
       </div>
 
       {/* Filters and Search */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
           <Input
@@ -152,6 +181,19 @@ const CosmeticsBrowser = () => {
             className="pl-10"
           />
         </div>
+
+        <Select value={retailerFilter} onValueChange={setRetailerFilter}>
+          <SelectTrigger>
+            <SelectValue placeholder="All Retailers" />
+          </SelectTrigger>
+          <SelectContent>
+            {retailers.map((retailer) => (
+              <SelectItem key={retailer.value} value={retailer.value}>
+                {retailer.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         
         <Select value={categoryFilter} onValueChange={setCategoryFilter}>
           <SelectTrigger>
