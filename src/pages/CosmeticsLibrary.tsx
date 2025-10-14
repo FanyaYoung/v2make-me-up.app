@@ -46,12 +46,12 @@ const CosmeticsLibrary = () => {
     },
   });
 
-  const handleImportFromKaggle = async () => {
+  const handleImport = async () => {
     setIsImporting(true);
     try {
       toast({
         title: "Import Started",
-        description: "Importing cosmetics datasets from Kaggle. This may take a few minutes...",
+        description: "Importing cosmetics products. This may take a few minutes...",
       });
 
       const { data, error } = await supabase.functions.invoke('import-kaggle-cosmetics', {
@@ -62,7 +62,7 @@ const CosmeticsLibrary = () => {
 
       toast({
         title: "Import Successful",
-        description: `Imported ${data.stats?.products_imported || 0} products from ${data.stats?.datasets_processed || 0} datasets`,
+        description: `Imported ${data.stats?.products_imported || 0} products`,
       });
 
       // Refetch statistics
@@ -71,38 +71,7 @@ const CosmeticsLibrary = () => {
       console.error('Import error:', error);
       toast({
         title: "Import Failed",
-        description: error.message || "Failed to import data from Kaggle",
-        variant: "destructive",
-      });
-    } finally {
-      setIsImporting(false);
-    }
-  };
-
-  const handleImportFromGigasheet = async () => {
-    setIsImporting(true);
-    try {
-      toast({
-        title: "Import Started",
-        description: "Importing cosmetics data from Gigasheet dataset...",
-      });
-
-      const { data, error } = await supabase.functions.invoke('import-gigasheet-cosmetics');
-
-      if (error) throw error;
-
-      toast({
-        title: "Import Successful",
-        description: `Imported ${data.imported_products || 0} products from Gigasheet dataset`,
-      });
-
-      // Refetch statistics
-      refetchStats();
-    } catch (error) {
-      console.error('Import error:', error);
-      toast({
-        title: "Import Failed",
-        description: error.message || "Failed to import data from Gigasheet",
+        description: error.message || "Failed to import products",
         variant: "destructive",
       });
     } finally {
@@ -158,7 +127,7 @@ const CosmeticsLibrary = () => {
             <CardContent className="p-6">
               <Database className="h-8 w-8 text-pink-600 mb-2" />
               <div className="text-3xl font-bold text-gray-800">{importStats?.length || 0}</div>
-              <p className="text-sm text-gray-600">Datasets</p>
+              <p className="text-sm text-gray-600">Collections</p>
             </CardContent>
           </Card>
 
@@ -167,7 +136,7 @@ const CosmeticsLibrary = () => {
               <Download className="h-8 w-8 text-indigo-600 mb-2" />
               <div className="space-y-2">
                 <Button 
-                  onClick={handleImportFromKaggle}
+                  onClick={handleImport}
                   disabled={isImporting}
                   className="w-full"
                   size="sm"
@@ -187,7 +156,7 @@ const CosmeticsLibrary = () => {
               <div key={index} className="flex-shrink-0 bg-white rounded-lg p-4 border border-gray-200 min-w-[200px]">
                 <Badge variant="outline" className="mb-2">{stat.dataset_name}</Badge>
                 <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div><span className="font-semibold">{stat.total_products}</span> items</div>
+                  <div><span className="font-semibold">{stat.total_products}</span> products</div>
                   <div><span className="font-semibold">{stat.brands_count}</span> brands</div>
                 </div>
               </div>

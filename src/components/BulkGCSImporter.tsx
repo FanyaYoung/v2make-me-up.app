@@ -113,7 +113,7 @@ const BulkGCSImporter = () => {
       
       toast({
         title: "Bulk Import Completed",
-        description: `Imported ${data.summary.totalRecords} records from ${data.summary.totalFiles} files`,
+        description: `Imported ${data.summary.totalRecords} items from ${data.summary.totalFiles} files`,
       });
 
     } catch (error) {
@@ -248,7 +248,7 @@ const BulkGCSImporter = () => {
                 <div className="text-2xl font-bold text-green-600">
                   {importSummary.totalRecords.toLocaleString()}
                 </div>
-                <div className="text-sm text-green-700">Records Imported</div>
+                <div className="text-sm text-green-700">Items Imported</div>
               </div>
               
               <div className="bg-orange-50 p-4 rounded-lg text-center">
@@ -281,7 +281,7 @@ const BulkGCSImporter = () => {
                         </Badge>
                       </div>
                       <div className="text-sm text-gray-600">
-                        {result.recordsImported.toLocaleString()} records imported
+                        {result.recordsImported.toLocaleString()} items imported
                       </div>
                     </div>
                     

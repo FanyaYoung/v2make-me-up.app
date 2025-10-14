@@ -119,7 +119,7 @@ const GoogleStorageFoundationImporter = () => {
             </div>
             
             <div>
-              <Label htmlFor="dataset">Dataset Name</Label>
+              <Label htmlFor="dataset">Collection Name</Label>
               <Input
                 id="dataset"
                 value={datasetName}
