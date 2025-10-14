@@ -1,10 +1,4 @@
 import React, { useState } from "react";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
 
 interface FoundationMatch {
   brand: string;
@@ -14,7 +8,6 @@ interface FoundationMatch {
   undertone: string;
   url?: string;
   img?: string;
-  score: number;
 }
 
 export default function LightingAwareFoundationMatcher() {
@@ -22,17 +15,19 @@ export default function LightingAwareFoundationMatcher() {
   const [cct, setCct] = useState(4000);
   const [cri, setCri] = useState(85);
   const [loading, setLoading] = useState(false);
-  const [topMatches, setTopMatches] = useState<FoundationMatch[]>([]);
-  const [perimeterOptions, setPerimeterOptions] = useState<FoundationMatch[]>([]);
+  const [error, setError] = useState("");
+  const [top, setTop] = useState<FoundationMatch[]>([]);
+  const [perimeter, setPerimeter] = useState<FoundationMatch[]>([]);
 
-  const runMatch = async (e: React.FormEvent) => {
+  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+  const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  const FN_PATH = `${SUPABASE_URL}/functions/v1/match-foundations`;
+
+  async function runMatch(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-
-    const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-    const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-    const FN_PATH = `${SUPABASE_URL}/functions/v1/match-foundations`;
-
+    setError("");
+    
     try {
       const res = await fetch(FN_PATH, {
         method: "POST",
@@ -51,136 +46,146 @@ export default function LightingAwareFoundationMatcher() {
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || "Unknown error");
 
-      setTopMatches(data.top_matches || []);
-      setPerimeterOptions(data.perimeter_options || []);
-      toast.success("Found your perfect matches!");
+      setTop(data.top_matches || []);
+      setPerimeter(data.perimeter_options || []);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to match foundations");
-      console.error('Match error:', err);
+      setError(String(err));
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
-      <Card className="p-6 mb-6">
-        <h2 className="text-2xl font-bold mb-2">Lighting-Aware Foundation Matcher</h2>
-        <p className="text-muted-foreground mb-6">
-          Get precise foundation matches that account for lighting conditions and undertones.
-        </p>
+    <div className="max-w-[860px] mx-auto p-4">
+      <h2 className="text-2xl font-bold mb-2">Make Me Up — Foundation Matcher</h2>
+      <p className="opacity-80 mb-4">
+        Lighting-aware, undertone-aware matching. Returns a slightly darker perimeter shade too.
+      </p>
 
-        <form onSubmit={runMatch} className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="hex">Skin Hex Color</Label>
-            <Input
-              id="hex"
-              value={userHex}
-              onChange={(e) => setUserHex(e.target.value)}
-              placeholder="#E5C19E"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="cct">Lighting CCT (K)</Label>
-            <Input
-              id="cct"
-              type="number"
-              value={cct}
-              onChange={(e) => setCct(Number(e.target.value))}
-              min={2500}
-              max={7500}
-              step={100}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="cri">CRI (0-100)</Label>
-            <Input
-              id="cri"
-              type="number"
-              value={cri}
-              onChange={(e) => setCri(Number(e.target.value))}
-              min={60}
-              max={100}
-              step={1}
-            />
-          </div>
-          <div className="flex items-end">
-            <Button type="submit" disabled={loading} className="w-full">
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Matching...
-                </>
-              ) : (
-                "Find Matches"
-              )}
-            </Button>
-          </div>
-        </form>
-      </Card>
+      <form onSubmit={runMatch} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_1fr_auto] gap-3 items-end mb-4">
+        <label className="grid">
+          <span className="text-xs opacity-80 mb-1">Skin HEX</span>
+          <input
+            value={userHex}
+            onChange={(e) => setUserHex(e.target.value)}
+            placeholder="#E5C19E"
+            className="px-3 py-2.5 border border-border rounded-lg bg-background"
+          />
+        </label>
+        <label className="grid">
+          <span className="text-xs opacity-80 mb-1">Lighting CCT (K)</span>
+          <input
+            type="number"
+            value={cct}
+            onChange={(e) => setCct(Number(e.target.value))}
+            min={2500}
+            max={7500}
+            step={100}
+            className="px-3 py-2.5 border border-border rounded-lg bg-background"
+          />
+        </label>
+        <label className="grid">
+          <span className="text-xs opacity-80 mb-1">CRI (0–100)</span>
+          <input
+            type="number"
+            value={cri}
+            onChange={(e) => setCri(Number(e.target.value))}
+            min={60}
+            max={100}
+            step={1}
+            className="px-3 py-2.5 border border-border rounded-lg bg-background"
+          />
+        </label>
+        <button
+          type="submit"
+          disabled={loading}
+          className="px-4 py-2.5 rounded-lg border border-foreground bg-foreground text-background font-semibold disabled:opacity-50"
+        >
+          {loading ? "Matching..." : "Match"}
+        </button>
+      </form>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="p-6">
-          <h3 className="text-xl font-semibold mb-4">Top Matches</h3>
-          <MatchTable items={topMatches} />
-        </Card>
-        <Card className="p-6">
-          <h3 className="text-xl font-semibold mb-4">Perimeter Options</h3>
-          <p className="text-sm text-muted-foreground mb-4">
-            Slightly darker shades for contouring and blending
-          </p>
-          <MatchTable items={perimeterOptions} />
-        </Card>
+      {error && <div className="text-destructive mb-3">{error}</div>}
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div>
+          <h3 className="text-lg font-bold mb-2">Top Matches</h3>
+          <Table items={top} empty="Run the matcher to see results." />
+        </div>
+        <div>
+          <h3 className="text-lg font-bold mb-2">Perimeter Options</h3>
+          <Table items={perimeter} empty="We'll propose 1–3 slightly darker shades." />
+        </div>
       </div>
     </div>
   );
 }
 
-function MatchTable({ items }: { items: FoundationMatch[] }) {
-  if (!items || items.length === 0) {
-    return <div className="text-muted-foreground text-center py-8">Run the matcher to see results</div>;
-  }
-
+function Swatch({ hex }: { hex: string }) {
   return (
-    <div className="border rounded-lg overflow-hidden">
+    <div
+      title={hex}
+      className="w-5 h-5 rounded border border-border"
+      style={{ backgroundColor: hex }}
+    />
+  );
+}
+
+function Table({ items, empty }: { items: FoundationMatch[]; empty: string }) {
+  if (!items?.length) return <div className="opacity-70">{empty}</div>;
+  
+  return (
+    <div className="border border-border rounded-lg overflow-hidden">
       <table className="w-full border-collapse">
-        <thead className="bg-muted/50">
+        <thead className="bg-muted">
           <tr>
-            <th className="text-left py-2 px-3 text-xs font-medium">Shade</th>
-            <th className="text-left py-2 px-3 text-xs font-medium">Brand</th>
-            <th className="text-left py-2 px-3 text-xs font-medium">Product</th>
-            <th className="text-left py-2 px-3 text-xs font-medium">UT</th>
-            <th className="text-left py-2 px-3 text-xs font-medium">Swatch</th>
-            <th className="text-left py-2 px-3 text-xs font-medium">Link</th>
+            <Th>Shade</Th>
+            <Th>Brand</Th>
+            <Th>Product</Th>
+            <Th>UT</Th>
+            <Th>Swatch</Th>
+            <Th>Link</Th>
           </tr>
         </thead>
         <tbody>
-          {items.map((item, i) => (
-            <tr key={i} className="border-t hover:bg-muted/30 transition-colors">
-              <td className="py-3 px-3 text-sm">{item.shade_name}</td>
-              <td className="py-3 px-3 text-sm">{item.brand}</td>
-              <td className="py-3 px-3 text-sm">{item.product}</td>
-              <td className="py-3 px-3 text-sm capitalize">{item.undertone}</td>
-              <td className="py-3 px-3">
-                <div
-                  className="w-5 h-5 rounded border"
-                  style={{ backgroundColor: item.hex }}
-                  title={item.hex}
-                />
-              </td>
-              <td className="py-3 px-3 text-sm">
-                {item.url ? (
-                  <a href={item.url} target="_blank" rel="noreferrer" className="text-primary hover:underline">
+          {items.map((x, i) => (
+            <tr key={i} className="border-t border-border">
+              <Td>{x.shade_name}</Td>
+              <Td>{x.brand}</Td>
+              <Td>{x.product}</Td>
+              <Td>{x.undertone}</Td>
+              <Td>
+                <Swatch hex={x.hex} />
+              </Td>
+              <Td>
+                {x.url ? (
+                  <a href={x.url} target="_blank" rel="noreferrer" className="text-primary hover:underline">
                     View
                   </a>
                 ) : (
-                  <span className="text-muted-foreground">—</span>
+                  "—"
                 )}
-              </td>
+              </Td>
             </tr>
           ))}
         </tbody>
       </table>
     </div>
+  );
+}
+
+function Th({ children }: { children: React.ReactNode }) {
+  return (
+    <th className="text-left py-2.5 px-3 text-xs tracking-wide">
+      {children}
+    </th>
+  );
+}
+
+function Td({ children }: { children: React.ReactNode }) {
+  return (
+    <td className="py-2.5 px-3 text-sm">
+      {children}
+    </td>
   );
 }
