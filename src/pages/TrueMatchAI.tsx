@@ -12,7 +12,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { CheckCircle, Camera, Sparkles, Target, RotateCcw } from 'lucide-react';
-import AuthGuard from '../components/AuthGuard';
 
 enum TrueMatchStep {
   PROFILE_SETUP = 'profile-setup',
@@ -496,8 +495,7 @@ const TrueMatchAI = () => {
   );
 
   return (
-    <AuthGuard>
-      <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
+    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
         <Header />
         <div className="py-8">
           <div className="container mx-auto px-4">
@@ -559,7 +557,6 @@ const TrueMatchAI = () => {
           </div>
         </div>
       </div>
-    </AuthGuard>
   );
 };
 

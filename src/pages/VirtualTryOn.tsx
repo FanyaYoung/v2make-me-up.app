@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Camera, Upload, Zap, Crown, CreditCard } from 'lucide-react';
-import AuthGuard from '../components/AuthGuard';
 import { Toaster } from '@/components/ui/toaster';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useMatchTracking } from '@/hooks/useMatchTracking';
@@ -130,8 +129,7 @@ const VirtualTryOnPage = () => {
   };
 
   return (
-    <AuthGuard>
-      <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
+    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
         <Header />
         
         <div className="py-8">
@@ -312,7 +310,6 @@ const VirtualTryOnPage = () => {
         
         <Toaster />
       </div>
-    </AuthGuard>
   );
 };
 

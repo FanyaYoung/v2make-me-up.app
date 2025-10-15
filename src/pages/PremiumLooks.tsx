@@ -7,7 +7,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sparkles, Crown, Search, Calendar, Heart, Briefcase, PartyPopper, Sun, Moon, Play } from 'lucide-react';
-import AuthGuard from '../components/AuthGuard';
 import { Toaster } from '@/components/ui/toaster';
 
 const PremiumLooks = () => {
@@ -69,8 +68,7 @@ const PremiumLooks = () => {
   ];
 
   return (
-    <AuthGuard>
-      <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
+    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
         <Header />
         
         <div className="py-8">
@@ -305,7 +303,6 @@ const PremiumLooks = () => {
         
         <Toaster />
       </div>
-    </AuthGuard>
   );
 };
 
