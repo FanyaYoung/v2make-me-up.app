@@ -268,8 +268,8 @@ export default function InclusiveShadeMatchingInterface({
                   autoPlay
                   playsInline
                   muted
-                  className="w-full rounded-lg border-2 border-dashed border-gray-300"
-                  style={{ aspectRatio: '16/9', minHeight: '200px' }}
+                  className="w-full rounded-lg border-2 border-dashed border-gray-300 bg-black"
+                  style={{ aspectRatio: '16/9', minHeight: '200px', objectFit: 'cover' }}
                 />
                 <div className="flex gap-2">
                   <Button onClick={capturePhoto} className="flex-1">
