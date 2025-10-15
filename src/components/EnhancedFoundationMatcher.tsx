@@ -185,8 +185,31 @@ const EnhancedFoundationMatcher = () => {
     type: 'primary' | 'contour'
   ): FoundationMatch => {
     // Calculate match percentage based on color distance
+    // OKLab distance ranges: 
+    // 0-0.05 = excellent match (95-100%)
+    // 0.05-0.1 = good match (85-95%)
+    // 0.1-0.2 = decent match (70-85%)
+    // 0.2-0.3 = fair match (55-70%)
+    // 0.3+ = poor match (<55%)
     const colorDistance = product.color_distance || 0;
-    const matchPercentage = Math.max(0, Math.min(100, 100 - (colorDistance * 10)));
+    
+    let matchPercentage: number;
+    if (colorDistance <= 0.05) {
+      matchPercentage = 100 - (colorDistance * 100); // 95-100%
+    } else if (colorDistance <= 0.1) {
+      matchPercentage = 95 - ((colorDistance - 0.05) * 200); // 85-95%
+    } else if (colorDistance <= 0.2) {
+      matchPercentage = 85 - ((colorDistance - 0.1) * 150); // 70-85%
+    } else if (colorDistance <= 0.3) {
+      matchPercentage = 70 - ((colorDistance - 0.2) * 150); // 55-70%
+    } else {
+      matchPercentage = Math.max(30, 55 - ((colorDistance - 0.3) * 100)); // 30-55%
+    }
+    
+    console.log(`Match calculation for ${product.brand} ${product.name}:`, {
+      colorDistance,
+      matchPercentage: Math.round(matchPercentage)
+    });
     
     return {
       id: `${product.brand}-${product.name}-${type}`,
