@@ -72,6 +72,14 @@ const EnhancedFoundationMatcher = () => {
 
   const handleInclusiveAnalysis = (analysis: any) => {
     setInclusiveAnalysis(analysis);
+    
+    console.log('🎨 Inclusive Analysis Complete:', {
+      dominantTone: analysis.dominantTone,
+      hexColor: analysis.dominantTone.hex,
+      depth: analysis.dominantTone.depth,
+      undertone: analysis.dominantTone.undertone
+    });
+    
     // Convert inclusive analysis to skin tone data for compatibility
     const depthMap: Record<string, number> = {
       'fair': 2,
@@ -87,6 +95,9 @@ const EnhancedFoundationMatcher = () => {
       depth: depthMap[analysis.dominantTone.depth] || 5,
       undertone: analysis.dominantTone.undertone
     };
+    
+    console.log('📊 Skin Tone Data for Matching:', skinToneData);
+    
     setSkinTone(skinToneData);
     // Generate pairs immediately, with or without questionnaire data
     generateFoundationPairs(skinToneData, userAnswers);
@@ -94,11 +105,24 @@ const EnhancedFoundationMatcher = () => {
 
   const generateFoundationPairs = async (toneData: SkinToneData, questionnaire?: UserQuestionnaireData | null) => {
     try {
-      // Use the alphabeticalproductsbyhex table for recommendations
+      console.log('🔍 Finding matches for hex color:', toneData.hexColor);
+      
+      // Use the database function to find closest product matches
       const productMatches = await fetchProductMatches(toneData.hexColor, 20);
       
+      console.log('✅ Product matches received:', {
+        count: productMatches?.length || 0,
+        matches: productMatches?.slice(0, 3).map(m => ({
+          brand: m.brand,
+          product: m.product,
+          shade: m.name,
+          hex: m.hex,
+          distance: m.color_distance
+        }))
+      });
+      
       if (!productMatches || productMatches.length === 0) {
-        console.warn('No product matches found for hex color:', toneData.hexColor);
+        console.warn('❌ No product matches found for hex color:', toneData.hexColor);
         setFoundationPairs([]);
         return;
       }
@@ -113,12 +137,21 @@ const EnhancedFoundationMatcher = () => {
         matchesByBrand.get(brandName)!.push(match);
       }
 
+      console.log('📦 Grouped by brands:', Array.from(matchesByBrand.keys()));
+
       // Create foundation pairs with diverse brands
       const pairs: FoundationMatch[][] = [];
       for (const [brandName, brandMatches] of matchesByBrand) {
         if (pairs.length >= 4) break;
 
         const bestMatch = brandMatches[0]; // Best match for this brand
+        
+        console.log(`🎯 Creating match for ${brandName}:`, {
+          shade: bestMatch.name,
+          hex: bestMatch.hex,
+          distance: bestMatch.color_distance
+        });
+        
         const primaryMatch = createFoundationMatchFromHexProduct(
           bestMatch, 
           toneData, 
@@ -135,10 +168,12 @@ const EnhancedFoundationMatcher = () => {
         pairs.push([primaryMatch, contourMatch]);
       }
       
+      console.log('✨ Final foundation pairs:', pairs.length);
+      
       // Limit to 4 pairs as requested
       setFoundationPairs(pairs.slice(0, 4));
     } catch (error) {
-      console.error('Error generating foundation pairs:', error);
+      console.error('❌ Error generating foundation pairs:', error);
       setFoundationPairs([]);
     }
   };
