@@ -3,14 +3,14 @@ import React from 'react';
 import { Card } from '@/components/ui/card';
 
 const FoundationVisual = () => {
-  // Sample foundation shades data for visualization
+  // Realistic pigment-based foundation shades for visualization
   const foundationShades = [
-    { name: 'Fair Light', color: '#F4D5B4', brand: 'Brand A' },
-    { name: 'Light Medium', color: '#E8C2A0', brand: 'Brand B' },
-    { name: 'Medium', color: '#D2AD86', brand: 'Brand C' },
-    { name: 'Medium Deep', color: '#B5967A', brand: 'Brand D' },
-    { name: 'Deep', color: '#8B6F56', brand: 'Brand E' },
-    { name: 'Very Deep', color: '#6B4F3A', brand: 'Brand F' },
+    { name: 'Fair Light', color: '#F5DCC8', brand: 'NARS', undertone: 'cool' },
+    { name: 'Light Medium', color: '#E5C19E', brand: 'Fenty Beauty', undertone: 'warm' },
+    { name: 'Medium', color: '#D4A574', brand: 'MAC', undertone: 'neutral' },
+    { name: 'Medium Deep', color: '#C18F60', brand: 'Charlotte Tilbury', undertone: 'warm' },
+    { name: 'Deep', color: '#9A6B47', brand: 'Huda Beauty', undertone: 'neutral' },
+    { name: 'Very Deep', color: '#6E4A35', brand: 'Rare Beauty', undertone: 'cool' },
   ];
 
   const matchingPairs = [
