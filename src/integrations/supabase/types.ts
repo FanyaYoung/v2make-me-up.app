@@ -247,6 +247,56 @@ export type Database = {
         }
         Relationships: []
       }
+      conversation_members: {
+        Row: {
+          conversation_id: string
+          joined_at: string | null
+          role: string | null
+          user_id: string
+        }
+        Insert: {
+          conversation_id: string
+          joined_at?: string | null
+          role?: string | null
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string
+          joined_at?: string | null
+          role?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_members_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversations: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          id: string
+          title: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          title?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          title?: string | null
+        }
+        Relationships: []
+      }
       cosmetics_product_attributes: {
         Row: {
           attribute_name: string
@@ -738,6 +788,41 @@ export type Database = {
           website?: string | null
         }
         Relationships: []
+      }
+      messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string
+          edited_at: string | null
+          id: string
+          sender_id: string
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          created_at?: string
+          edited_at?: string | null
+          id?: string
+          sender_id: string
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          edited_at?: string | null
+          id?: string
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       "mst-e_image_details": {
         Row: {
@@ -1302,6 +1387,7 @@ export type Database = {
           undertone: Database["public"]["Enums"]["skin_undertone"] | null
           updated_at: string | null
           website_url: string | null
+          zip_code: string | null
         }
         Insert: {
           age_range?: string | null
@@ -1331,6 +1417,7 @@ export type Database = {
           undertone?: Database["public"]["Enums"]["skin_undertone"] | null
           updated_at?: string | null
           website_url?: string | null
+          zip_code?: string | null
         }
         Update: {
           age_range?: string | null
@@ -1360,6 +1447,7 @@ export type Database = {
           undertone?: Database["public"]["Enums"]["skin_undertone"] | null
           updated_at?: string | null
           website_url?: string | null
+          zip_code?: string | null
         }
         Relationships: []
       }
@@ -2054,6 +2142,41 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
+      }
+      thread_summaries: {
+        Row: {
+          conversation_id: string
+          created_at: string | null
+          model: string | null
+          summary: string
+          token_count: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string | null
+          model?: string | null
+          summary: string
+          token_count?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string | null
+          model?: string | null
+          summary?: string
+          token_count?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "thread_summaries_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: true
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       "Ulta Makeup Reviews": {
         Row: {
@@ -2799,26 +2922,6 @@ export type Database = {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
       }
-      gtrgm_compress: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      gtrgm_decompress: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      gtrgm_in: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      gtrgm_options: {
-        Args: { "": unknown }
-        Returns: undefined
-      }
-      gtrgm_out: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -2853,18 +2956,6 @@ export type Database = {
       match_cosmetics_brands: {
         Args: Record<PropertyKey, never>
         Returns: undefined
-      }
-      set_limit: {
-        Args: { "": number }
-        Returns: number
-      }
-      show_limit: {
-        Args: Record<PropertyKey, never>
-        Returns: number
-      }
-      show_trgm: {
-        Args: { "": string }
-        Returns: string[]
       }
     }
     Enums: {

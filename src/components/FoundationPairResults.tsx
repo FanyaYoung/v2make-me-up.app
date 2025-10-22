@@ -96,7 +96,9 @@ const FoundationPairResults = ({ pairs, onTryVirtual, onSelectPair }: Foundation
                     </div>
 
                     <div className="flex items-center justify-between">
-                      <span className="font-semibold text-lg">${primaryMatch.price.toFixed(2)}</span>
+                      <span className="font-semibold text-lg">
+                        {primaryMatch.price > 0 ? `$${primaryMatch.price.toFixed(2)}` : 'Check local price'}
+                      </span>
                       <Badge 
                         variant={primaryMatch.matchPercentage >= 90 ? "default" : "secondary"}
                         className="text-xs"
@@ -132,7 +134,9 @@ const FoundationPairResults = ({ pairs, onTryVirtual, onSelectPair }: Foundation
                     </div>
 
                     <div className="flex items-center justify-between">
-                      <span className="font-semibold text-lg">${contourMatch.price.toFixed(2)}</span>
+                      <span className="font-semibold text-lg">
+                        {contourMatch.price > 0 ? `$${contourMatch.price.toFixed(2)}` : 'Check local price'}
+                      </span>
                       <Badge 
                         variant={contourMatch.matchPercentage >= 85 ? "default" : "secondary"}
                         className="text-xs"

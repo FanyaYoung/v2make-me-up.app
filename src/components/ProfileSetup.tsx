@@ -18,6 +18,7 @@ interface ProfileSetupProps {
 interface ProfileData {
   ageRange: string;
   gender: string;
+  zipCode: string;
   ethnicity: Record<string, boolean>;
   lineage: Record<string, boolean>;
   skinType: 'dry' | 'oily' | 'combination' | 'sensitive' | 'normal' | null;
@@ -34,6 +35,7 @@ const ProfileSetup: React.FC<ProfileSetupProps> = ({ onComplete }) => {
   const [profileData, setProfileData] = useState<ProfileData>({
     ageRange: '',
     gender: '',
+    zipCode: '',
     ethnicity: {},
     lineage: {},
     skinType: null,
@@ -91,6 +93,7 @@ const ProfileSetup: React.FC<ProfileSetupProps> = ({ onComplete }) => {
         .update({
           age_range: profileData.ageRange,
           gender: profileData.gender,
+          zip_code: profileData.zipCode,
           ethnicity: profileData.ethnicity,
           lineage: profileData.lineage,
           skin_type: profileData.skinType,
@@ -136,7 +139,7 @@ const ProfileSetup: React.FC<ProfileSetupProps> = ({ onComplete }) => {
         <p className="text-gray-600">Let's start with some basic details about you</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="space-y-2">
           <Label htmlFor="ageRange">Age Range</Label>
           <Select value={profileData.ageRange} onValueChange={(value) => 
@@ -170,6 +173,18 @@ const ProfileSetup: React.FC<ProfileSetupProps> = ({ onComplete }) => {
               <SelectItem value="prefer-not-to-say">Prefer not to say</SelectItem>
             </SelectContent>
           </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="zipCode">Zip Code</Label>
+          <Input
+            id="zipCode"
+            placeholder="12345"
+            value={profileData.zipCode}
+            onChange={(e) => setProfileData(prev => ({ ...prev, zipCode: e.target.value }))}
+            maxLength={10}
+          />
+          <p className="text-xs text-muted-foreground">For local pricing & availability</p>
         </div>
       </div>
 

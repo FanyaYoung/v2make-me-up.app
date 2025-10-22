@@ -309,7 +309,7 @@ const EnhancedFoundationMatcher = () => {
         brand: 'Fenty Beauty',
         product: 'Pro Filt\'r Soft Matte Foundation',
         shade: generateShadeName(toneData.depth, toneData.undertone),
-        price: 39,
+        price: 0, // Check local price
         rating: 4.5,
         reviewCount: 1200,
         availability: {
@@ -365,7 +365,7 @@ const EnhancedFoundationMatcher = () => {
       brand: product.brand || 'Unknown Brand',
       product: product.product || 'Foundation',
       shade: product.name || 'Shade Match',
-      price: 35 + Math.random() * 25, // Realistic price range
+      price: 0, // Will show "Check local price" in UI
       rating: 4.0 + Math.random() * 0.8,
       reviewCount: Math.floor(Math.random() * 300) + 50,
       availability: {

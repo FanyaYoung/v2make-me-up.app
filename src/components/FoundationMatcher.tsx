@@ -158,7 +158,7 @@ const FoundationMatcher = () => {
           brand: brandName,
           product: shade.product_name,
           shade: shade.shade_name,
-          price: shade.product_price || 35 + Math.random() * 30,
+          price: 0, // Will show "Check local price" - no fake prices
           rating: shade.product_rating || 4.0 + Math.random() * 0.8,
           reviewCount: shade.product_reviewCount || Math.floor(Math.random() * 500) + 100,
           availability: {
