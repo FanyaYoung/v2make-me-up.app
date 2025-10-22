@@ -1,5 +1,5 @@
 
-import { Home, User, Palette, ShoppingCart, Package, Lightbulb, Pipette } from "lucide-react";
+import { Home, User, Palette, ShoppingCart, Package, Lightbulb, Pipette, Hand } from "lucide-react";
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import ShadeMatcher from "./pages/ShadeMatcher";
@@ -7,6 +7,7 @@ import CosmeticsLibrary from "./pages/CosmeticsLibrary";
 import Cart from "./pages/Cart";
 import LightingMatcher from "./pages/LightingMatcher";
 import PigmentMixer from "./pages/PigmentMixer";
+import HandColorAnalyzer from "./pages/HandColorAnalyzer";
 
 export const navItems = [
   {
@@ -32,6 +33,12 @@ export const navItems = [
     to: "/pigment-mixer",
     icon: <Pipette className="h-4 w-4" />,
     page: <PigmentMixer />,
+  },
+  {
+    title: "Hand Color Analyzer",
+    to: "/hand-analyzer",
+    icon: <Hand className="h-4 w-4" />,
+    page: <HandColorAnalyzer />,
   },
   {
     title: "Browse Products",

@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Palette, User, LogOut, ShoppingCart, Package } from 'lucide-react';
+import { Palette, User, LogOut, ShoppingCart, Package, Hand } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useCart } from '@/contexts/CartContext';
 import { Button } from '@/components/ui/button';
@@ -36,6 +36,10 @@ const Header = () => {
             <Link to="/shade-matcher" className="text-gray-600 hover:text-rose-600 transition-colors font-medium flex items-center gap-1">
               <Palette className="w-4 h-4" />
               AI Shade Match
+            </Link>
+            <Link to="/hand-analyzer" className="text-gray-600 hover:text-rose-600 transition-colors font-medium flex items-center gap-1">
+              <Hand className="w-4 h-4" />
+              Hand Analyzer
             </Link>
             <Link to="/products" className="text-gray-600 hover:text-rose-600 transition-colors font-medium flex items-center gap-1">
               <Package className="w-4 h-4" />
