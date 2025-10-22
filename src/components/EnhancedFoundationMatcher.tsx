@@ -316,7 +316,7 @@ const EnhancedFoundationMatcher = () => {
           online: true,
           inStore: true,
           readyForPickup: true,
-          nearbyStores: ['Sephora', 'Ulta Beauty']
+          nearbyStores: ['Sephora']
         },
         matchPercentage: 85,
         undertone: toneData.undertone,
@@ -371,8 +371,8 @@ const EnhancedFoundationMatcher = () => {
       availability: {
         online: true,
         inStore: Math.random() > 0.3,
-        readyForPickup: Math.random() > 0.5,
-        nearbyStores: Math.random() > 0.5 ? ['Sephora', 'Ulta Beauty'] : []
+        readyForPickup: true,
+        nearbyStores: ['Sephora']
       },
       matchPercentage: Math.round(matchPercentage),
       undertone: toneData.undertone,

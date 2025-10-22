@@ -164,8 +164,8 @@ const FoundationMatcher = () => {
           availability: {
             online: true,
             inStore: Math.random() > 0.3,
-            readyForPickup: Math.random() > 0.5,
-            nearbyStores: Math.random() > 0.5 ? ['Sephora', 'Ulta Beauty', 'Target'] : []
+            readyForPickup: true,
+            nearbyStores: ['Sephora']
           },
           matchPercentage,
           undertone: shade.undertone || inferUndertoneFromShade(shade.shade_name),

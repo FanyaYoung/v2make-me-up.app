@@ -18,11 +18,11 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Query the foundation catalog
+    // Query Sephora products only
     const { data, error } = await supabase
-      .from('productsandshadeswithimages')
-      .select('brand, product, name, hex, specific, url, "imgSrc"')
-      .not('hex', 'is', null)
+      .from('sephoraproductsbyskintone')
+      .select('brand, product, name, "Swatch: imgSrc", specific, url, "imgSrc"')
+      .not('"Swatch: imgSrc"', 'is', null)
       .limit(5000);
 
     if (error) throw error;
@@ -41,7 +41,8 @@ Deno.serve(async (req) => {
     };
 
     const scored = data.map((r: any) => {
-      const ok = hexToOKLab(r.hex);
+      const hex = r['Swatch: imgSrc']; // Sephora hex color
+      const ok = hexToOKLab(hex);
       const dist = oklabDistance(userAdj, ok);
       const undertone = getUndertone(r.name || r.specific || '');
       const utPenalty = undertone === userUT ? 1.0 : 0.9;
@@ -50,7 +51,7 @@ Deno.serve(async (req) => {
         brand: r.brand, 
         product: r.product, 
         shade_name: r.name, 
-        hex: r.hex, 
+        hex: hex, 
         undertone,
         url: r.url,
         img: r.imgSrc,
