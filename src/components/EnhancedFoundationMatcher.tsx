@@ -154,14 +154,32 @@ const EnhancedFoundationMatcher = () => {
         productMatches = createFallbackRecommendations(toneData);
       }
 
-      // Group matches by brand for diversity
-      const matchesByBrand = new Map<string, any[]>();
+      // Helper function to get lightness from hex
+      const getHexLightness = (hex: string): number => {
+        if (!hex || hex.length < 6) return 50;
+        const cleanHex = hex.replace('#', '');
+        const r = parseInt(cleanHex.substr(0, 2), 16);
+        const g = parseInt(cleanHex.substr(2, 2), 16);
+        const b = parseInt(cleanHex.substr(4, 2), 16);
+        // Calculate perceived lightness (ITU-R BT.709)
+        return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 2.55;
+      };
+
+      // Group matches by brand for diversity and add lightness
+      const matchesByBrand = new Map<string, Array<any & { lightness: number }>>();
       for (const match of productMatches) {
         const brandName = match.brand || 'Unknown Brand';
         if (!matchesByBrand.has(brandName)) {
           matchesByBrand.set(brandName, []);
         }
-        matchesByBrand.get(brandName)!.push(match);
+        // Add lightness value for sorting
+        const matchWithLightness = { ...match, lightness: getHexLightness(match.hex) };
+        matchesByBrand.get(brandName)!.push(matchWithLightness);
+      }
+
+      // Sort each brand's matches by lightness (lightest to darkest)
+      for (const [brandName, brandMatches] of matchesByBrand) {
+        brandMatches.sort((a, b) => b.lightness - a.lightness);
       }
 
       console.log('📦 Grouped by brands:', Array.from(matchesByBrand.keys()));
@@ -171,14 +189,48 @@ const EnhancedFoundationMatcher = () => {
       for (const [brandName, brandMatches] of matchesByBrand) {
         if (pairs.length >= 5) break;
 
-        const bestMatch = brandMatches[0]; // Best match for this brand
-        const lighterMatch = brandMatches[Math.min(1, brandMatches.length - 1)];
-        const darkerMatch = brandMatches[Math.min(2, brandMatches.length - 1)];
+        // Find best match (closest to user's tone)
+        const bestMatch = brandMatches[0];
+        const bestLightness = bestMatch.lightness;
+        
+        // Find lighter shade (for highlighting) - must be lighter
+        let lighterMatch = brandMatches.find(m => m.lightness > bestLightness);
+        if (!lighterMatch) {
+          // If no lighter shade available, duplicate best match
+          lighterMatch = bestMatch;
+        }
+        
+        // Find contour shade (for contouring) - MUST be at least 2 shades darker
+        // Aim for 5-10% darker in perceived lightness
+        const targetContourLightness = bestLightness - 10;
+        let contourMatch = brandMatches.find(m => 
+          m.lightness <= targetContourLightness && m.lightness < bestLightness
+        );
+        
+        // If no suitable darker shade found, find ANY darker shade
+        if (!contourMatch) {
+          contourMatch = brandMatches.find(m => m.lightness < bestLightness - 5);
+        }
+        
+        // CRITICAL: If still no darker shade, skip this brand or use darkest available
+        if (!contourMatch || contourMatch.lightness >= bestLightness) {
+          const darkest = brandMatches[brandMatches.length - 1];
+          if (darkest.lightness < bestLightness) {
+            contourMatch = darkest;
+          } else {
+            console.warn(`⚠️ Skipping ${brandName} - no darker shade available for contour`);
+            continue; // Skip this brand entirely
+          }
+        }
         
         console.log(`🎯 Creating match trio for ${brandName}:`, {
           exact: bestMatch.name,
+          exactLightness: bestLightness.toFixed(1),
           lighter: lighterMatch.name,
-          darker: darkerMatch.name
+          lighterLightness: lighterMatch.lightness.toFixed(1),
+          contour: contourMatch.name,
+          contourLightness: contourMatch.lightness.toFixed(1),
+          contourDarkerBy: (bestLightness - contourMatch.lightness).toFixed(1)
         });
         
         // Create exact match
@@ -197,17 +249,17 @@ const EnhancedFoundationMatcher = () => {
         lighterAlternative.id = `${lighterMatch.brand}-${lighterMatch.name}-lighter`;
         lighterAlternative.shade = `${lighterMatch.name} (Lighter)`;
 
-        // Create darker alternative (for contouring)
-        const darkerAlternative = createFoundationMatchFromHexProduct(
-          darkerMatch,
-          { ...toneData, depth: toneData.depth + 1 },
+        // Create contour shade (ALWAYS darker)
+        const contourAlternative = createFoundationMatchFromHexProduct(
+          contourMatch,
+          { ...toneData, depth: toneData.depth + 2 }, // +2 for contour
           'contour'
         );
-        darkerAlternative.id = `${darkerMatch.brand}-${darkerMatch.name}-darker`;
-        darkerAlternative.shade = `${darkerMatch.name} (Darker)`;
+        contourAlternative.id = `${contourMatch.brand}-${contourMatch.name}-contour`;
+        contourAlternative.shade = `${contourMatch.name} (Contour)`;
 
         // Add all three options
-        pairs.push([primaryMatch, lighterAlternative, darkerAlternative]);
+        pairs.push([primaryMatch, lighterAlternative, contourAlternative]);
       }
       
       console.log('✨ Final foundation pairs with alternatives:', pairs.length);
