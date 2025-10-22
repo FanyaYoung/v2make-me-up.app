@@ -12,70 +12,52 @@ const SkinToneSlider = ({ onSkinToneSelect }: SkinToneSliderProps) => {
   const [sliderValue, setSliderValue] = useState([50]);
   const [selectedUndertone, setSelectedUndertone] = useState<'cool' | 'warm' | 'neutral'>('neutral');
 
-  // Generate realistic skin tone colors using pigment-based mixing
+  // Real foundation colors from database with proper gold/red undertones
+  const REFERENCE_COLORS = {
+    cool: [
+      '#FEFEFD', '#F5E5D8', '#ECC3A3', '#C19484', '#A67C6D', '#8B5E52',
+      '#704738', '#543329', '#3D2A24', '#2F2828'
+    ],
+    warm: [
+      '#FDDCB4', '#FFD6A4', '#EBAB7F', '#D6AE71', '#BD8966', '#A16E4B',
+      '#926A2D', '#7C501A', '#542911', '#3C2004'
+    ],
+    neutral: [
+      '#FDF5F0', '#F0D5BE', '#E5C19E', '#D2A784', '#C18F6A', '#A87553',
+      '#8E5D42', '#724832', '#563425', '#3A2115'
+    ]
+  };
+
+  // Generate realistic skin tone by interpolating between reference colors
   const generateSkinTone = (depth: number, undertone: string) => {
     const normalizedDepth = Math.max(0, Math.min(100, depth)) / 100;
+    const colors = REFERENCE_COLORS[undertone as keyof typeof REFERENCE_COLORS];
     
-    // Base pigment ratios for realistic skin tones
-    let r: number, g: number, b: number;
+    // Map depth (0-100) to color index (0-9)
+    const colorIndex = normalizedDepth * (colors.length - 1);
+    const lowerIndex = Math.floor(colorIndex);
+    const upperIndex = Math.min(Math.ceil(colorIndex), colors.length - 1);
+    const fraction = colorIndex - lowerIndex;
     
-    switch (undertone) {
-      case 'cool':
-        // Cool undertones: more pink/blue, less yellow
-        if (normalizedDepth < 0.33) { // Light cool
-          r = Math.round(255 - (normalizedDepth * 55));
-          g = Math.round(220 - (normalizedDepth * 90));
-          b = Math.round(210 - (normalizedDepth * 80));
-        } else if (normalizedDepth < 0.66) { // Medium cool
-          r = Math.round(220 - (normalizedDepth * 100));
-          g = Math.round(180 - (normalizedDepth * 90));
-          b = Math.round(170 - (normalizedDepth * 85));
-        } else { // Deep cool
-          r = Math.round(180 - (normalizedDepth * 120));
-          g = Math.round(135 - (normalizedDepth * 90));
-          b = Math.round(115 - (normalizedDepth * 80));
-        }
-        break;
-        
-      case 'warm':
-        // Warm undertones: more yellow/golden, peachy
-        if (normalizedDepth < 0.33) { // Light warm
-          r = Math.round(255 - (normalizedDepth * 45));
-          g = Math.round(230 - (normalizedDepth * 85));
-          b = Math.round(195 - (normalizedDepth * 95));
-        } else if (normalizedDepth < 0.66) { // Medium warm
-          r = Math.round(225 - (normalizedDepth * 85));
-          g = Math.round(190 - (normalizedDepth * 85));
-          b = Math.round(150 - (normalizedDepth * 90));
-        } else { // Deep warm
-          r = Math.round(185 - (normalizedDepth * 110));
-          g = Math.round(145 - (normalizedDepth * 95));
-          b = Math.round(95 - (normalizedDepth * 70));
-        }
-        break;
-        
-      default: // neutral
-        // Neutral undertones: balanced
-        if (normalizedDepth < 0.33) { // Light neutral
-          r = Math.round(255 - (normalizedDepth * 50));
-          g = Math.round(225 - (normalizedDepth * 85));
-          b = Math.round(200 - (normalizedDepth * 90));
-        } else if (normalizedDepth < 0.66) { // Medium neutral
-          r = Math.round(220 - (normalizedDepth * 95));
-          g = Math.round(185 - (normalizedDepth * 90));
-          b = Math.round(160 - (normalizedDepth * 90));
-        } else { // Deep neutral
-          r = Math.round(180 - (normalizedDepth * 115));
-          g = Math.round(140 - (normalizedDepth * 95));
-          b = Math.round(105 - (normalizedDepth * 75));
-        }
-        break;
+    // Interpolate between two reference colors
+    const lowerColor = hexToRgb(colors[lowerIndex]);
+    const upperColor = hexToRgb(colors[upperIndex]);
+    
+    if (!lowerColor || !upperColor) {
+      return getDefaultTone(depth, undertone);
     }
     
-    // Clamp values
-    r = Math.max(25, Math.min(255, r));
-    g = Math.max(20, Math.min(255, g));
-    b = Math.max(15, Math.min(255, b));
+    // Add gold/red bias for warm tones
+    let r = lowerColor.r + (upperColor.r - lowerColor.r) * fraction;
+    let g = lowerColor.g + (upperColor.g - lowerColor.g) * fraction;
+    let b = lowerColor.b + (upperColor.b - lowerColor.b) * fraction;
+    
+    // Enhance warm undertones with more red/gold
+    if (undertone === 'warm') {
+      r = Math.min(255, r * 1.05); // Add 5% more red
+      g = Math.min(255, g * 1.02); // Add 2% more yellow/gold
+      b = Math.max(0, b * 0.95);   // Reduce blue slightly
+    }
     
     const hex = rgbToHex(r, g, b);
     const hsl = rgbToHsl(r, g, b);
@@ -83,6 +65,24 @@ const SkinToneSlider = ({ onSkinToneSelect }: SkinToneSliderProps) => {
     return {
       hsl: `hsl(${hsl.h}, ${hsl.s}%, ${hsl.l}%)`,
       hex,
+      depth: Math.round(depth),
+      undertone
+    };
+  };
+
+  const hexToRgb = (hex: string): { r: number; g: number; b: number } | null => {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+      r: parseInt(result[1], 16),
+      g: parseInt(result[2], 16),
+      b: parseInt(result[3], 16)
+    } : null;
+  };
+
+  const getDefaultTone = (depth: number, undertone: string) => {
+    return {
+      hsl: `hsl(30, 35%, ${85 - (depth * 0.6)}%)`,
+      hex: '#E5C19E',
       depth: Math.round(depth),
       undertone
     };
