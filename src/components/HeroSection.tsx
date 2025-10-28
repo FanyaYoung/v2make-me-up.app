@@ -31,9 +31,6 @@ const HeroSection = () => {
               Foundation Match
             </span>
           </h1>
-          <p className="text-xl md:text-2xl mb-8 text-rose-100 max-w-3xl mx-auto leading-relaxed">
-            Discover identical shades across all brands. Our AI-powered matching system finds your perfect foundation based on your current shade, with virtual try-on and real-time availability.
-          </p>
           
           {/* Main CTA Button */}
           <div className="mb-12">
