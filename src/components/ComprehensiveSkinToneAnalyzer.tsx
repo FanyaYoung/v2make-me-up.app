@@ -57,25 +57,26 @@ const ComprehensiveSkinToneAnalyzer = () => {
   const [foundationShadeDark, setFoundationShadeDark] = useState('');
   const [foundationError, setFoundationError] = useState('');
 
-  // Fetch all products for matching
+  // Fetch all products for matching from the correct table with valid hex codes
   const { data: allProducts = [] } = useQuery({
     queryKey: ['all-products'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('sephoraproductsbyskintone')
-        .select('brand, product, name, "Swatch: imgSrc", url, imgSrc')
-        .not('"Swatch: imgSrc"', 'is', null)
-        .limit(2000);
+        .from('productsandshadeswithimages')
+        .select('brand, product, name, hex, "Swatch: imgSrc", url, imgSrc')
+        .not('hex', 'is', null)
+        .limit(3000);
       
       if (error) throw error;
       
       // Process products with color data
       return (data || [])
         .map(p => {
-          const hex = p['Swatch: imgSrc'];
-          if (!hex) return null;
+          const hex = p.hex; // Use the actual hex column, not Swatch: imgSrc
+          if (!hex || !hex.match(/^#?[0-9A-Fa-f]{6}$/)) return null; // Validate hex format
           
-          const rgb = hexToRgb(hex);
+          const normalizedHex = hex.startsWith('#') ? hex : `#${hex}`;
+          const rgb = hexToRgb(normalizedHex);
           if (!rgb) return null;
           
           const xyz = rgbToXyz(rgb);
@@ -85,7 +86,7 @@ const ComprehensiveSkinToneAnalyzer = () => {
             brand: p.brand,
             product: p.product,
             name: p.name,
-            hex,
+            hex: normalizedHex,
             rgb,
             lab,
             deltaE: 0,
