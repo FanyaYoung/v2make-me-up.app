@@ -8,7 +8,7 @@ import Cart from "./pages/Cart";
 import LightingMatcher from "./pages/LightingMatcher";
 import PigmentMixer from "./pages/PigmentMixer";
 import HandColorAnalyzer from "./pages/HandColorAnalyzer";
-import SkinToneAnalyzer from "./pages/SkinToneAnalyzer";
+import AISkinAnalyzer from "./pages/AISkinAnalyzer";
 
 export const navItems = [
   {
@@ -36,10 +36,10 @@ export const navItems = [
     page: <PigmentMixer />,
   },
   {
-    title: "Skin Tone Analyzer",
+    title: "AI Skin Analyzer",
     to: "/skin-analyzer",
     icon: <ScanFace className="h-4 w-4" />,
-    page: <SkinToneAnalyzer />,
+    page: <AISkinAnalyzer />,
   },
   {
     title: "Hand Color Analyzer",

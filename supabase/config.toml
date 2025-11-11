@@ -18,3 +18,9 @@ verify_jwt = false
 
 [functions.match-foundations]
 verify_jwt = false
+
+[functions.analyze-skin-tone]
+verify_jwt = false
+
+[functions.lookup-foundation-shade]
+verify_jwt = false
