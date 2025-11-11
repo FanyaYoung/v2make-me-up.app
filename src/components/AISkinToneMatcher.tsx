@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Camera, Upload, Loader2 } from 'lucide-react';
+import { Camera, Upload, Loader2, ExternalLink } from 'lucide-react';
 
 interface PigmentMix {
   White: number;
@@ -22,6 +22,17 @@ interface ColorAnalysis {
   mix: PigmentMix;
 }
 
+interface FoundationMatch {
+  brand: string;
+  product: string;
+  shade_name: string;
+  hex: string;
+  undertone: string;
+  url: string;
+  img: string;
+  score: number;
+}
+
 export const AISkinToneMatcher = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -32,6 +43,8 @@ export const AISkinToneMatcher = () => {
   const [brand, setBrand] = useState('');
   const [shade, setShade] = useState('');
   const [showDarkest, setShowDarkest] = useState(true);
+  const [lightestMatches, setLightestMatches] = useState<FoundationMatch[]>([]);
+  const [darkestMatches, setDarkestMatches] = useState<FoundationMatch[]>([]);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -176,6 +189,8 @@ export const AISkinToneMatcher = () => {
     setLoading(true);
     setLoadingMessage("AI is analyzing the photo...");
     setShowDarkest(true);
+    setLightestMatches([]);
+    setDarkestMatches([]);
 
     try {
       const { data, error } = await supabase.functions.invoke('analyze-skin-tone', {
@@ -199,9 +214,29 @@ export const AISkinToneMatcher = () => {
         analysis: getPigmentMix(rDark, gDark, bDark)
       });
 
+      // Match to product database
+      setLoadingMessage("Finding matching foundations in database...");
+      
+      const [lightMatches, darkMatches] = await Promise.all([
+        supabase.functions.invoke('match-foundations', {
+          body: { user_hex: data.lightest_hex, n_results: 5 }
+        }),
+        supabase.functions.invoke('match-foundations', {
+          body: { user_hex: data.darkest_hex, n_results: 5 }
+        })
+      ]);
+
+      if (lightMatches.data?.top_matches) {
+        setLightestMatches(lightMatches.data.top_matches);
+      }
+      
+      if (darkMatches.data?.top_matches) {
+        setDarkestMatches(darkMatches.data.top_matches);
+      }
+
       toast({
         title: "Analysis Complete",
-        description: "Skin tone analysis successful!"
+        description: "Found matching foundation products!"
       });
     } catch (error: any) {
       toast({
@@ -227,6 +262,8 @@ export const AISkinToneMatcher = () => {
     setLoading(true);
     setLoadingMessage(`Looking up ${brand} ${shade}...`);
     setShowDarkest(false);
+    setLightestMatches([]);
+    setDarkestMatches([]);
 
     try {
       const { data, error } = await supabase.functions.invoke('lookup-foundation-shade', {
@@ -245,9 +282,19 @@ export const AISkinToneMatcher = () => {
 
       setDarkestResult(null);
 
+      // Match to similar shades in database
+      setLoadingMessage("Finding similar shades...");
+      const { data: matches } = await supabase.functions.invoke('match-foundations', {
+        body: { user_hex: data.hex, n_results: 5 }
+      });
+
+      if (matches?.top_matches) {
+        setLightestMatches(matches.top_matches);
+      }
+
       toast({
         title: "Lookup Complete",
-        description: `Found color for ${brand} ${shade}`
+        description: `Found similar shades for ${brand} ${shade}`
       });
     } catch (error: any) {
       toast({
@@ -272,12 +319,52 @@ export const AISkinToneMatcher = () => {
     </div>
   );
 
+  const ProductMatchCard = ({ match }: { match: FoundationMatch }) => (
+    <Card className="overflow-hidden">
+      <CardContent className="p-4">
+        <div className="flex gap-3">
+          {match.img && (
+            <img 
+              src={match.img} 
+              alt={match.shade_name}
+              className="w-16 h-16 object-cover rounded"
+            />
+          )}
+          <div className="flex-1 min-w-0">
+            <h4 className="font-semibold text-sm truncate">{match.brand}</h4>
+            <p className="text-xs text-muted-foreground truncate">{match.product}</p>
+            <p className="text-sm font-medium mt-1">{match.shade_name}</p>
+            <div className="flex items-center gap-2 mt-2">
+              <div 
+                className="w-8 h-8 rounded border-2 border-border"
+                style={{ backgroundColor: match.hex }}
+              />
+              <span className="text-xs font-mono">{match.hex}</span>
+            </div>
+            {match.url && (
+              <a 
+                href={match.url} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-xs text-primary hover:underline flex items-center gap-1 mt-2"
+              >
+                View Product <ExternalLink className="w-3 h-3" />
+              </a>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
   const ColorResultCard = ({ 
     title, 
-    result 
+    result,
+    matches
   }: { 
     title: string; 
-    result: { hex: string; rgb: [number, number, number]; analysis: ColorAnalysis } | null 
+    result: { hex: string; rgb: [number, number, number]; analysis: ColorAnalysis } | null;
+    matches: FoundationMatch[];
   }) => (
     <Card>
       <CardHeader>
@@ -305,6 +392,17 @@ export const AISkinToneMatcher = () => {
               <PigmentBar label="Ultramarine Blue" percentage={result.analysis.mix.UltramarineBlue} color="#3b82f6" />
               <PigmentBar label="Burnt Umber" percentage={result.analysis.mix.BurntUmber} color="#654321" />
             </div>
+
+            {matches.length > 0 && (
+              <div className="pt-4 border-t">
+                <p className="text-sm font-semibold mb-3">Matching Products:</p>
+                <div className="space-y-2">
+                  {matches.map((match, idx) => (
+                    <ProductMatchCard key={idx} match={match} />
+                  ))}
+                </div>
+              </div>
+            )}
           </>
         ) : (
           <p className="text-muted-foreground text-sm">Results will appear here</p>
@@ -448,11 +546,13 @@ export const AISkinToneMatcher = () => {
         <ColorResultCard 
           title="Lightest/Target Tone" 
           result={lightestResult}
+          matches={lightestMatches}
         />
         {showDarkest && (
           <ColorResultCard 
             title="Darkest/Contour Tone" 
             result={darkestResult}
+            matches={darkestMatches}
           />
         )}
       </div>
