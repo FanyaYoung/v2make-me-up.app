@@ -33,6 +33,21 @@ interface FoundationMatch {
   score: number;
 }
 
+interface ShadeData {
+  brand: string;
+  product: string;
+  url: string;
+  description: string;
+  imgSrc: string;
+  imgAlt: string;
+  name: string;
+  specific: string;
+  hex: string;
+  hue: string;
+  sat: string;
+  lightness: string;
+}
+
 export const AISkinToneMatcher = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -45,12 +60,81 @@ export const AISkinToneMatcher = () => {
   const [showDarkest, setShowDarkest] = useState(true);
   const [lightestMatches, setLightestMatches] = useState<FoundationMatch[]>([]);
   const [darkestMatches, setDarkestMatches] = useState<FoundationMatch[]>([]);
+  const [shadeDatabase, setShadeDatabase] = useState<ShadeData[]>([]);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isCamera, setIsCamera] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Load CSV database on mount
+  React.useEffect(() => {
+    loadShadeDatabase();
+  }, []);
+
+  const loadShadeDatabase = async () => {
+    try {
+      const response = await fetch('/data/allShades.csv');
+      const csvText = await response.text();
+      const lines = csvText.trim().split('\n');
+      const headers = lines[0].split(',');
+      
+      const shades: ShadeData[] = lines.slice(1).map(line => {
+        const values = line.split(',');
+        return {
+          brand: values[0] || '',
+          product: values[1] || '',
+          url: values[2] || '',
+          description: values[3] || '',
+          imgSrc: values[4] || '',
+          imgAlt: values[5] || '',
+          name: values[6] || '',
+          specific: values[7] || '',
+          hex: values[9] || '',
+          hue: values[10] || '',
+          sat: values[11] || '',
+          lightness: values[12] || '',
+        };
+      }).filter(shade => shade.hex && shade.hex.startsWith('#'));
+      
+      setShadeDatabase(shades);
+      console.log(`Loaded ${shades.length} shades from database`);
+    } catch (error) {
+      console.error('Failed to load shade database:', error);
+      toast({
+        title: "Database Load Error",
+        description: "Could not load foundation database. Some features may not work.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const colorDistance = (hex1: string, hex2: string): number => {
+    const [r1, g1, b1] = hexToRgb(hex1);
+    const [r2, g2, b2] = hexToRgb(hex2);
+    return Math.sqrt(Math.pow(r1 - r2, 2) + Math.pow(g1 - g2, 2) + Math.pow(b1 - b2, 2));
+  };
+
+  const findMatchingShades = (targetHex: string, limit: number = 5): FoundationMatch[] => {
+    if (shadeDatabase.length === 0) return [];
+
+    const matches = shadeDatabase.map(shade => ({
+      ...shade,
+      distance: colorDistance(targetHex, shade.hex)
+    })).sort((a, b) => a.distance - b.distance).slice(0, limit);
+
+    return matches.map(match => ({
+      brand: match.brand,
+      product: match.product,
+      shade_name: match.name || match.description,
+      hex: match.hex,
+      undertone: '', // Could extract from description if needed
+      url: match.url,
+      img: match.imgSrc,
+      score: 100 - (match.distance / 441.67) * 100 // Normalize to 0-100 score
+    }));
+  };
 
   const rgbToHex = (r: number, g: number, b: number): string => {
     return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase();
@@ -235,22 +319,11 @@ export const AISkinToneMatcher = () => {
       // Match to product database
       setLoadingMessage("Finding matching foundations in database...");
       
-      const [lightMatches, darkMatches] = await Promise.all([
-        supabase.functions.invoke('match-foundations', {
-          body: { user_hex: data.lightest_hex, n_results: 5 }
-        }),
-        supabase.functions.invoke('match-foundations', {
-          body: { user_hex: data.darkest_hex, n_results: 5 }
-        })
-      ]);
+      const lightMatches = findMatchingShades(data.lightest_hex, 5);
+      const darkMatches = findMatchingShades(data.darkest_hex, 5);
 
-      if (lightMatches.data?.top_matches) {
-        setLightestMatches(lightMatches.data.top_matches);
-      }
-      
-      if (darkMatches.data?.top_matches) {
-        setDarkestMatches(darkMatches.data.top_matches);
-      }
+      setLightestMatches(lightMatches);
+      setDarkestMatches(darkMatches);
 
       toast({
         title: "Analysis Complete",
@@ -284,16 +357,25 @@ export const AISkinToneMatcher = () => {
     setDarkestMatches([]);
 
     try {
-      const { data, error } = await supabase.functions.invoke('lookup-foundation-shade', {
-        body: { brand, shade }
-      });
+      // Search database for matching brand and shade
+      const normalizedBrand = brand.toLowerCase().trim();
+      const normalizedShade = shade.toLowerCase().trim();
+      
+      const foundShade = shadeDatabase.find(s => 
+        s.brand.toLowerCase().includes(normalizedBrand) && 
+        (s.name.toLowerCase().includes(normalizedShade) || 
+         s.description.toLowerCase().includes(normalizedShade) ||
+         s.specific.toLowerCase().includes(normalizedShade))
+      );
 
-      if (error) throw error;
+      if (!foundShade) {
+        throw new Error(`Could not find ${brand} ${shade} in database`);
+      }
 
-      const [r, g, b] = hexToRgb(data.hex);
+      const [r, g, b] = hexToRgb(foundShade.hex);
 
       setLightestResult({
-        hex: data.hex,
+        hex: foundShade.hex,
         rgb: [r, g, b],
         analysis: getPigmentMix(r, g, b)
       });
@@ -302,13 +384,8 @@ export const AISkinToneMatcher = () => {
 
       // Match to similar shades in database
       setLoadingMessage("Finding similar shades...");
-      const { data: matches } = await supabase.functions.invoke('match-foundations', {
-        body: { user_hex: data.hex, n_results: 5 }
-      });
-
-      if (matches?.top_matches) {
-        setLightestMatches(matches.top_matches);
-      }
+      const matches = findMatchingShades(foundShade.hex, 5);
+      setLightestMatches(matches);
 
       toast({
         title: "Lookup Complete",
