@@ -86,27 +86,45 @@ export const AISkinToneMatcher = () => {
     const [h, s, l] = rgbToHsl(r, g, b);
     const mix: PigmentMix = { White: 0, CadmiumRed: 0, CadmiumYellow: 0, UltramarineBlue: 0, BurntUmber: 0 };
     
-    const white = l;
-    const darkener = 100 - l;
-    const muter = 100 - s;
-    const hueStrength = s * (l / 100);
+    // For darker tones (below beige ~50%), establish depth with burnt umber FIRST
+    // Then add chromatic colors, and white LAST to lighten
+    const isDark = l < 50;
     
+    // Step 1: Establish base depth with burnt umber (for darker tones)
+    if (isDark) {
+      // Darker tones need burnt umber as foundation
+      mix.BurntUmber = 100 - (l * 1.8); // More umber for darker tones
+    } else {
+      // Lighter tones use less umber
+      mix.BurntUmber = (100 - l) * 0.4;
+    }
+    
+    // Step 2: Add chromatic pigments (red/yellow for warmth, blue for cooling)
+    const hueStrength = s * 0.8;
     let redComponent = 0;
     let yellowComponent = 0;
 
     if (h >= 0 && h <= 45) {
-      redComponent = Math.min(100, (45 - h) / 45 * hueStrength);
-      yellowComponent = Math.min(100, h / 45 * hueStrength);
+      redComponent = (45 - h) / 45 * hueStrength;
+      yellowComponent = h / 45 * hueStrength;
     } else if (h > 315) {
-      redComponent = Math.min(100, ((360 - h) / 45) * hueStrength);
+      redComponent = ((360 - h) / 45) * hueStrength;
     }
     
-    mix.White = white * 0.9;
-    mix.CadmiumRed = redComponent * 0.6;
-    mix.CadmiumYellow = yellowComponent * 0.6;
-    mix.UltramarineBlue = muter * 0.3 * (l > 50 ? 1 : 0.5);
-    mix.BurntUmber = darkener * 0.7;
+    mix.CadmiumRed = redComponent * 0.7;
+    mix.CadmiumYellow = yellowComponent * 0.7;
+    mix.UltramarineBlue = (100 - s) * 0.25; // Blue to mute/cool
+    
+    // Step 3: Add white LAST to lighten (minimal for dark tones)
+    if (isDark) {
+      // For dark tones, add white sparingly at the end
+      mix.White = l * 0.4;
+    } else {
+      // For light tones, white is more prominent
+      mix.White = l * 1.2;
+    }
 
+    // Normalize to 100%
     const maxVal = Math.max(...Object.values(mix));
     if (maxVal > 0) {
       for (const key in mix) {
