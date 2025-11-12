@@ -233,13 +233,29 @@ export const AISkinToneMatcher = () => {
 
   const startCamera = async () => {
     try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+      console.log('Starting camera...');
+      const mediaStream = await navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          facingMode: 'user',
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        } 
+      });
+      console.log('Camera permission granted, setting up video stream...');
       setStream(mediaStream);
       setIsCamera(true);
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
+        // Explicitly play the video
+        try {
+          await videoRef.current.play();
+          console.log('Video stream started successfully');
+        } catch (playError) {
+          console.error('Error playing video:', playError);
+        }
       }
     } catch (error) {
+      console.error('Camera access error:', error);
       toast({
         title: "Camera Error",
         description: "Could not access camera. Please ensure permissions are granted.",
@@ -557,6 +573,7 @@ export const AISkinToneMatcher = () => {
                     ref={videoRef}
                     autoPlay
                     playsInline
+                    muted
                     className="w-full rounded-lg border"
                   />
                   <Button onClick={takeSnapshot} className="w-full">
