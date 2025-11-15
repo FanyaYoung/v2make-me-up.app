@@ -2298,7 +2298,7 @@ export type Database = {
           activity_type: string
           created_at: string
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           session_id: string | null
           user_agent: string | null
           user_id: string
@@ -2308,7 +2308,7 @@ export type Database = {
           activity_type: string
           created_at?: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           session_id?: string | null
           user_agent?: string | null
           user_id: string
@@ -2318,7 +2318,7 @@ export type Database = {
           activity_type?: string
           created_at?: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           session_id?: string | null
           user_agent?: string | null
           user_id?: string
@@ -2825,6 +2825,12 @@ export type Database = {
           updated_at: string | null
           website: string | null
         }
+        SetofOptions: {
+          from: "*"
+          to: "makeup_brands"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       add_product: {
         Args: {
@@ -2848,6 +2854,12 @@ export type Database = {
           price: number | null
           total_reviews: number | null
           updated_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "products"
+          isOneToOne: true
+          isSetofReturn: false
         }
       }
       find_closest_product_matches: {
@@ -2888,12 +2900,9 @@ export type Database = {
           url: string
         }[]
       }
-      generate_order_number: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      generate_order_number: { Args: never; Returns: string }
       get_cosmetics_import_stats: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           avg_price: number
           avg_rating: number
@@ -2914,10 +2923,7 @@ export type Database = {
           undertone: string
         }[]
       }
-      get_user_match_stats: {
-        Args: { user_uuid: string }
-        Returns: Json
-      }
+      get_user_match_stats: { Args: { user_uuid: string }; Returns: Json }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -2937,26 +2943,11 @@ export type Database = {
           l: number
         }[]
       }
-      is_admin_user: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      is_superadmin: {
-        Args: { _user_id?: string }
-        Returns: boolean
-      }
-      link_foundation_products: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      log_index_usage: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      match_cosmetics_brands: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      is_admin_user: { Args: never; Returns: boolean }
+      is_superadmin: { Args: { _user_id?: string }; Returns: boolean }
+      link_foundation_products: { Args: never; Returns: undefined }
+      log_index_usage: { Args: never; Returns: undefined }
+      match_cosmetics_brands: { Args: never; Returns: undefined }
     }
     Enums: {
       app_role: "superadmin" | "admin" | "premium" | "user"

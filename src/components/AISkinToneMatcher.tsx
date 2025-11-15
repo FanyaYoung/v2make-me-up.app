@@ -65,6 +65,7 @@ export const AISkinToneMatcher = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isCamera, setIsCamera] = useState(false);
+  const [cameraLoading, setCameraLoading] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -232,6 +233,7 @@ export const AISkinToneMatcher = () => {
   };
 
   const startCamera = async () => {
+    setCameraLoading(true);
     try {
       console.log('Starting camera...');
       const mediaStream = await navigator.mediaDevices.getUserMedia({ 
@@ -261,6 +263,8 @@ export const AISkinToneMatcher = () => {
         description: "Could not access camera. Please ensure permissions are granted.",
         variant: "destructive"
       });
+    } finally {
+      setCameraLoading(false);
     }
   };
 
@@ -567,7 +571,14 @@ export const AISkinToneMatcher = () => {
                 onChange={handleFileUpload}
               />
 
-              {isCamera && (
+              {cameraLoading && (
+                <div className="flex flex-col items-center justify-center py-8 space-y-3">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <p className="text-sm text-muted-foreground">Initializing camera...</p>
+                </div>
+              )}
+
+              {isCamera && !cameraLoading && (
                 <>
                   <video 
                     ref={videoRef}
