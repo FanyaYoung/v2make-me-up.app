@@ -370,69 +370,6 @@ export const AISkinToneMatcher = () => {
     }
   };
 
-  const lookupShade = async () => {
-    if (!brand.trim() || !shade.trim()) {
-      toast({
-        title: "Missing Information",
-        description: "Please enter both brand and shade name.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setLoading(true);
-    setLoadingMessage(`Looking up ${brand} ${shade}...`);
-    setShowDarkest(false);
-    setLightestMatches([]);
-    setDarkestMatches([]);
-
-    try {
-      // Search database for matching brand and shade
-      const normalizedBrand = brand.toLowerCase().trim();
-      const normalizedShade = shade.toLowerCase().trim();
-      
-      const foundShade = shadeDatabase.find(s => 
-        s.brand.toLowerCase().includes(normalizedBrand) && 
-        (s.name.toLowerCase().includes(normalizedShade) || 
-         s.description.toLowerCase().includes(normalizedShade) ||
-         s.specific.toLowerCase().includes(normalizedShade))
-      );
-
-      if (!foundShade) {
-        throw new Error(`Could not find ${brand} ${shade} in database`);
-      }
-
-      const [r, g, b] = hexToRgb(foundShade.hex);
-      const pigmentColor = createPigmentColor(foundShade.hex);
-
-      setLightestResult({
-        hex: foundShade.hex,
-        rgb: [r, g, b],
-        analysis: getPigmentMix(r, g, b),
-        pigmentColor
-      });
-
-      setDarkestResult(null);
-
-      // Match to similar shades in database
-      setLoadingMessage("Finding similar shades...");
-      const matches = findMatchingShades(foundShade.hex, 5);
-      setLightestMatches(matches);
-
-      toast({
-        title: "Lookup Complete",
-        description: `Found similar shades for ${brand} ${shade}`
-      });
-    } catch (error: any) {
-      toast({
-        title: "Lookup Failed",
-        description: error.message || "Could not find shade color",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const PigmentBar = ({ label, percentage, color }: { label: string; percentage: number; color: string }) => (
     <div className="mt-2">
@@ -712,36 +649,6 @@ export const AISkinToneMatcher = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="lookup" className="space-y-4">
-          <Card>
-            <CardContent className="pt-6 space-y-4">
-              <Input
-                placeholder="Brand Name (e.g., Fenty Beauty)"
-                value={brand}
-                onChange={(e) => setBrand(e.target.value)}
-              />
-              <Input
-                placeholder="Shade Name (e.g., 420)"
-                value={shade}
-                onChange={(e) => setShade(e.target.value)}
-              />
-              <Button 
-                onClick={lookupShade} 
-                className="w-full"
-                disabled={loading}
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Looking up...
-                  </>
-                ) : (
-                  'Lookup Shade'
-                )}
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
 
       {loading && (
