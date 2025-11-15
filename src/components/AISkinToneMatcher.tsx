@@ -58,8 +58,6 @@ export const AISkinToneMatcher = () => {
   const [currentImage, setCurrentImage] = useState<string | null>(null);
   const [lightestResult, setLightestResult] = useState<{ hex: string; rgb: [number, number, number]; analysis: ColorAnalysis; pigmentColor: PigmentColor } | null>(null);
   const [darkestResult, setDarkestResult] = useState<{ hex: string; rgb: [number, number, number]; analysis: ColorAnalysis; pigmentColor: PigmentColor } | null>(null);
-  const [brand, setBrand] = useState('');
-  const [shade, setShade] = useState('');
   const [showDarkest, setShowDarkest] = useState(true);
   const [lightestMatches, setLightestMatches] = useState<FoundationMatch[]>([]);
   const [darkestMatches, setDarkestMatches] = useState<FoundationMatch[]>([]);
@@ -549,13 +547,12 @@ export const AISkinToneMatcher = () => {
         </p>
       </div>
 
-      <Tabs defaultValue="image" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="image">Analyze Photo</TabsTrigger>
-          <TabsTrigger value="lookup">Lookup Shade</TabsTrigger>
+      <Tabs defaultValue="photo" className="w-full">
+        <TabsList className="grid w-full grid-cols-1">
+          <TabsTrigger value="photo">Analyze Face Photo</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="image" className="space-y-4">
+        <TabsContent value="photo" className="space-y-4">
           <Card>
             <CardContent className="pt-6 space-y-4">
               {!isCamera && !currentImage && (
