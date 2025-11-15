@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -558,24 +558,42 @@ export const AISkinToneMatcher = () => {
         <TabsContent value="image" className="space-y-4">
           <Card>
             <CardContent className="pt-6 space-y-4">
-              <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  className="flex-1"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <Upload className="mr-2 h-4 w-4" />
-                  Upload Photo
-                </Button>
-                <Button 
-                  variant="outline"
-                  className="flex-1"
-                  onClick={isCamera ? stopCamera : startCamera}
-                >
-                  <Camera className="mr-2 h-4 w-4" />
-                  {isCamera ? 'Stop Camera' : 'Use Camera'}
-                </Button>
-              </div>
+              {!isCamera && !currentImage && (
+                <Card className="bg-muted/50 border-2 border-dashed border-border">
+                  <CardContent className="pt-6">
+                    <div className="text-center space-y-4">
+                      <Camera className="h-16 w-16 mx-auto text-muted-foreground" />
+                      <div>
+                        <h3 className="text-lg font-semibold text-foreground mb-2">Take a Face Photo</h3>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          Position your face in good lighting for accurate skin tone analysis
+                        </p>
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <Button 
+                          onClick={startCamera}
+                          disabled={loading}
+                          size="lg"
+                          className="w-full"
+                        >
+                          <Camera className="mr-2 h-5 w-5" />
+                          Take Face Photo
+                        </Button>
+                        <Button 
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={loading}
+                          variant="outline"
+                          size="lg"
+                          className="w-full"
+                        >
+                          <Upload className="mr-2 h-5 w-5" />
+                          Upload Photo
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               <input
                 ref={fileInputRef}
@@ -586,49 +604,110 @@ export const AISkinToneMatcher = () => {
               />
 
               {cameraLoading && (
-                <div className="flex flex-col items-center justify-center py-8 space-y-3">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  <p className="text-sm text-muted-foreground">Initializing camera...</p>
-                </div>
+                <Card className="bg-card border-border">
+                  <CardContent className="pt-6">
+                    <div className="flex flex-col items-center justify-center py-8 space-y-3">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                      <p className="text-sm text-muted-foreground">Initializing camera...</p>
+                    </div>
+                  </CardContent>
+                </Card>
               )}
 
               {isCamera && !cameraLoading && (
-                <>
-                  <video 
-                    ref={videoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    className="w-full rounded-lg border"
-                  />
-                  <Button onClick={takeSnapshot} className="w-full">
-                    Take Snapshot
-                  </Button>
-                </>
+                <Card className="bg-card border-border">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Camera className="h-5 w-5" />
+                      Position Your Face
+                    </CardTitle>
+                    <CardDescription>
+                      Center your face in the frame with good lighting for best results
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="relative">
+                      <video 
+                        ref={videoRef}
+                        autoPlay
+                        playsInline
+                        muted
+                        className="w-full rounded-lg border-2 border-border"
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <div className="w-64 h-80 border-4 border-primary/50 rounded-full" />
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button 
+                        onClick={takeSnapshot}
+                        className="flex-1"
+                        size="lg"
+                      >
+                        <Camera className="mr-2 h-5 w-5" />
+                        Capture Photo
+                      </Button>
+                      <Button 
+                        onClick={stopCamera}
+                        variant="outline"
+                        size="lg"
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
               )}
 
               {currentImage && !isCamera && (
-                <div className="space-y-4">
-                  <img 
-                    src={currentImage} 
-                    alt="Selected" 
-                    className="w-full rounded-lg border"
-                  />
-                  <Button 
-                    onClick={analyzeImage} 
-                    className="w-full"
-                    disabled={loading}
-                  >
-                    {loading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Analyzing...
-                      </>
-                    ) : (
-                      'Run AI Analysis'
-                    )}
-                  </Button>
-                </div>
+                <Card className="bg-card border-border">
+                  <CardHeader>
+                    <CardTitle>Photo Captured</CardTitle>
+                    <CardDescription>
+                      Review your photo and analyze to find matching foundations
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <img 
+                      src={currentImage} 
+                      alt="Captured face" 
+                      className="w-full rounded-lg border-2 border-border shadow-md"
+                    />
+                    <div className="flex gap-2">
+                      <Button 
+                        onClick={analyzeImage}
+                        disabled={loading}
+                        className="flex-1"
+                        size="lg"
+                      >
+                        {loading ? (
+                          <>
+                            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                            {loadingMessage || "Analyzing..."}
+                          </>
+                        ) : (
+                          <>
+                            <Camera className="mr-2 h-5 w-5" />
+                            Analyze Face Photo
+                          </>
+                        )}
+                      </Button>
+                      <Button 
+                        onClick={() => {
+                          setCurrentImage(null);
+                          setLightestResult(null);
+                          setDarkestResult(null);
+                          setLightestMatches([]);
+                          setDarkestMatches([]);
+                        }}
+                        variant="outline"
+                        size="lg"
+                      >
+                        Retake
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
               )}
 
               <canvas ref={canvasRef} className="hidden" />
