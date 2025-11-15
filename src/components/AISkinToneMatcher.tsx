@@ -6,6 +6,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Camera, Upload, Loader2, ExternalLink } from 'lucide-react';
+import { createPigmentColor, calculatePigmentMatch, PigmentColor } from '@/lib/pigmentMixing';
+import { PigmentColorDisplay } from './PigmentColorDisplay';
 
 interface PigmentMix {
   White: number;
@@ -31,6 +33,7 @@ interface FoundationMatch {
   url: string;
   img: string;
   score: number;
+  pigmentColor: PigmentColor;
 }
 
 interface ShadeData {
@@ -53,8 +56,8 @@ export const AISkinToneMatcher = () => {
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
   const [currentImage, setCurrentImage] = useState<string | null>(null);
-  const [lightestResult, setLightestResult] = useState<{ hex: string; rgb: [number, number, number]; analysis: ColorAnalysis } | null>(null);
-  const [darkestResult, setDarkestResult] = useState<{ hex: string; rgb: [number, number, number]; analysis: ColorAnalysis } | null>(null);
+  const [lightestResult, setLightestResult] = useState<{ hex: string; rgb: [number, number, number]; analysis: ColorAnalysis; pigmentColor: PigmentColor } | null>(null);
+  const [darkestResult, setDarkestResult] = useState<{ hex: string; rgb: [number, number, number]; analysis: ColorAnalysis; pigmentColor: PigmentColor } | null>(null);
   const [brand, setBrand] = useState('');
   const [shade, setShade] = useState('');
   const [showDarkest, setShowDarkest] = useState(true);
@@ -125,16 +128,20 @@ export const AISkinToneMatcher = () => {
       distance: colorDistance(targetHex, shade.hex)
     })).sort((a, b) => a.distance - b.distance).slice(0, limit);
 
-    return matches.map(match => ({
-      brand: match.brand,
-      product: match.product,
-      shade_name: match.name || match.description,
-      hex: match.hex,
-      undertone: '', // Could extract from description if needed
-      url: match.url,
-      img: match.imgSrc,
-      score: 100 - (match.distance / 441.67) * 100 // Normalize to 0-100 score
-    }));
+    return matches.map(match => {
+      const productPigmentColor = createPigmentColor(match.hex);
+      return {
+        brand: match.brand,
+        product: match.product,
+        shade_name: match.name || match.description,
+        hex: match.hex,
+        undertone: '', // Could extract from description if needed
+        url: match.url,
+        img: match.imgSrc,
+        score: 100 - (match.distance / 441.67) * 100, // Normalize to 0-100 score
+        pigmentColor: productPigmentColor
+      };
+    });
   };
 
   const rgbToHex = (r: number, g: number, b: number): string => {
@@ -323,17 +330,22 @@ export const AISkinToneMatcher = () => {
 
       const [rLight, gLight, bLight] = hexToRgb(data.lightest_hex);
       const [rDark, gDark, bDark] = hexToRgb(data.darkest_hex);
+      
+      const lightPigmentColor = createPigmentColor(data.lightest_hex);
+      const darkPigmentColor = createPigmentColor(data.darkest_hex);
 
       setLightestResult({
         hex: data.lightest_hex,
         rgb: [rLight, gLight, bLight],
-        analysis: getPigmentMix(rLight, gLight, bLight)
+        analysis: getPigmentMix(rLight, gLight, bLight),
+        pigmentColor: lightPigmentColor
       });
 
       setDarkestResult({
         hex: data.darkest_hex,
         rgb: [rDark, gDark, bDark],
-        analysis: getPigmentMix(rDark, gDark, bDark)
+        analysis: getPigmentMix(rDark, gDark, bDark),
+        pigmentColor: darkPigmentColor
       });
 
       // Match to product database
@@ -393,11 +405,13 @@ export const AISkinToneMatcher = () => {
       }
 
       const [r, g, b] = hexToRgb(foundShade.hex);
+      const pigmentColor = createPigmentColor(foundShade.hex);
 
       setLightestResult({
         hex: foundShade.hex,
         rgb: [r, g, b],
-        analysis: getPigmentMix(r, g, b)
+        analysis: getPigmentMix(r, g, b),
+        pigmentColor
       });
 
       setDarkestResult(null);
