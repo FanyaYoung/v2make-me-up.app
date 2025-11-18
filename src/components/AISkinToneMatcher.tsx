@@ -250,16 +250,25 @@ export const AISkinToneMatcher = () => {
       });
       console.log('Camera permission granted, setting up video stream...');
       setStream(mediaStream);
-      setIsCamera(true);
+      
+      // Wait for video element to be ready
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
+        console.log('Video srcObject set, attempting to play...');
+        
         // Explicitly play the video
         try {
           await videoRef.current.play();
           console.log('Video stream started successfully');
+          setIsCamera(true);
         } catch (playError) {
           console.error('Error playing video:', playError);
+          throw new Error('Failed to start video playback');
         }
+      } else {
+        throw new Error('Video element not available');
       }
     } catch (error) {
       console.error('Camera access error:', error);
@@ -268,6 +277,11 @@ export const AISkinToneMatcher = () => {
         description: "Could not access camera. Please ensure permissions are granted.",
         variant: "destructive"
       });
+      // Clean up stream if video fails to play
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        setStream(null);
+      }
     } finally {
       setCameraLoading(false);
     }
@@ -566,6 +580,7 @@ export const AISkinToneMatcher = () => {
                         autoPlay
                         playsInline
                         muted
+                        style={{ transform: 'scaleX(-1)' }}
                         className="w-full rounded-lg border-2 border-border"
                       />
                       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
