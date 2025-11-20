@@ -376,25 +376,69 @@ const VirtualTryOn = () => {
             </CardContent>
           </Card>
 
-          {/* Try-On Preview */}
+          {/* Try-On Preview - Before/After Comparison */}
           <Card>
             <CardContent className="p-6">
-              <h2 className="text-xl font-semibold mb-4">Try-On Preview</h2>
-              <div className="aspect-video bg-muted rounded-lg flex items-center justify-center overflow-hidden">
+              <h2 className="text-xl font-semibold mb-4">Before & After Comparison</h2>
+              <div className="space-y-4">
                 {capturedImage && selectedProductIndex !== null ? (
-                  <div className="relative w-full h-full">
-                    <img src={capturedImage} alt="Preview" className="w-full h-full object-cover rounded-lg" />
-                    <div className="absolute bottom-4 left-4 bg-black/70 text-white px-4 py-2 rounded-lg">
-                      <p className="font-semibold">{currentRecommendations[selectedProductIndex]?.brand}</p>
-                      <p className="text-sm">{currentRecommendations[selectedProductIndex]?.lightProduct.shade}</p>
+                  <>
+                    {/* Before */}
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground mb-2">BEFORE</p>
+                      <div className="aspect-video bg-muted rounded-lg overflow-hidden">
+                        <img src={capturedImage} alt="Before" className="w-full h-full object-cover" />
+                      </div>
                     </div>
-                  </div>
+                    
+                    {/* After */}
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground mb-2">AFTER (with foundation)</p>
+                      <div className="relative aspect-video bg-muted rounded-lg overflow-hidden">
+                        <img src={capturedImage} alt="After" className="w-full h-full object-cover" />
+                        
+                        {/* Light shade overlay for highlight areas (forehead, nose bridge, chin) */}
+                        <div 
+                          className="absolute inset-0 pointer-events-none mix-blend-multiply opacity-30"
+                          style={{
+                            background: `radial-gradient(ellipse 35% 20% at 50% 25%, ${currentRecommendations[selectedProductIndex].lightProduct.hex}DD, transparent 70%),
+                                        radial-gradient(ellipse 15% 25% at 50% 50%, ${currentRecommendations[selectedProductIndex].lightProduct.hex}DD, transparent 70%),
+                                        radial-gradient(ellipse 25% 15% at 50% 75%, ${currentRecommendations[selectedProductIndex].lightProduct.hex}DD, transparent 70%)`
+                          }}
+                        />
+                        
+                        {/* Dark shade overlay for contour areas (cheeks, jawline) */}
+                        <div 
+                          className="absolute inset-0 pointer-events-none mix-blend-multiply opacity-25"
+                          style={{
+                            background: `radial-gradient(ellipse 25% 30% at 25% 55%, ${currentRecommendations[selectedProductIndex].darkProduct.hex}CC, transparent 60%),
+                                        radial-gradient(ellipse 25% 30% at 75% 55%, ${currentRecommendations[selectedProductIndex].darkProduct.hex}CC, transparent 60%),
+                                        radial-gradient(ellipse 40% 15% at 50% 85%, ${currentRecommendations[selectedProductIndex].darkProduct.hex}CC, transparent 60%)`
+                          }}
+                        />
+                      </div>
+                      
+                      <div className="mt-2 bg-muted/50 rounded-lg p-3">
+                        <p className="font-semibold text-sm">{currentRecommendations[selectedProductIndex]?.brand}</p>
+                        <div className="flex items-center gap-4 mt-1 text-xs">
+                          <div className="flex items-center gap-1">
+                            <div className="w-4 h-4 rounded border" style={{ backgroundColor: currentRecommendations[selectedProductIndex].lightProduct.hex }} />
+                            <span>Light: {currentRecommendations[selectedProductIndex].lightProduct.shade}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <div className="w-4 h-4 rounded border" style={{ backgroundColor: currentRecommendations[selectedProductIndex].darkProduct.hex }} />
+                            <span>Dark: {currentRecommendations[selectedProductIndex].darkProduct.shade}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </>
                 ) : (
-                  <div className="text-center text-muted-foreground p-8">
+                  <div className="aspect-[2/1] bg-muted rounded-lg flex items-center justify-center text-center text-muted-foreground p-8">
                     {capturedImage ? (
-                      <p>Select a product below to see it on your photo</p>
+                      <p>Select a product below to see the before & after comparison</p>
                     ) : (
-                      <p>Capture or upload a photo to try on products</p>
+                      <p>Capture or upload a photo to see the before & after comparison</p>
                     )}
                   </div>
                 )}
