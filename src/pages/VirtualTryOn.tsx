@@ -1,316 +1,557 @@
-import React, { useState } from 'react';
-import Header from '../components/Header';
-import VirtualTryOn from '../components/VirtualTryOn';
-import EnhancedProductRecommendations from '../components/EnhancedProductRecommendations';
-import SkinToneAnalysisDisplay from '../components/SkinToneAnalysisDisplay';
-import UpgradePrompt from '../components/UpgradePrompt';
+import React, { useState, useRef, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import Header from '@/components/Header';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Camera, Upload, Zap, Crown, CreditCard } from 'lucide-react';
-import { Toaster } from '@/components/ui/toaster';
-import { useSubscription } from '@/hooks/useSubscription';
-import { useMatchTracking } from '@/hooks/useMatchTracking';
-import { useNavigate } from 'react-router-dom';
-import { FoundationMatch } from '../types/foundation';
-import { useToast } from '@/hooks/use-toast';
+import { Card, CardContent } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Camera, Upload, ShoppingCart, Sparkles, ArrowLeft, Check } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { useCart } from '@/contexts/CartContext';
 
-const VirtualTryOnPage = () => {
+interface ProductPair {
+  lightProduct: any;
+  darkProduct: any;
+  brand: string;
+}
+
+const VirtualTryOn = () => {
+  const location = useLocation();
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const subscription = useSubscription();
-  const { matchUsage, recordMatch } = useMatchTracking();
+  const { addToCart } = useCart();
   
-  const [recommendations, setRecommendations] = useState<{
-    shade: FoundationMatch;
-    confidence: number;
-    targetTone: 'dominant' | 'secondary';
-  }[]>([]);
-  const [selectedMatch, setSelectedMatch] = useState<FoundationMatch | null>(null);
-  const [skinToneAnalysis, setSkinToneAnalysis] = useState<{
-    dominantTone: {
-      undertone: string;
-      depth: string;
-      confidence: number;
-    };
-    secondaryTone?: {
-      undertone: string;
-      depth: string;
-      confidence: number;
-    };
-  } | null>(null);
+  const [recommendationHistory, setRecommendationHistory] = useState<ProductPair[][]>([]);
+  const [currentRecommendations, setCurrentRecommendations] = useState<ProductPair[]>([]);
+  const [selectedProductIndex, setSelectedProductIndex] = useState<number | null>(null);
+  const [cameraActive, setCameraActive] = useState(false);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   
-  // Calculate match limits and usage
-  const FREE_MATCH_LIMIT = 3;
-  const usedMatches = matchUsage.usedToday; // For free tier, count daily usage
-  const remainingMatches = subscription.isPremium ? Infinity : Math.max(0, FREE_MATCH_LIMIT - usedMatches);
-  const canTryOn = subscription.isPremium || usedMatches < FREE_MATCH_LIMIT;
-  
-  // Determine urgency level for upgrade prompts
-  const getUrgencyLevel = () => {
-    if (!subscription.isPremium) {
-      if (remainingMatches === 0) return 'critical';
-      if (remainingMatches === 1) return 'high';
-      if (remainingMatches <= 2) return 'medium';
-    }
-    return 'low';
-  };
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
-  const handleUpgrade = async (tier: 'one_time' | 'weekly' | 'monthly' | 'yearly') => {
-    // Use existing Stripe payment URLs from landing page
-    const STRIPE_PAYMENT_URLS = {
-      one_time: 'https://buy.stripe.com/test_4gweVo6QR2XMgMw5kl',
-      weekly: 'https://buy.stripe.com/test_6oEaFY3EFeAu4cE9AC',
-      monthly: 'https://buy.stripe.com/test_cN23dwhppasmfIscMN',
-      yearly: 'https://buy.stripe.com/test_5kA29s3EF5a2fIscMO',
-    };
+  // Load initial products from navigation state
+  useEffect(() => {
+    const products = location.state?.products as ProductPair[] | undefined;
+    const initialImage = location.state?.image as string | undefined;
     
-    const paymentUrl = STRIPE_PAYMENT_URLS[tier];
-    if (paymentUrl) {
-      window.open(paymentUrl, '_blank');
-      toast({
-        title: "Redirecting to payment",
-        description: `Processing ${tier} subscription...`,
-      });
+    if (products && products.length > 0) {
+      setCurrentRecommendations(products);
+      setRecommendationHistory([products]);
+      if (initialImage) {
+        setCapturedImage(initialImage);
+      }
+    } else {
+      toast.error('No products to try on. Please start from AI Shade Match.');
+      navigate('/shade-matcher');
     }
-  };
+  }, [location.state, navigate]);
 
-  const handleShadeRecommendations = async (newRecommendations: typeof recommendations) => {
+  // Camera functions
+  const startCamera = async () => {
     try {
-      // Record match usage when analysis is performed
-      await recordMatch('virtual_try_on', {
-        recommendations_count: newRecommendations.length,
-        skin_analysis_performed: true
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } } 
       });
-      
-      setRecommendations(newRecommendations);
-      // Extract skin tone analysis from the first recommendation if available
-      if (newRecommendations.length > 0) {
-        // This would typically come from the actual skin analysis in VirtualTryOn
-        // For now, we'll create a sample analysis based on the recommendations
-        const firstShade = newRecommendations[0].shade;
-        setSkinToneAnalysis({
-          dominantTone: {
-            undertone: firstShade.undertone,
-            depth: firstShade.shade.toLowerCase().includes('fair') ? 'fair' :
-                   firstShade.shade.toLowerCase().includes('light') ? 'light' :
-                   firstShade.shade.toLowerCase().includes('medium') ? 'medium' :
-                   firstShade.shade.toLowerCase().includes('deep') ? 'deep' : 'medium',
-            confidence: 0.92
-          },
-          secondaryTone: newRecommendations.length > 1 ? {
-            undertone: newRecommendations[1].shade.undertone,
-            depth: 'medium',
-            confidence: 0.75
-          } : undefined
-        });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        streamRef.current = stream;
+        setCameraActive(true);
       }
     } catch (error) {
-      console.error('Error recording match usage:', error);
-      toast({
-        title: "Error",
-        description: "Failed to record match usage",
-        variant: "destructive"
+      console.error('Camera error:', error);
+      toast.error('Unable to access camera. Please check permissions.');
+    }
+  };
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setCameraActive(false);
+  };
+
+  const takeSnapshot = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.save();
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+        ctx.restore();
+        const imageData = canvas.toDataURL('image/jpeg', 0.9);
+        setCapturedImage(imageData);
+        stopCamera();
+      }
+    }
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setCapturedImage(event.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const getNewRecommendations = async () => {
+    if (!capturedImage) {
+      toast.error('Please capture or upload a photo first');
+      return;
+    }
+
+    setIsAnalyzing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('analyze-skin-tone', {
+        body: { image: capturedImage }
       });
+
+      if (error) throw error;
+
+      const { lightestHex, darkestHex } = data;
+      
+      // Load CSV and find new matches
+      const response = await fetch('/data/allShades.csv');
+      const csvText = await response.text();
+      const lines = csvText.split('\n').slice(1);
+      
+      const shadeDatabase = lines.map(line => {
+        const parts = line.split(',');
+        return {
+          brand: parts[0]?.trim() || '',
+          product: parts[1]?.trim() || '',
+          shade: parts[2]?.trim() || '',
+          hex: parts[3]?.trim() || '',
+          imgSrc: parts[4]?.trim() || ''
+        };
+      }).filter(item => item.hex && item.hex.match(/^#[0-9A-F]{6}$/i));
+
+      // Find new brand pairs
+      const brandMap = new Map<string, any[]>();
+      shadeDatabase.forEach(shade => {
+        if (!brandMap.has(shade.brand)) {
+          brandMap.set(shade.brand, []);
+        }
+        brandMap.get(shade.brand)!.push(shade);
+      });
+
+      // Fetch Rakuten data for products
+      const newPairs: ProductPair[] = [];
+      for (const [brand, shades] of Array.from(brandMap.entries()).slice(0, 4)) {
+        const lightMatches = shades
+          .map(s => ({ ...s, distance: colorDistance(lightestHex, s.hex) }))
+          .sort((a, b) => a.distance - b.distance);
+        
+        const darkMatches = shades
+          .map(s => ({ ...s, distance: colorDistance(darkestHex, s.hex) }))
+          .sort((a, b) => a.distance - b.distance);
+
+        if (lightMatches.length > 0 && darkMatches.length > 0) {
+          const light = lightMatches[0];
+          const dark = darkMatches[0];
+          
+          // Try to fetch Rakuten data
+          try {
+            const { data: rakutenData } = await supabase.functions.invoke('rakuten-product-search', {
+              body: { brand: light.brand, productName: light.product, limit: 1 }
+            });
+            
+            if (rakutenData?.products?.[0]) {
+              light.imageUrl = rakutenData.products[0].imageUrl;
+              light.price = rakutenData.products[0].price || 45;
+            }
+          } catch (error) {
+            console.error('Rakuten fetch error:', error);
+          }
+
+          newPairs.push({
+            brand,
+            lightProduct: light,
+            darkProduct: dark
+          });
+        }
+      }
+
+      setCurrentRecommendations(newPairs);
+      setRecommendationHistory(prev => [...prev, newPairs]);
+      setSelectedProductIndex(null);
+      toast.success('New recommendations generated!');
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error('Failed to generate new recommendations');
+    } finally {
+      setIsAnalyzing(false);
     }
   };
 
-  const handleVirtualTryOn = (shade: FoundationMatch) => {
-    setSelectedMatch(shade);
+  const colorDistance = (hex1: string, hex2: string): number => {
+    const r1 = parseInt(hex1.slice(1, 3), 16);
+    const g1 = parseInt(hex1.slice(3, 5), 16);
+    const b1 = parseInt(hex1.slice(5, 7), 16);
+    const r2 = parseInt(hex2.slice(1, 3), 16);
+    const g2 = parseInt(hex2.slice(3, 5), 16);
+    const b2 = parseInt(hex2.slice(5, 7), 16);
+    return Math.sqrt(Math.pow(r2 - r1, 2) + Math.pow(g2 - g1, 2) + Math.pow(b2 - b1, 2));
   };
 
-  const getUserTierDisplay = () => {
-    if (subscription.isPremium) {
-      return subscription.subscription_tier === 'one_time' ? 'Premium' : 
-             subscription.subscription_tier === 'monthly' ? 'Monthly' :
-             subscription.subscription_tier === 'yearly' ? 'Yearly' : 'Premium';
-    }
-    return 'Free';
+  const handleBuyProduct = (product: any, type: 'light' | 'dark') => {
+    const foundationMatch: any = {
+      id: `${product.brand}-${product.shade}`,
+      brand: product.brand,
+      shade: product.shade,
+      product: product.product,
+      price: product.price || 45,
+      image: product.imageUrl || product.imgSrc,
+      undertone: 'neutral',
+      url: '',
+      hex: product.hex
+    };
+    addToCart(foundationMatch);
+    toast.success(`Added ${type} shade to cart!`);
+  };
+
+  const handleBuySet = (pair: ProductPair) => {
+    const lightMatch: any = {
+      id: `${pair.brand}-${pair.lightProduct.shade}`,
+      brand: pair.brand,
+      shade: pair.lightProduct.shade,
+      product: pair.lightProduct.product,
+      price: pair.lightProduct.price || 45,
+      image: pair.lightProduct.imageUrl || pair.lightProduct.imgSrc,
+      undertone: 'neutral',
+      url: '',
+      hex: pair.lightProduct.hex
+    };
+    const darkMatch: any = {
+      id: `${pair.brand}-${pair.darkProduct.shade}`,
+      brand: pair.brand,
+      shade: pair.darkProduct.shade,
+      product: pair.darkProduct.product,
+      price: pair.darkProduct.price || 45,
+      image: pair.darkProduct.imageUrl || pair.darkProduct.imgSrc,
+      undertone: 'neutral',
+      url: '',
+      hex: pair.darkProduct.hex
+    };
+    addToCart(lightMatch);
+    addToCart(darkMatch);
+    toast.success('Added both shades to cart!');
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
-        <Header />
-        
-        <div className="py-8">
-          <div className="container mx-auto px-4">
-            {/* Hero Image Section */}
-            <div className="relative rounded-lg overflow-hidden mb-8 max-w-4xl mx-auto">
-              <img 
-                src="/lovable-uploads/a68d3215-f709-4f7d-8787-82bf8d454614.png"
-                alt="Virtual try-on model"
-                className="w-full h-64 object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end">
-                <div className="p-6 text-white">
-                  <h1 className="text-4xl font-bold mb-2">Virtual Foundation Try-On</h1>
-                  <p className="text-lg text-gray-200">
-                    See how different foundations look on you before you buy
-                  </p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="text-center mb-8">
-              {/* Usage Tracker */}
-              <div className="inline-flex items-center gap-3 bg-white rounded-full px-6 py-3 shadow-lg">
-                <Badge variant={!subscription.isPremium ? 'secondary' : 'default'} className="capitalize">
-                  {subscription.isPremium ? (
-                    <>
-                      <Crown className="w-4 h-4 mr-1" />
-                      {getUserTierDisplay()}
-                    </>
-                  ) : (
-                    'Free'
-                  )}
-                </Badge>
-                <span className="text-sm text-gray-600">
-                  {subscription.isPremium ? 'Unlimited' : `${remainingMatches} of ${FREE_MATCH_LIMIT}`} matches remaining
-                  {!subscription.isPremium && ` today`}
-                </span>
-                {matchUsage.loading && (
-                  <div className="w-4 h-4 border-2 border-gray-300 border-t-rose-500 rounded-full animate-spin"></div>
-                )}
-              </div>
-            </div>
+    <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background">
+      <Header />
+      <main className="container mx-auto px-4 py-8">
+        <Button
+          variant="ghost"
+          onClick={() => navigate('/shade-matcher')}
+          className="mb-4"
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back to AI Shade Match
+        </Button>
 
-            {canTryOn ? (
-              <>
-                {/* Quick Start Options */}
-                <div className="grid md:grid-cols-2 gap-6 mb-8 max-w-4xl mx-auto">
-                  <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-                    <CardHeader className="text-center">
-                      <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Camera className="h-8 w-8 text-purple-600" />
-                      </div>
-                      <CardTitle>Use Camera</CardTitle>
-                      <CardDescription>
-                        Take a photo with your device camera for instant try-on
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <Button className="w-full" size="lg">
-                        <Camera className="w-5 h-5 mr-2" />
-                        Start Camera
-                      </Button>
-                    </CardContent>
-                  </Card>
+        <h1 className="text-4xl font-bold text-center mb-8 bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
+          Virtual Try-On
+        </h1>
 
-                  <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-                    <CardHeader className="text-center">
-                      <div className="w-16 h-16 bg-rose-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Upload className="h-8 w-8 text-rose-600" />
-                      </div>
-                      <CardTitle>Upload Photo</CardTitle>
-                      <CardDescription>
-                        Upload an existing photo from your device
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <Button variant="outline" className="w-full" size="lg">
-                        <Upload className="w-5 h-5 mr-2" />
-                        Choose File
-                      </Button>
-                    </CardContent>
-                  </Card>
-                </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          {/* Camera/Upload Section */}
+          <Card>
+            <CardContent className="p-6">
+              <Tabs defaultValue="camera" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="camera">
+                    <Camera className="w-4 h-4 mr-2" />
+                    Camera
+                  </TabsTrigger>
+                  <TabsTrigger value="upload">
+                    <Upload className="w-4 h-4 mr-2" />
+                    Upload
+                  </TabsTrigger>
+                </TabsList>
 
-                {/* Show upgrade prompt for non-premium users who are running low on matches */}
-                {!subscription.isPremium && getUrgencyLevel() !== 'low' && (
-                  <div className="mb-8">
-                    <UpgradePrompt
-                      matchUsage={matchUsage}
-                      remainingMatches={remainingMatches}
-                      maxMatches={FREE_MATCH_LIMIT}
-                      onUpgrade={handleUpgrade}
-                      urgencyLevel={getUrgencyLevel()}
-                    />
-                  </div>
-                )}
-
-                {/* Virtual Try-On Component */}
-                <div className="grid lg:grid-cols-3 gap-8">
-                  <div className="lg:col-span-1">
-                    <VirtualTryOn 
-                      selectedMatch={selectedMatch} 
-                      onShadeRecommendations={handleShadeRecommendations}
-                    />
-                  </div>
-                  
-                  {/* Enhanced Product Recommendations */}
-                  <div className="lg:col-span-2 space-y-8">
-                    {/* Skin Tone Analysis */}
-                    {skinToneAnalysis && (
-                      <SkinToneAnalysisDisplay analysis={{
-                        faceRegions: [],
-                        dominantTone: {
-                          hexColor: '#E8C5A0',
-                          undertone: skinToneAnalysis.dominantTone.undertone,
-                          depthLevel: skinToneAnalysis.dominantTone.depth === 'fair' ? 2 : 
-                                    skinToneAnalysis.dominantTone.depth === 'light' ? 4 :
-                                    skinToneAnalysis.dominantTone.depth === 'medium' ? 6 : 8,
-                          confidence: skinToneAnalysis.dominantTone.confidence
-                        },
-                        secondaryTone: skinToneAnalysis.secondaryTone ? {
-                          hexColor: '#D4B896',
-                          undertone: skinToneAnalysis.secondaryTone.undertone,
-                          depthLevel: 6,
-                          confidence: skinToneAnalysis.secondaryTone.confidence
-                        } : {
-                          hexColor: '#D4B896',
-                          undertone: 'neutral',
-                          depthLevel: 6,
-                          confidence: 0.7
-                        },
-                        overallConfidence: skinToneAnalysis.dominantTone.confidence
-                      }} />
-                    )}
-                    
-                    {/* Product Recommendations - Limited to 4 groups */}
-                    {recommendations.length > 0 && (
-                      <EnhancedProductRecommendations 
-                        recommendations={recommendations.slice(0, 4)}
-                        onVirtualTryOn={handleVirtualTryOn}
-                        enableCart={true}
+                <TabsContent value="camera" className="space-y-4">
+                  <div className="relative aspect-video bg-muted rounded-lg overflow-hidden">
+                    {capturedImage ? (
+                      <img src={capturedImage} alt="Captured" className="w-full h-full object-cover" />
+                    ) : (
+                      <video
+                        ref={videoRef}
+                        autoPlay
+                        playsInline
+                        muted
+                        className="w-full h-full object-cover scale-x-[-1]"
                       />
                     )}
                   </div>
-                </div>
-              </>
-            ) : (
-              /* Upgrade Prompt */
-              <div className="text-center py-16">
-                <div className="max-w-md mx-auto">
-                  <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <Zap className="h-10 w-10 text-gray-400" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-gray-800 mb-4">
-                    You've Used All Your Try-Ons
-                  </h3>
-                  <p className="text-gray-600 mb-8">
-                    Upgrade your plan to continue using virtual try-on and get more matches.
-                  </p>
+                  <canvas ref={canvasRef} className="hidden" />
                   
-                  {/* Upgrade Options */}
-                  <div className="space-y-4">
-                    <Button 
-                      size="lg" 
+                  <div className="flex gap-2">
+                    {!cameraActive && !capturedImage && (
+                      <Button onClick={startCamera} className="flex-1">
+                        <Camera className="w-4 h-4 mr-2" />
+                        Start Camera
+                      </Button>
+                    )}
+                    {cameraActive && (
+                      <>
+                        <Button onClick={takeSnapshot} className="flex-1">
+                          <Camera className="w-4 h-4 mr-2" />
+                          Take Photo
+                        </Button>
+                        <Button onClick={stopCamera} variant="outline">
+                          Cancel
+                        </Button>
+                      </>
+                    )}
+                    {capturedImage && (
+                      <Button
+                        onClick={() => {
+                          setCapturedImage(null);
+                          startCamera();
+                        }}
+                        variant="outline"
+                        className="flex-1"
+                      >
+                        Retake
+                      </Button>
+                    )}
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="upload" className="space-y-4">
+                  <div className="relative aspect-video bg-muted rounded-lg overflow-hidden flex items-center justify-center">
+                    {capturedImage ? (
+                      <img src={capturedImage} alt="Uploaded" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="text-center">
+                        <Upload className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                        <p className="text-muted-foreground">Upload a photo to try on products</p>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                  />
+                  
+                  <Button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full"
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    Choose Photo
+                  </Button>
+                </TabsContent>
+              </Tabs>
+
+              {capturedImage && (
+                <Button
+                  onClick={getNewRecommendations}
+                  disabled={isAnalyzing}
+                  className="w-full mt-4"
+                >
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  {isAnalyzing ? 'Analyzing...' : 'Get New Recommendations'}
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Try-On Preview */}
+          <Card>
+            <CardContent className="p-6">
+              <h2 className="text-xl font-semibold mb-4">Try-On Preview</h2>
+              <div className="aspect-video bg-muted rounded-lg flex items-center justify-center overflow-hidden">
+                {capturedImage && selectedProductIndex !== null ? (
+                  <div className="relative w-full h-full">
+                    <img src={capturedImage} alt="Preview" className="w-full h-full object-cover rounded-lg" />
+                    <div className="absolute bottom-4 left-4 bg-black/70 text-white px-4 py-2 rounded-lg">
+                      <p className="font-semibold">{currentRecommendations[selectedProductIndex]?.brand}</p>
+                      <p className="text-sm">{currentRecommendations[selectedProductIndex]?.lightProduct.shade}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center text-muted-foreground p-8">
+                    {capturedImage ? (
+                      <p>Select a product below to see it on your photo</p>
+                    ) : (
+                      <p>Capture or upload a photo to try on products</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Current Recommendations */}
+        <h2 className="text-2xl font-bold mb-4">Current Recommendations</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {currentRecommendations.map((pair, index) => (
+            <Card
+              key={index}
+              className={`cursor-pointer transition-all hover:shadow-lg ${
+                selectedProductIndex === index ? 'ring-2 ring-primary shadow-lg' : ''
+              }`}
+              onClick={() => setSelectedProductIndex(index)}
+            >
+              <CardContent className="p-4">
+                {selectedProductIndex === index && (
+                  <div className="flex items-center justify-center mb-2 text-primary">
+                    <Check className="w-5 h-5 mr-1" />
+                    <span className="text-sm font-semibold">Trying On</span>
+                  </div>
+                )}
+                <h3 className="font-semibold text-lg mb-4 text-center">{pair.brand}</h3>
+                
+                <div className="space-y-4">
+                  {/* Light Shade */}
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-primary">LIGHT SHADE</p>
+                    <img
+                      src={pair.lightProduct.imageUrl || pair.lightProduct.imgSrc}
+                      alt={pair.lightProduct.shade}
+                      className="w-full h-32 object-cover rounded"
+                    />
+                    <div className="flex items-center gap-2">
+                      <div 
+                        className="w-6 h-6 rounded border-2 border-border"
+                        style={{ backgroundColor: pair.lightProduct.hex }}
+                      />
+                      <p className="text-xs font-mono">{pair.lightProduct.hex}</p>
+                    </div>
+                    <p className="text-sm font-medium line-clamp-2">{pair.lightProduct.shade}</p>
+                    {pair.lightProduct.price && (
+                      <p className="text-sm font-bold text-primary">${pair.lightProduct.price.toFixed(2)}</p>
+                    )}
+                    <Button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleBuyProduct(pair.lightProduct, 'light');
+                      }}
+                      variant="secondary"
+                      size="sm"
                       className="w-full"
-                      onClick={() => navigate('/subscription')}
                     >
-                      <CreditCard className="w-5 h-5 mr-2" />
-                      View Subscription Plans
+                      <ShoppingCart className="w-3 h-3 mr-1" />
+                      Buy Light
                     </Button>
                   </div>
+
+                  {/* Dark Shade */}
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-primary">DARK SHADE (CONTOUR)</p>
+                    <img
+                      src={pair.darkProduct.imageUrl || pair.darkProduct.imgSrc}
+                      alt={pair.darkProduct.shade}
+                      className="w-full h-32 object-cover rounded"
+                    />
+                    <div className="flex items-center gap-2">
+                      <div 
+                        className="w-6 h-6 rounded border-2 border-border"
+                        style={{ backgroundColor: pair.darkProduct.hex }}
+                      />
+                      <p className="text-xs font-mono">{pair.darkProduct.hex}</p>
+                    </div>
+                    <p className="text-sm font-medium line-clamp-2">{pair.darkProduct.shade}</p>
+                    {pair.darkProduct.price && (
+                      <p className="text-sm font-bold text-primary">${pair.darkProduct.price.toFixed(2)}</p>
+                    )}
+                    <Button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleBuyProduct(pair.darkProduct, 'dark');
+                      }}
+                      variant="secondary"
+                      size="sm"
+                      className="w-full"
+                    >
+                      <ShoppingCart className="w-3 h-3 mr-1" />
+                      Buy Dark
+                    </Button>
+                  </div>
+
+                  {/* Buy Set Button */}
+                  <Button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleBuySet(pair);
+                    }}
+                    className="w-full font-semibold"
+                  >
+                    <ShoppingCart className="w-4 h-4 mr-2" />
+                    Buy Set - ${((pair.lightProduct.price || 45) + (pair.darkProduct.price || 45)).toFixed(2)}
+                  </Button>
                 </div>
-              </div>
-            )}
-          </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
-        
-        <Toaster />
-      </div>
+
+        {/* Recommendation History */}
+        {recommendationHistory.length > 1 && (
+          <div className="mt-8">
+            <h2 className="text-2xl font-bold mb-4">Previous Recommendations</h2>
+            <div className="space-y-4">
+              {recommendationHistory.slice(0, -1).reverse().map((historySet, setIndex) => (
+                <Card key={setIndex}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="font-semibold">Recommendation Set {recommendationHistory.length - setIndex - 1}</h3>
+                      <Button
+                        onClick={() => {
+                          setCurrentRecommendations(historySet);
+                          const newHistory = [...recommendationHistory];
+                          newHistory.splice(recommendationHistory.length - setIndex - 1, 1);
+                          newHistory.push(historySet);
+                          setRecommendationHistory(newHistory);
+                          setSelectedProductIndex(null);
+                        }}
+                        size="sm"
+                      >
+                        Switch to These
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {historySet.map((pair, index) => (
+                        <div key={index} className="text-center">
+                          <img
+                            src={pair.lightProduct.imageUrl || pair.lightProduct.imgSrc}
+                            alt={pair.brand}
+                            className="w-full h-24 object-cover rounded mb-2"
+                          />
+                          <p className="text-sm font-medium">{pair.brand}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
   );
 };
 
-export default VirtualTryOnPage;
+export default VirtualTryOn;

@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -68,6 +69,7 @@ export const AISkinToneMatcher = () => {
   const { toast } = useToast();
   const { addToCart } = useCart();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
   const [currentImage, setCurrentImage] = useState<string | null>(null);
@@ -956,8 +958,31 @@ export const AISkinToneMatcher = () => {
                         size="sm" 
                         className="w-full"
                         onClick={() => {
-                          setSelectedProduct(pair.light);
-                          setIsProductDialogOpen(true);
+                          navigate('/virtual-tryon', {
+                            state: {
+                              products: brandPairs.map(p => ({
+                                brand: p.light.brand,
+                                lightProduct: {
+                                  brand: p.light.brand,
+                                  product: p.light.product,
+                                  shade: p.light.shade_name,
+                                  hex: p.light.hex,
+                                  imgSrc: p.light.img,
+                                  imageUrl: p.light.rakutenData?.imageUrl,
+                                  price: p.light.price
+                                },
+                                darkProduct: {
+                                  brand: p.dark.brand,
+                                  product: p.dark.product,
+                                  shade: p.dark.shade_name,
+                                  hex: p.dark.hex,
+                                  imgSrc: p.dark.img,
+                                  imageUrl: p.dark.rakutenData?.imageUrl,
+                                  price: p.dark.price
+                                }
+                              }))
+                            }
+                          });
                         }}
                       >
                         <Eye className="w-3 h-3 mr-1" />

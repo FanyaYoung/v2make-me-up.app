@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Palette, User, LogOut, ShoppingCart, Package, Hand } from 'lucide-react';
+import { Palette, User, LogOut, ShoppingCart, Package, Sparkles } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useCart } from '@/contexts/CartContext';
 import { Button } from '@/components/ui/button';
@@ -37,9 +37,9 @@ const Header = () => {
               <Palette className="w-4 h-4" />
               AI Shade Match
             </Link>
-            <Link to="/hand-analyzer" className="text-gray-600 hover:text-rose-600 transition-colors font-medium flex items-center gap-1">
-              <Hand className="w-4 h-4" />
-              Hand Analyzer
+            <Link to="/virtual-tryon" className="text-gray-600 hover:text-rose-600 transition-colors font-medium flex items-center gap-1">
+              <Sparkles className="w-4 h-4" />
+              Virtual Try-On
             </Link>
             <Link to="/products" className="text-gray-600 hover:text-rose-600 transition-colors font-medium flex items-center gap-1">
               <Package className="w-4 h-4" />
