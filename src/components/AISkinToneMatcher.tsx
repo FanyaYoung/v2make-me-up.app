@@ -211,7 +211,6 @@ export const AISkinToneMatcher = () => {
   const findBrandPairs = async (lightHex: string, darkHex: string, limit: number = 4): Promise<Array<{ light: FoundationMatch; dark: FoundationMatch }>> => {
     if (shadeDatabase.length === 0) return [];
 
-    // Group shades by brand
     const brandGroups = shadeDatabase.reduce((acc, shade) => {
       if (!acc[shade.brand]) acc[shade.brand] = [];
       acc[shade.brand].push(shade);
@@ -223,7 +222,6 @@ export const AISkinToneMatcher = () => {
     for (const [brand, shades] of Object.entries(brandGroups)) {
       if (shades.length < 2) continue;
 
-      // Find best light match for this brand
       const lightMatches = shades
         .map(shade => ({
           shade,
@@ -231,7 +229,6 @@ export const AISkinToneMatcher = () => {
         }))
         .sort((a, b) => a.distance - b.distance);
 
-      // Find best dark match for this brand
       const darkMatches = shades
         .map(shade => ({
           shade,
@@ -246,6 +243,7 @@ export const AISkinToneMatcher = () => {
         const lightPigmentColor = createPigmentColor(lightMatch.hex);
         const darkPigmentColor = createPigmentColor(darkMatch.hex);
 
+        // Use CSV image URLs as base
         const light: FoundationMatch = {
           brand: lightMatch.brand,
           product: lightMatch.product,
@@ -253,7 +251,7 @@ export const AISkinToneMatcher = () => {
           hex: lightMatch.hex,
           undertone: '',
           url: lightMatch.url,
-          img: lightMatch.imgSrc,
+          img: lightMatch.imgSrc || '', // CSV image
           score: 100 - (lightMatches[0].distance / 441.67) * 100,
           pigmentColor: lightPigmentColor,
           price: 39.99
@@ -266,17 +264,17 @@ export const AISkinToneMatcher = () => {
           hex: darkMatch.hex,
           undertone: '',
           url: darkMatch.url,
-          img: darkMatch.imgSrc,
+          img: darkMatch.imgSrc || '', // CSV image
           score: 100 - (darkMatches[0].distance / 441.67) * 100,
           pigmentColor: darkPigmentColor,
           price: 45.99
         };
 
-        // Try to fetch Rakuten data
+        // Try Rakuten for enhanced data (pricing and potentially better images)
         try {
           const { data: rakutenData } = await supabase.functions.invoke('rakuten-offers', {
             body: { 
-              keywords: `${brand} foundation`,
+              keywords: `${brand} foundation makeup`,
               limit: 1
             }
           });
@@ -294,16 +292,22 @@ export const AISkinToneMatcher = () => {
             
             light.rakutenData = rakutenInfo;
             dark.rakutenData = rakutenInfo;
-            light.price = offer.salePrice;
-            dark.price = offer.salePrice;
             
-            if (offer.imageUrl) {
+            // Use Rakuten pricing
+            if (offer.salePrice) {
+              light.price = offer.salePrice;
+              dark.price = offer.salePrice;
+            }
+            
+            // Only use Rakuten image if CSV image is missing
+            if (offer.imageUrl && !light.img) {
               light.img = offer.imageUrl;
               dark.img = offer.imageUrl;
             }
           }
         } catch (error) {
-          console.log('Could not fetch Rakuten data for brand:', brand);
+          console.log('Rakuten data not available for brand:', brand);
+          // Continue with CSV data
         }
 
         const avgDistance = (lightMatches[0].distance + darkMatches[0].distance) / 2;
