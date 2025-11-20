@@ -270,43 +270,49 @@ export const AISkinToneMatcher = () => {
           price: 45.99
         };
 
-        // Try Rakuten for enhanced data (pricing and potentially better images)
+        // Try Rakuten Product Search for enhanced data (pricing and better images)
         try {
-          const { data: rakutenData } = await supabase.functions.invoke('rakuten-offers', {
+          const { data: rakutenData, error: rakutenError } = await supabase.functions.invoke('rakuten-product-search', {
             body: { 
-              keywords: `${brand} foundation makeup`,
-              limit: 1
+              brand: brand,
+              productName: lightMatch.product,
+              limit: 3
             }
           });
 
-          if (rakutenData?.offers && rakutenData.offers.length > 0) {
-            const offer = rakutenData.offers[0];
+          if (!rakutenError && rakutenData?.products && rakutenData.products.length > 0) {
+            const product = rakutenData.products[0];
             const rakutenInfo = {
-              id: offer.id,
-              name: offer.name,
-              imageUrl: offer.imageUrl,
-              salePrice: offer.salePrice,
-              clickUrl: offer.clickUrl,
-              merchant: offer.merchant
+              id: product.id,
+              name: product.name,
+              imageUrl: product.imageUrl,
+              salePrice: product.salePrice || product.price,
+              clickUrl: product.productUrl,
+              merchant: product.brand
             };
             
             light.rakutenData = rakutenInfo;
             dark.rakutenData = rakutenInfo;
             
-            // Use Rakuten pricing
-            if (offer.salePrice) {
-              light.price = offer.salePrice;
-              dark.price = offer.salePrice;
+            // Use Rakuten pricing if available
+            if (product.salePrice || product.price) {
+              const price = product.salePrice || product.price;
+              light.price = price;
+              dark.price = price;
             }
             
-            // Only use Rakuten image if CSV image is missing
-            if (offer.imageUrl && !light.img) {
-              light.img = offer.imageUrl;
-              dark.img = offer.imageUrl;
+            // Use Rakuten image if available and CSV image is missing or broken
+            if (product.imageUrl) {
+              if (!light.img || light.img === '') {
+                light.img = product.imageUrl;
+              }
+              if (!dark.img || dark.img === '') {
+                dark.img = product.imageUrl;
+              }
             }
           }
         } catch (error) {
-          console.log('Rakuten data not available for brand:', brand);
+          console.log('Rakuten Product Search not available for brand:', brand, error);
           // Continue with CSV data
         }
 
@@ -890,7 +896,7 @@ export const AISkinToneMatcher = () => {
                         )}
                       </div>
                       <Button 
-                        variant="outline" 
+                        variant="secondary" 
                         size="sm" 
                         className="w-full"
                         onClick={() => handleBuyNow([pair.light])}
@@ -933,7 +939,7 @@ export const AISkinToneMatcher = () => {
                         )}
                       </div>
                       <Button 
-                        variant="outline" 
+                        variant="secondary" 
                         size="sm" 
                         className="w-full"
                         onClick={() => handleBuyNow([pair.dark])}
