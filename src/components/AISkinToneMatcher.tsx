@@ -74,8 +74,7 @@ export const AISkinToneMatcher = () => {
   const [lightestResult, setLightestResult] = useState<{ hex: string; rgb: [number, number, number]; analysis: ColorAnalysis; pigmentColor: PigmentColor } | null>(null);
   const [darkestResult, setDarkestResult] = useState<{ hex: string; rgb: [number, number, number]; analysis: ColorAnalysis; pigmentColor: PigmentColor } | null>(null);
   const [showDarkest, setShowDarkest] = useState(true);
-  const [lightestMatches, setLightestMatches] = useState<FoundationMatch[]>([]);
-  const [darkestMatches, setDarkestMatches] = useState<FoundationMatch[]>([]);
+  const [brandPairs, setBrandPairs] = useState<Array<{ light: FoundationMatch; dark: FoundationMatch }>>([]);
   const [shadeDatabase, setShadeDatabase] = useState<ShadeData[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<FoundationMatch | null>(null);
   const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
@@ -173,10 +172,9 @@ export const AISkinToneMatcher = () => {
         img: match.imgSrc,
         score: 100 - (match.distance / 441.67) * 100,
         pigmentColor: productPigmentColor,
-        price: 39.99 // Default price
+        price: 39.99
       };
 
-      // Try to fetch Rakuten data for pricing and images
       try {
         const { data: rakutenData } = await supabase.functions.invoke('rakuten-offers', {
           body: { 
@@ -208,6 +206,112 @@ export const AISkinToneMatcher = () => {
     }
 
     return foundationMatches;
+  };
+
+  const findBrandPairs = async (lightHex: string, darkHex: string, limit: number = 4): Promise<Array<{ light: FoundationMatch; dark: FoundationMatch }>> => {
+    if (shadeDatabase.length === 0) return [];
+
+    // Group shades by brand
+    const brandGroups = shadeDatabase.reduce((acc, shade) => {
+      if (!acc[shade.brand]) acc[shade.brand] = [];
+      acc[shade.brand].push(shade);
+      return acc;
+    }, {} as Record<string, ShadeData[]>);
+
+    const pairs: Array<{ light: FoundationMatch; dark: FoundationMatch; avgDistance: number }> = [];
+
+    for (const [brand, shades] of Object.entries(brandGroups)) {
+      if (shades.length < 2) continue;
+
+      // Find best light match for this brand
+      const lightMatches = shades
+        .map(shade => ({
+          shade,
+          distance: colorDistance(lightHex, shade.hex)
+        }))
+        .sort((a, b) => a.distance - b.distance);
+
+      // Find best dark match for this brand
+      const darkMatches = shades
+        .map(shade => ({
+          shade,
+          distance: colorDistance(darkHex, shade.hex)
+        }))
+        .sort((a, b) => a.distance - b.distance);
+
+      if (lightMatches[0] && darkMatches[0]) {
+        const lightMatch = lightMatches[0].shade;
+        const darkMatch = darkMatches[0].shade;
+
+        const lightPigmentColor = createPigmentColor(lightMatch.hex);
+        const darkPigmentColor = createPigmentColor(darkMatch.hex);
+
+        const light: FoundationMatch = {
+          brand: lightMatch.brand,
+          product: lightMatch.product,
+          shade_name: lightMatch.name || lightMatch.description,
+          hex: lightMatch.hex,
+          undertone: '',
+          url: lightMatch.url,
+          img: lightMatch.imgSrc,
+          score: 100 - (lightMatches[0].distance / 441.67) * 100,
+          pigmentColor: lightPigmentColor,
+          price: 39.99
+        };
+
+        const dark: FoundationMatch = {
+          brand: darkMatch.brand,
+          product: darkMatch.product,
+          shade_name: darkMatch.name || darkMatch.description,
+          hex: darkMatch.hex,
+          undertone: '',
+          url: darkMatch.url,
+          img: darkMatch.imgSrc,
+          score: 100 - (darkMatches[0].distance / 441.67) * 100,
+          pigmentColor: darkPigmentColor,
+          price: 45.99
+        };
+
+        // Try to fetch Rakuten data
+        try {
+          const { data: rakutenData } = await supabase.functions.invoke('rakuten-offers', {
+            body: { 
+              keywords: `${brand} foundation`,
+              limit: 1
+            }
+          });
+
+          if (rakutenData?.offers && rakutenData.offers.length > 0) {
+            const offer = rakutenData.offers[0];
+            const rakutenInfo = {
+              id: offer.id,
+              name: offer.name,
+              imageUrl: offer.imageUrl,
+              salePrice: offer.salePrice,
+              clickUrl: offer.clickUrl,
+              merchant: offer.merchant
+            };
+            
+            light.rakutenData = rakutenInfo;
+            dark.rakutenData = rakutenInfo;
+            light.price = offer.salePrice;
+            dark.price = offer.salePrice;
+            
+            if (offer.imageUrl) {
+              light.img = offer.imageUrl;
+              dark.img = offer.imageUrl;
+            }
+          }
+        } catch (error) {
+          console.log('Could not fetch Rakuten data for brand:', brand);
+        }
+
+        const avgDistance = (lightMatches[0].distance + darkMatches[0].distance) / 2;
+        pairs.push({ light, dark, avgDistance });
+      }
+    }
+
+    return pairs.sort((a, b) => a.avgDistance - b.avgDistance).slice(0, limit);
   };
 
   const rgbToHex = (r: number, g: number, b: number): string => {
@@ -374,8 +478,7 @@ export const AISkinToneMatcher = () => {
     setLoading(true);
     setLoadingMessage("AI is analyzing the photo...");
     setShowDarkest(true);
-    setLightestMatches([]);
-    setDarkestMatches([]);
+    setBrandPairs([]);
 
     try {
       const { data, error } = await supabase.functions.invoke('analyze-skin-tone', {
@@ -404,14 +507,11 @@ export const AISkinToneMatcher = () => {
         pigmentColor: darkPigmentColor
       });
 
-      // Match to product database
-      setLoadingMessage("Finding matching foundations in database...");
+      // Match to product database - find brand pairs
+      setLoadingMessage("Finding matching foundation pairs from brands...");
       
-      const lightMatches = await findMatchingShades(data.lightest_hex, 5);
-      const darkMatches = await findMatchingShades(data.darkest_hex, 5);
-
-      setLightestMatches(lightMatches);
-      setDarkestMatches(darkMatches);
+      const pairs = await findBrandPairs(data.lightest_hex, data.darkest_hex, 4);
+      setBrandPairs(pairs);
 
       toast({
         title: "Analysis Complete",
@@ -496,16 +596,12 @@ export const AISkinToneMatcher = () => {
     </div>
   );
 
-  const ProductMatchCard = ({ match }: { match: FoundationMatch }) => null; // No longer used
-
   const ColorResultCard = ({ 
     title, 
-    result,
-    matches
+    result
   }: { 
     title: string; 
     result: { hex: string; rgb: [number, number, number]; analysis: ColorAnalysis } | null;
-    matches: FoundationMatch[];
   }) => (
     <Card>
       <CardHeader>
@@ -533,75 +629,6 @@ export const AISkinToneMatcher = () => {
               <PigmentBar label="Ultramarine Blue" percentage={result.analysis.mix.UltramarineBlue} color="#3b82f6" />
               <PigmentBar label="Burnt Umber" percentage={result.analysis.mix.BurntUmber} color="#654321" />
             </div>
-
-            {matches.length > 0 && (
-              <div className="pt-4 border-t">
-                <p className="text-sm font-semibold mb-3">Matching Products by Brand:</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {matches.slice(0, 4).map((match, idx) => (
-                    <Card key={idx} className="overflow-hidden transition-all hover:shadow-lg cursor-pointer"
-                          onClick={() => {
-                            setSelectedProduct(match);
-                            setIsProductDialogOpen(true);
-                          }}>
-                      <CardContent className="p-4 space-y-3">
-                        {match.img && (
-                          <div className="h-32 bg-gradient-to-br from-gray-50 to-gray-100 rounded flex items-center justify-center">
-                            <img 
-                              src={match.img} 
-                              alt={match.product}
-                              className="max-h-full max-w-full object-contain p-2"
-                            />
-                          </div>
-                        )}
-                        <div className="space-y-1">
-                          <Badge variant="secondary" className="text-xs">{match.brand}</Badge>
-                          <h4 className="font-semibold text-sm leading-tight">{match.product}</h4>
-                          <p className="text-xs text-muted-foreground">{match.shade_name}</p>
-                          {match.price && (
-                            <p className="text-sm font-semibold text-primary">${match.price.toFixed(2)}</p>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div 
-                            className="w-full h-8 rounded border-2 border-border"
-                            style={{ backgroundColor: match.hex }}
-                          />
-                        </div>
-                        <p className="text-xs font-mono text-center">{match.hex}</p>
-                        <div className="grid grid-cols-2 gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="w-full"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedProduct(match);
-                              setIsProductDialogOpen(true);
-                            }}
-                          >
-                            <Eye className="w-3 h-3 mr-1" />
-                            Try-On
-                          </Button>
-                          <Button 
-                            variant="default" 
-                            size="sm" 
-                            className="w-full"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleBuyNow(match);
-                            }}
-                          >
-                            <ShoppingCart className="w-3 h-3 mr-1" />
-                            Buy
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-            )}
           </>
         ) : (
           <p className="text-muted-foreground text-sm">Results will appear here</p>
@@ -767,8 +794,7 @@ export const AISkinToneMatcher = () => {
                           setCurrentImage(null);
                           setLightestResult(null);
                           setDarkestResult(null);
-                          setLightestMatches([]);
-                          setDarkestMatches([]);
+                          setBrandPairs([]);
                         }}
                         variant="outline"
                         size="lg"
@@ -802,16 +828,103 @@ export const AISkinToneMatcher = () => {
         <ColorResultCard 
           title="Lightest/Target Tone" 
           result={lightestResult}
-          matches={lightestMatches}
         />
         {showDarkest && (
           <ColorResultCard 
             title="Darkest/Contour Tone" 
             result={darkestResult}
-            matches={darkestMatches}
           />
         )}
       </div>
+
+      {brandPairs.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Recommended Foundation Pairs by Brand</CardTitle>
+            <CardDescription>Light and dark shades from the same brand for base and contour</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {brandPairs.map((pair, idx) => (
+                <Card key={idx} className="overflow-hidden border-2 hover:border-primary transition-all">
+                  <CardContent className="p-0">
+                    {/* Brand Header */}
+                    <div className="bg-muted p-3 border-b">
+                      <Badge variant="secondary" className="text-xs mb-1">{pair.light.brand}</Badge>
+                      <h4 className="font-semibold text-sm line-clamp-2 min-h-[2.5rem]">{pair.light.product}</h4>
+                      {pair.light.price && (
+                        <p className="text-lg font-bold text-primary mt-1">${pair.light.price.toFixed(2)}</p>
+                      )}
+                    </div>
+
+                    {/* Product Image */}
+                    {pair.light.img && (
+                      <div className="h-40 bg-gradient-to-br from-background to-muted flex items-center justify-center p-4">
+                        <img 
+                          src={pair.light.img} 
+                          alt={pair.light.product}
+                          className="max-h-full max-w-full object-contain"
+                        />
+                      </div>
+                    )}
+
+                    {/* Light Shade */}
+                    <div className="p-3 border-b bg-background">
+                      <p className="text-xs font-medium text-muted-foreground mb-1">LIGHT SHADE</p>
+                      <p className="text-sm font-medium line-clamp-2 min-h-[2.5rem] mb-2">{pair.light.shade_name}</p>
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="flex-1 h-10 rounded border-2 border-border"
+                          style={{ backgroundColor: pair.light.hex }}
+                        />
+                        <span className="text-xs font-mono text-muted-foreground">{pair.light.hex}</span>
+                      </div>
+                    </div>
+
+                    {/* Dark Shade */}
+                    <div className="p-3 border-b bg-background">
+                      <p className="text-xs font-medium text-muted-foreground mb-1">DARK SHADE (CONTOUR)</p>
+                      <p className="text-sm font-medium line-clamp-2 min-h-[2.5rem] mb-2">{pair.dark.shade_name}</p>
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="flex-1 h-10 rounded border-2 border-border"
+                          style={{ backgroundColor: pair.dark.hex }}
+                        />
+                        <span className="text-xs font-mono text-muted-foreground">{pair.dark.hex}</span>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="p-3 space-y-2 bg-muted/50">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="w-full"
+                        onClick={() => {
+                          setSelectedProduct(pair.light);
+                          setIsProductDialogOpen(true);
+                        }}
+                      >
+                        <Eye className="w-3 h-3 mr-1" />
+                        Virtual Try-On
+                      </Button>
+                      <Button 
+                        variant="default" 
+                        size="sm" 
+                        className="w-full"
+                        onClick={() => handleBuyNow(pair.light)}
+                      >
+                        <ShoppingCart className="w-3 h-3 mr-1" />
+                        Buy Set
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Product Dialog */}
       <Dialog open={isProductDialogOpen} onOpenChange={setIsProductDialogOpen}>
