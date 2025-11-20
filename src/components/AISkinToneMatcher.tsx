@@ -533,7 +533,7 @@ export const AISkinToneMatcher = () => {
   };
 
 
-  const handleBuyNow = async (product: FoundationMatch) => {
+  const handleBuyNow = async (products: FoundationMatch[]) => {
     if (!user) {
       toast({
         title: "Sign In Required",
@@ -547,7 +547,7 @@ export const AISkinToneMatcher = () => {
       setLoading(true);
       setLoadingMessage("Preparing checkout...");
 
-      const cartItem = {
+      const cartItems = products.map(product => ({
         id: `${product.brand}-${product.shade_name}`,
         product: {
           id: `${product.brand}-${product.shade_name}`,
@@ -558,18 +558,17 @@ export const AISkinToneMatcher = () => {
         },
         quantity: 1,
         shadeName: product.shade_name
-      };
+      }));
 
       const { data, error } = await supabase.functions.invoke('create-checkout-session', {
         body: {
-          items: [cartItem]
+          items: cartItems
         }
       });
 
       if (error) throw error;
 
       if (data?.checkout_url) {
-        // Open checkout in same tab to keep user in app
         window.location.href = data.checkout_url;
       }
 
@@ -856,46 +855,92 @@ export const AISkinToneMatcher = () => {
                     <div className="bg-muted p-3 border-b">
                       <Badge variant="secondary" className="text-xs mb-1">{pair.light.brand}</Badge>
                       <h4 className="font-semibold text-sm line-clamp-2 min-h-[2.5rem]">{pair.light.product}</h4>
-                      {pair.light.price && (
-                        <p className="text-lg font-bold text-primary mt-1">${pair.light.price.toFixed(2)}</p>
-                      )}
                     </div>
 
-                    {/* Product Image */}
-                    {pair.light.img && (
-                      <div className="h-40 bg-gradient-to-br from-background to-muted flex items-center justify-center p-4">
-                        <img 
-                          src={pair.light.img} 
-                          alt={pair.light.product}
-                          className="max-h-full max-w-full object-contain"
-                        />
-                      </div>
-                    )}
-
-                    {/* Light Shade */}
+                    {/* Light Shade with Image */}
                     <div className="p-3 border-b bg-background">
-                      <p className="text-xs font-medium text-muted-foreground mb-1">LIGHT SHADE</p>
-                      <p className="text-sm font-medium line-clamp-2 min-h-[2.5rem] mb-2">{pair.light.shade_name}</p>
-                      <div className="flex items-center gap-2">
+                      <p className="text-xs font-semibold text-primary mb-2">LIGHT SHADE</p>
+                      {pair.light.img ? (
+                        <div className="h-32 bg-gradient-to-br from-background to-muted rounded-lg mb-2 flex items-center justify-center p-2">
+                          <img 
+                            src={pair.light.img} 
+                            alt={pair.light.shade_name}
+                            className="max-h-full max-w-full object-contain"
+                          />
+                        </div>
+                      ) : (
                         <div 
-                          className="flex-1 h-10 rounded border-2 border-border"
+                          className="h-32 rounded-lg mb-2 flex items-center justify-center"
                           style={{ backgroundColor: pair.light.hex }}
-                        />
-                        <span className="text-xs font-mono text-muted-foreground">{pair.light.hex}</span>
+                        >
+                          <span className="text-xs text-white/70">No image</span>
+                        </div>
+                      )}
+                      <p className="text-sm font-medium line-clamp-2 min-h-[2.5rem] mb-2">{pair.light.shade_name}</p>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <div 
+                            className="w-6 h-6 rounded border-2 border-border"
+                            style={{ backgroundColor: pair.light.hex }}
+                          />
+                          <span className="text-xs font-mono text-muted-foreground">{pair.light.hex}</span>
+                        </div>
+                        {pair.light.price && (
+                          <span className="text-sm font-bold text-primary">${pair.light.price.toFixed(2)}</span>
+                        )}
                       </div>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="w-full"
+                        onClick={() => handleBuyNow([pair.light])}
+                      >
+                        <ShoppingCart className="w-3 h-3 mr-1" />
+                        Buy Light
+                      </Button>
                     </div>
 
-                    {/* Dark Shade */}
+                    {/* Dark Shade with Image */}
                     <div className="p-3 border-b bg-background">
-                      <p className="text-xs font-medium text-muted-foreground mb-1">DARK SHADE (CONTOUR)</p>
-                      <p className="text-sm font-medium line-clamp-2 min-h-[2.5rem] mb-2">{pair.dark.shade_name}</p>
-                      <div className="flex items-center gap-2">
+                      <p className="text-xs font-semibold text-primary mb-2">DARK SHADE (CONTOUR)</p>
+                      {pair.dark.img ? (
+                        <div className="h-32 bg-gradient-to-br from-background to-muted rounded-lg mb-2 flex items-center justify-center p-2">
+                          <img 
+                            src={pair.dark.img} 
+                            alt={pair.dark.shade_name}
+                            className="max-h-full max-w-full object-contain"
+                          />
+                        </div>
+                      ) : (
                         <div 
-                          className="flex-1 h-10 rounded border-2 border-border"
+                          className="h-32 rounded-lg mb-2 flex items-center justify-center"
                           style={{ backgroundColor: pair.dark.hex }}
-                        />
-                        <span className="text-xs font-mono text-muted-foreground">{pair.dark.hex}</span>
+                        >
+                          <span className="text-xs text-white/70">No image</span>
+                        </div>
+                      )}
+                      <p className="text-sm font-medium line-clamp-2 min-h-[2.5rem] mb-2">{pair.dark.shade_name}</p>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <div 
+                            className="w-6 h-6 rounded border-2 border-border"
+                            style={{ backgroundColor: pair.dark.hex }}
+                          />
+                          <span className="text-xs font-mono text-muted-foreground">{pair.dark.hex}</span>
+                        </div>
+                        {pair.dark.price && (
+                          <span className="text-sm font-bold text-primary">${pair.dark.price.toFixed(2)}</span>
+                        )}
                       </div>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="w-full"
+                        onClick={() => handleBuyNow([pair.dark])}
+                      >
+                        <ShoppingCart className="w-3 h-3 mr-1" />
+                        Buy Dark
+                      </Button>
                     </div>
 
                     {/* Actions */}
@@ -915,11 +960,11 @@ export const AISkinToneMatcher = () => {
                       <Button 
                         variant="default" 
                         size="sm" 
-                        className="w-full"
-                        onClick={() => handleBuyNow(pair.light)}
+                        className="w-full font-semibold"
+                        onClick={() => handleBuyNow([pair.light, pair.dark])}
                       >
                         <ShoppingCart className="w-3 h-3 mr-1" />
-                        Buy Set
+                        Buy Set - ${((pair.light.price || 0) + (pair.dark.price || 0)).toFixed(2)}
                       </Button>
                     </div>
                   </CardContent>
@@ -1002,7 +1047,7 @@ export const AISkinToneMatcher = () => {
                       size="lg"
                       onClick={() => {
                         setIsProductDialogOpen(false);
-                        handleBuyNow(selectedProduct);
+                        handleBuyNow([selectedProduct]);
                       }}
                     >
                       <ShoppingCart className="w-4 h-4 mr-2" />
