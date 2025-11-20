@@ -4,11 +4,14 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Camera, Upload, Loader2, ExternalLink, ShoppingBag } from 'lucide-react';
+import { Camera, Upload, Loader2, ShoppingBag, ShoppingCart, Eye } from 'lucide-react';
 import { createPigmentColor, calculatePigmentMatch, PigmentColor } from '@/lib/pigmentMixing';
 import { PigmentColorDisplay } from './PigmentColorDisplay';
+import { useCart } from '@/contexts/CartContext';
+import { useAuth } from '@/hooks/useAuth';
 
 interface PigmentMix {
   White: number;
@@ -35,6 +38,15 @@ interface FoundationMatch {
   img: string;
   score: number;
   pigmentColor: PigmentColor;
+  price?: number;
+  rakutenData?: {
+    id: string;
+    name: string;
+    imageUrl: string;
+    salePrice: number;
+    clickUrl: string;
+    merchant: string;
+  };
 }
 
 interface ShadeData {
@@ -54,6 +66,8 @@ interface ShadeData {
 
 export const AISkinToneMatcher = () => {
   const { toast } = useToast();
+  const { addToCart } = useCart();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
   const [currentImage, setCurrentImage] = useState<string | null>(null);
@@ -63,6 +77,8 @@ export const AISkinToneMatcher = () => {
   const [lightestMatches, setLightestMatches] = useState<FoundationMatch[]>([]);
   const [darkestMatches, setDarkestMatches] = useState<FoundationMatch[]>([]);
   const [shadeDatabase, setShadeDatabase] = useState<ShadeData[]>([]);
+  const [selectedProduct, setSelectedProduct] = useState<FoundationMatch | null>(null);
+  const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -135,7 +151,7 @@ export const AISkinToneMatcher = () => {
     return Math.sqrt(Math.pow(r1 - r2, 2) + Math.pow(g1 - g2, 2) + Math.pow(b1 - b2, 2));
   };
 
-  const findMatchingShades = (targetHex: string, limit: number = 5): FoundationMatch[] => {
+  const findMatchingShades = async (targetHex: string, limit: number = 5): Promise<FoundationMatch[]> => {
     if (shadeDatabase.length === 0) return [];
 
     const matches = shadeDatabase.map(shade => ({
@@ -143,20 +159,55 @@ export const AISkinToneMatcher = () => {
       distance: colorDistance(targetHex, shade.hex)
     })).sort((a, b) => a.distance - b.distance).slice(0, limit);
 
-    return matches.map(match => {
+    const foundationMatches: FoundationMatch[] = [];
+
+    for (const match of matches) {
       const productPigmentColor = createPigmentColor(match.hex);
-      return {
+      const baseMatch: FoundationMatch = {
         brand: match.brand,
         product: match.product,
         shade_name: match.name || match.description,
         hex: match.hex,
-        undertone: '', // Could extract from description if needed
+        undertone: '',
         url: match.url,
         img: match.imgSrc,
-        score: 100 - (match.distance / 441.67) * 100, // Normalize to 0-100 score
-        pigmentColor: productPigmentColor
+        score: 100 - (match.distance / 441.67) * 100,
+        pigmentColor: productPigmentColor,
+        price: 39.99 // Default price
       };
-    });
+
+      // Try to fetch Rakuten data for pricing and images
+      try {
+        const { data: rakutenData } = await supabase.functions.invoke('rakuten-offers', {
+          body: { 
+            keywords: `${match.brand} ${match.product} foundation`,
+            limit: 1
+          }
+        });
+
+        if (rakutenData?.offers && rakutenData.offers.length > 0) {
+          const offer = rakutenData.offers[0];
+          baseMatch.rakutenData = {
+            id: offer.id,
+            name: offer.name,
+            imageUrl: offer.imageUrl,
+            salePrice: offer.salePrice,
+            clickUrl: offer.clickUrl,
+            merchant: offer.merchant
+          };
+          baseMatch.price = offer.salePrice;
+          if (offer.imageUrl) {
+            baseMatch.img = offer.imageUrl;
+          }
+        }
+      } catch (error) {
+        console.log('Could not fetch Rakuten data for product:', match.brand, match.product);
+      }
+
+      foundationMatches.push(baseMatch);
+    }
+
+    return foundationMatches;
   };
 
   const rgbToHex = (r: number, g: number, b: number): string => {
@@ -356,8 +407,8 @@ export const AISkinToneMatcher = () => {
       // Match to product database
       setLoadingMessage("Finding matching foundations in database...");
       
-      const lightMatches = findMatchingShades(data.lightest_hex, 5);
-      const darkMatches = findMatchingShades(data.darkest_hex, 5);
+      const lightMatches = await findMatchingShades(data.lightest_hex, 5);
+      const darkMatches = await findMatchingShades(data.darkest_hex, 5);
 
       setLightestMatches(lightMatches);
       setDarkestMatches(darkMatches);
@@ -378,6 +429,61 @@ export const AISkinToneMatcher = () => {
   };
 
 
+  const handleBuyNow = async (product: FoundationMatch) => {
+    if (!user) {
+      toast({
+        title: "Sign In Required",
+        description: "Please sign in to purchase products",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setLoadingMessage("Preparing checkout...");
+
+      const cartItem = {
+        id: `${product.brand}-${product.shade_name}`,
+        product: {
+          id: `${product.brand}-${product.shade_name}`,
+          brand: product.brand,
+          product: product.product,
+          shade: product.shade_name,
+          price: product.price || 39.99
+        },
+        quantity: 1,
+        shadeName: product.shade_name
+      };
+
+      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+        body: {
+          items: [cartItem]
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.checkout_url) {
+        // Open checkout in same tab to keep user in app
+        window.location.href = data.checkout_url;
+      }
+
+      toast({
+        title: "Redirecting to Checkout",
+        description: "Taking you to secure payment..."
+      });
+    } catch (error: any) {
+      toast({
+        title: "Checkout Failed",
+        description: error.message || "Unable to process checkout",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const PigmentBar = ({ label, percentage, color }: { label: string; percentage: number; color: string }) => (
     <div className="mt-2">
       <p className="text-xs text-muted-foreground">{label}: {Math.round(percentage)}%</p>
@@ -390,43 +496,7 @@ export const AISkinToneMatcher = () => {
     </div>
   );
 
-  const ProductMatchCard = ({ match }: { match: FoundationMatch }) => (
-    <Card className="overflow-hidden">
-      <CardContent className="p-4">
-        <div className="flex gap-3">
-          {match.img && (
-            <img 
-              src={match.img} 
-              alt={match.shade_name}
-              className="w-16 h-16 object-cover rounded"
-            />
-          )}
-          <div className="flex-1 min-w-0">
-            <h4 className="font-semibold text-sm truncate">{match.brand}</h4>
-            <p className="text-xs text-muted-foreground truncate">{match.product}</p>
-            <p className="text-sm font-medium mt-1">{match.shade_name}</p>
-            <div className="flex items-center gap-2 mt-2">
-              <div 
-                className="w-8 h-8 rounded border-2 border-border"
-                style={{ backgroundColor: match.hex }}
-              />
-              <span className="text-xs font-mono">{match.hex}</span>
-            </div>
-            {match.url && (
-              <a 
-                href={match.url} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-xs text-primary hover:underline flex items-center gap-1 mt-2"
-              >
-                View Product <ExternalLink className="w-3 h-3" />
-              </a>
-            )}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
+  const ProductMatchCard = ({ match }: { match: FoundationMatch }) => null; // No longer used
 
   const ColorResultCard = ({ 
     title, 
@@ -469,7 +539,11 @@ export const AISkinToneMatcher = () => {
                 <p className="text-sm font-semibold mb-3">Matching Products by Brand:</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   {matches.slice(0, 4).map((match, idx) => (
-                    <Card key={idx} className="overflow-hidden transition-all hover:shadow-lg">
+                    <Card key={idx} className="overflow-hidden transition-all hover:shadow-lg cursor-pointer"
+                          onClick={() => {
+                            setSelectedProduct(match);
+                            setIsProductDialogOpen(true);
+                          }}>
                       <CardContent className="p-4 space-y-3">
                         {match.img && (
                           <div className="h-32 bg-gradient-to-br from-gray-50 to-gray-100 rounded flex items-center justify-center">
@@ -484,6 +558,9 @@ export const AISkinToneMatcher = () => {
                           <Badge variant="secondary" className="text-xs">{match.brand}</Badge>
                           <h4 className="font-semibold text-sm leading-tight">{match.product}</h4>
                           <p className="text-xs text-muted-foreground">{match.shade_name}</p>
+                          {match.price && (
+                            <p className="text-sm font-semibold text-primary">${match.price.toFixed(2)}</p>
+                          )}
                         </div>
                         <div className="flex items-center gap-2">
                           <div 
@@ -492,19 +569,33 @@ export const AISkinToneMatcher = () => {
                           />
                         </div>
                         <p className="text-xs font-mono text-center">{match.hex}</p>
-                        {match.url && (
-                          <a 
-                            href={match.url} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="block w-full"
+                        <div className="grid grid-cols-2 gap-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="w-full"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedProduct(match);
+                              setIsProductDialogOpen(true);
+                            }}
                           >
-                            <Button variant="outline" size="sm" className="w-full">
-                              <ShoppingBag className="w-3 h-3 mr-1" />
-                              View Product
-                            </Button>
-                          </a>
-                        )}
+                            <Eye className="w-3 h-3 mr-1" />
+                            Try-On
+                          </Button>
+                          <Button 
+                            variant="default" 
+                            size="sm" 
+                            className="w-full"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleBuyNow(match);
+                            }}
+                          >
+                            <ShoppingCart className="w-3 h-3 mr-1" />
+                            Buy
+                          </Button>
+                        </div>
                       </CardContent>
                     </Card>
                   ))}
@@ -721,6 +812,92 @@ export const AISkinToneMatcher = () => {
           />
         )}
       </div>
+
+      {/* Product Dialog */}
+      <Dialog open={isProductDialogOpen} onOpenChange={setIsProductDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Product Details</DialogTitle>
+          </DialogHeader>
+          {selectedProduct && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-4">
+                  {selectedProduct.img && (
+                    <div className="h-64 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg flex items-center justify-center">
+                      <img 
+                        src={selectedProduct.img} 
+                        alt={selectedProduct.product}
+                        className="max-h-full max-w-full object-contain p-4"
+                      />
+                    </div>
+                  )}
+                  <div 
+                    className="h-16 rounded-lg border-2 border-border"
+                    style={{ backgroundColor: selectedProduct.hex }}
+                  />
+                  <p className="text-sm font-mono text-center">{selectedProduct.hex}</p>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <Badge variant="secondary" className="mb-2">{selectedProduct.brand}</Badge>
+                    <h3 className="text-xl font-semibold">{selectedProduct.product}</h3>
+                    <p className="text-muted-foreground">{selectedProduct.shade_name}</p>
+                  </div>
+                  {selectedProduct.price && (
+                    <div className="text-2xl font-bold text-primary">
+                      ${selectedProduct.price.toFixed(2)}
+                    </div>
+                  )}
+                  {selectedProduct.rakutenData && (
+                    <div className="text-sm text-muted-foreground">
+                      Available at {selectedProduct.rakutenData.merchant}
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    <p className="text-sm font-semibold">Match Score</p>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-primary"
+                          style={{ width: `${selectedProduct.score}%` }}
+                        />
+                      </div>
+                      <span className="text-sm font-semibold">{selectedProduct.score.toFixed(0)}%</span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 pt-4">
+                    <Button 
+                      variant="outline" 
+                      size="lg"
+                      onClick={() => {
+                        toast({
+                          title: "Virtual Try-On",
+                          description: "Feature coming soon!"
+                        });
+                      }}
+                    >
+                      <Eye className="w-4 h-4 mr-2" />
+                      Try-On
+                    </Button>
+                    <Button 
+                      variant="default" 
+                      size="lg"
+                      onClick={() => {
+                        setIsProductDialogOpen(false);
+                        handleBuyNow(selectedProduct);
+                      }}
+                    >
+                      <ShoppingCart className="w-4 h-4 mr-2" />
+                      Buy Now
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
