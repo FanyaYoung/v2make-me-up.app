@@ -1,4 +1,4 @@
-import { Home, User, Palette, ShoppingCart, Package, Lightbulb, Pipette, ScanFace } from "lucide-react";
+import { Home, User, Palette, ShoppingCart, Package, Lightbulb, Pipette, ScanFace, Sparkles } from "lucide-react";
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import ShadeMatcher from "./pages/ShadeMatcher";
@@ -7,6 +7,7 @@ import Cart from "./pages/Cart";
 import LightingMatcher from "./pages/LightingMatcher";
 import PigmentMixer from "./pages/PigmentMixer";
 import AISkinAnalyzer from "./pages/AISkinAnalyzer";
+import VirtualTryOn from "./pages/VirtualTryOn";
 
 export const navItems = [
   {
@@ -38,6 +39,12 @@ export const navItems = [
     to: "/skin-analyzer",
     icon: <ScanFace className="h-4 w-4" />,
     page: <AISkinAnalyzer />,
+  },
+  {
+    title: "Virtual Try-On",
+    to: "/virtual-tryon",
+    icon: <Sparkles className="h-4 w-4" />,
+    page: <VirtualTryOn />,
   },
   {
     title: "Browse Products",
