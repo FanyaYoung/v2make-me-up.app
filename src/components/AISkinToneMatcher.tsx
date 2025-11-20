@@ -75,6 +75,22 @@ export const AISkinToneMatcher = () => {
     loadShadeDatabase();
   }, []);
 
+  // Setup video stream when camera is started
+  React.useEffect(() => {
+    if (stream && videoRef.current && isCamera) {
+      videoRef.current.srcObject = stream;
+      videoRef.current.play().catch(error => {
+        console.error('Error playing video:', error);
+        toast({
+          title: "Camera Error",
+          description: "Failed to start video playback",
+          variant: "destructive"
+        });
+        stopCamera();
+      });
+    }
+  }, [stream, isCamera]);
+
   const loadShadeDatabase = async () => {
     try {
       const response = await fetch('/data/allShades.csv');
@@ -248,28 +264,9 @@ export const AISkinToneMatcher = () => {
           height: { ideal: 720 }
         } 
       });
-      console.log('Camera permission granted, setting up video stream...');
+      console.log('Camera permission granted, setting stream...');
       setStream(mediaStream);
-      
-      // Wait for video element to be ready
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-        console.log('Video srcObject set, attempting to play...');
-        
-        // Explicitly play the video
-        try {
-          await videoRef.current.play();
-          console.log('Video stream started successfully');
-          setIsCamera(true);
-        } catch (playError) {
-          console.error('Error playing video:', playError);
-          throw new Error('Failed to start video playback');
-        }
-      } else {
-        throw new Error('Video element not available');
-      }
+      setIsCamera(true);
     } catch (error) {
       console.error('Camera access error:', error);
       toast({
@@ -277,11 +274,6 @@ export const AISkinToneMatcher = () => {
         description: "Could not access camera. Please ensure permissions are granted.",
         variant: "destructive"
       });
-      // Clean up stream if video fails to play
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-        setStream(null);
-      }
     } finally {
       setCameraLoading(false);
     }
