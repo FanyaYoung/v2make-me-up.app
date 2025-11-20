@@ -3,9 +3,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Camera, Upload, Loader2, ExternalLink } from 'lucide-react';
+import { Camera, Upload, Loader2, ExternalLink, ShoppingBag } from 'lucide-react';
 import { createPigmentColor, calculatePigmentMatch, PigmentColor } from '@/lib/pigmentMixing';
 import { PigmentColorDisplay } from './PigmentColorDisplay';
 
@@ -465,10 +466,47 @@ export const AISkinToneMatcher = () => {
 
             {matches.length > 0 && (
               <div className="pt-4 border-t">
-                <p className="text-sm font-semibold mb-3">Matching Products:</p>
-                <div className="space-y-2">
-                  {matches.map((match, idx) => (
-                    <ProductMatchCard key={idx} match={match} />
+                <p className="text-sm font-semibold mb-3">Matching Products by Brand:</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {matches.slice(0, 4).map((match, idx) => (
+                    <Card key={idx} className="overflow-hidden transition-all hover:shadow-lg">
+                      <CardContent className="p-4 space-y-3">
+                        {match.img && (
+                          <div className="h-32 bg-gradient-to-br from-gray-50 to-gray-100 rounded flex items-center justify-center">
+                            <img 
+                              src={match.img} 
+                              alt={match.product}
+                              className="max-h-full max-w-full object-contain p-2"
+                            />
+                          </div>
+                        )}
+                        <div className="space-y-1">
+                          <Badge variant="secondary" className="text-xs">{match.brand}</Badge>
+                          <h4 className="font-semibold text-sm leading-tight">{match.product}</h4>
+                          <p className="text-xs text-muted-foreground">{match.shade_name}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div 
+                            className="w-full h-8 rounded border-2 border-border"
+                            style={{ backgroundColor: match.hex }}
+                          />
+                        </div>
+                        <p className="text-xs font-mono text-center">{match.hex}</p>
+                        {match.url && (
+                          <a 
+                            href={match.url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="block w-full"
+                          >
+                            <Button variant="outline" size="sm" className="w-full">
+                              <ShoppingBag className="w-3 h-3 mr-1" />
+                              View Product
+                            </Button>
+                          </a>
+                        )}
+                      </CardContent>
+                    </Card>
                   ))}
                 </div>
               </div>
