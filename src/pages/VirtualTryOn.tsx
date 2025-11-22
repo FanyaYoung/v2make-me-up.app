@@ -214,10 +214,19 @@ const VirtualTryOn = () => {
       shade: product.shade,
       product: product.product,
       price: product.price || 45,
-      image: product.imageUrl || product.imgSrc,
+      rating: 4.5,
+      reviewCount: 0,
+      availability: {
+        online: true,
+        inStore: false,
+        readyForPickup: false,
+        nearbyStores: []
+      },
+      matchPercentage: 95,
       undertone: 'neutral',
-      url: '',
-      hex: product.hex
+      coverage: 'medium',
+      finish: 'natural',
+      imageUrl: product.imageUrl || product.imgSrc
     };
     addToCart(foundationMatch);
     toast.success(`Added ${type} shade to cart!`);
@@ -230,10 +239,19 @@ const VirtualTryOn = () => {
       shade: pair.lightProduct.shade,
       product: pair.lightProduct.product,
       price: pair.lightProduct.price || 45,
-      image: pair.lightProduct.imageUrl || pair.lightProduct.imgSrc,
+      rating: 4.5,
+      reviewCount: 0,
+      availability: {
+        online: true,
+        inStore: false,
+        readyForPickup: false,
+        nearbyStores: []
+      },
+      matchPercentage: 95,
       undertone: 'neutral',
-      url: '',
-      hex: pair.lightProduct.hex
+      coverage: 'medium',
+      finish: 'natural',
+      imageUrl: pair.lightProduct.imageUrl || pair.lightProduct.imgSrc
     };
     const darkMatch: any = {
       id: `${pair.brand}-${pair.darkProduct.shade}`,
@@ -241,10 +259,19 @@ const VirtualTryOn = () => {
       shade: pair.darkProduct.shade,
       product: pair.darkProduct.product,
       price: pair.darkProduct.price || 45,
-      image: pair.darkProduct.imageUrl || pair.darkProduct.imgSrc,
+      rating: 4.5,
+      reviewCount: 0,
+      availability: {
+        online: true,
+        inStore: false,
+        readyForPickup: false,
+        nearbyStores: []
+      },
+      matchPercentage: 95,
       undertone: 'neutral',
-      url: '',
-      hex: pair.darkProduct.hex
+      coverage: 'medium',
+      finish: 'natural',
+      imageUrl: pair.darkProduct.imageUrl || pair.darkProduct.imgSrc
     };
     addToCart(lightMatch);
     addToCart(darkMatch);
