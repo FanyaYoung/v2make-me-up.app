@@ -4,9 +4,7 @@ import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { MapPin, Truck, ShoppingCart, Clock, User, Mail } from 'lucide-react';
+import { MapPin, Truck, ShoppingCart, Clock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -20,19 +18,6 @@ type FulfillmentMethod = 'pickup' | 'shipping' | 'delivery' | 'curbside';
 
 const FulfillmentOptions: React.FC<FulfillmentOptionsProps> = ({ products, onPurchase }) => {
   const [selectedMethod, setSelectedMethod] = useState<FulfillmentMethod>('shipping');
-  const [showOrderDialog, setShowOrderDialog] = useState(false);
-  const [customerInfo, setCustomerInfo] = useState({
-    name: '',
-    email: '',
-    address: {
-      line1: '',
-      line2: '',
-      city: '',
-      state: '',
-      postal_code: '',
-      country: 'US'
-    }
-  });
   const [processingOrder, setProcessingOrder] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
@@ -76,7 +61,8 @@ const FulfillmentOptions: React.FC<FulfillmentOptionsProps> = ({ products, onPur
     }
   ];
 
-  const processOrder = async () => {
+
+  const handlePurchase = async () => {
     if (!user) {
       toast({
         title: "Authentication Required",
@@ -88,61 +74,47 @@ const FulfillmentOptions: React.FC<FulfillmentOptionsProps> = ({ products, onPur
 
     setProcessingOrder(true);
     try {
-      const orderItems = products.map(product => ({
-        product_id: product.id,
-        product_name: product.product || product.name,
-        product_brand: product.brand,
-        shade_name: product.shade,
+      // Convert products to cart items format expected by Stripe checkout
+      const cartItems = products.map(product => ({
+        id: product.id,
+        product: {
+          id: product.id,
+          brand: product.brand,
+          product: product.product || product.name,
+          shade: product.shade,
+          price: product.price || 0,
+        },
         quantity: 1,
-        unit_price: product.price || 0
+        selectedShade: 'primary' as const,
+        shadeName: product.shade,
       }));
 
-      const { data, error } = await supabase.functions.invoke('process-order', {
+      // Create Stripe checkout session
+      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
         body: {
-          items: orderItems,
-          customer_email: customerInfo.email,
-          customer_name: customerInfo.name,
-          shipping_address: customerInfo.address,
-          affiliate_id: 'MU-AFFILIATE-001' // Your affiliate ID
+          items: cartItems,
         }
       });
 
       if (error) throw error;
 
-      toast({
-        title: "Order Placed Successfully!",
-        description: `Order ${data.order.order_number} has been created. You'll receive tracking information via email.`
-      });
+      if (data?.checkout_url) {
+        // Redirect to Stripe checkout
+        window.location.href = data.checkout_url;
+      } else {
+        throw new Error('No checkout URL returned');
+      }
 
-      setShowOrderDialog(false);
-      setCustomerInfo({
-        name: '',
-        email: '',
-        address: {
-          line1: '',
-          line2: '',
-          city: '',
-          state: '',
-          postal_code: '',
-          country: 'US'
-        }
-      });
-
-      // Call the original onPurchase callback if needed
-      onPurchase(selectedMethod, products);
     } catch (error) {
+      console.error('Checkout error:', error);
       toast({
-        title: "Order Failed",
-        description: "Failed to process your order. Please try again.",
+        title: "Checkout Failed",
+        description: "Failed to create checkout session. Please try again.",
         variant: "destructive"
       });
     } finally {
       setProcessingOrder(false);
     }
-  };
-
-  const handlePurchase = () => {
-    setShowOrderDialog(true);
   };
 
   const totalPrice = products.reduce((sum, product) => sum + (product.price || 0), 0);
@@ -205,120 +177,18 @@ const FulfillmentOptions: React.FC<FulfillmentOptionsProps> = ({ products, onPur
           </div>
         </div>
 
-        <Button onClick={handlePurchase} className="w-full" size="lg">
-          Complete Purchase - ${finalTotal.toFixed(2)}
+        <Button 
+          onClick={handlePurchase} 
+          className="w-full" 
+          size="lg"
+          disabled={processingOrder}
+        >
+          {processingOrder ? "Redirecting to Checkout..." : `Complete Purchase - $${finalTotal.toFixed(2)}`}
         </Button>
 
         <p className="text-xs text-muted-foreground text-center">
-          Your purchase includes our affiliate code for the best available pricing and exclusive offers.
+          Secure checkout powered by Stripe. You'll be redirected to complete your payment.
         </p>
-
-        {/* Order Dialog */}
-        <Dialog open={showOrderDialog} onOpenChange={setShowOrderDialog}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Complete Your Order</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="customer-name">Full Name</Label>
-                <div className="relative">
-                  <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="customer-name"
-                    value={customerInfo.name}
-                    onChange={(e) => setCustomerInfo({...customerInfo, name: e.target.value})}
-                    placeholder="Enter your full name"
-                    className="pl-10"
-                  />
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="customer-email">Email Address</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="customer-email"
-                    type="email"
-                    value={customerInfo.email}
-                    onChange={(e) => setCustomerInfo({...customerInfo, email: e.target.value})}
-                    placeholder="Enter your email"
-                    className="pl-10"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Shipping Address</Label>
-                <Input
-                  value={customerInfo.address.line1}
-                  onChange={(e) => setCustomerInfo({
-                    ...customerInfo,
-                    address: {...customerInfo.address, line1: e.target.value}
-                  })}
-                  placeholder="Street address"
-                />
-                <Input
-                  value={customerInfo.address.line2}
-                  onChange={(e) => setCustomerInfo({
-                    ...customerInfo,
-                    address: {...customerInfo.address, line2: e.target.value}
-                  })}
-                  placeholder="Apartment, suite, etc. (optional)"
-                />
-                <div className="grid grid-cols-2 gap-2">
-                  <Input
-                    value={customerInfo.address.city}
-                    onChange={(e) => setCustomerInfo({
-                      ...customerInfo,
-                      address: {...customerInfo.address, city: e.target.value}
-                    })}
-                    placeholder="City"
-                  />
-                  <Input
-                    value={customerInfo.address.state}
-                    onChange={(e) => setCustomerInfo({
-                      ...customerInfo,
-                      address: {...customerInfo.address, state: e.target.value}
-                    })}
-                    placeholder="State"
-                  />
-                </div>
-                <Input
-                  value={customerInfo.address.postal_code}
-                  onChange={(e) => setCustomerInfo({
-                    ...customerInfo,
-                    address: {...customerInfo.address, postal_code: e.target.value}
-                  })}
-                  placeholder="ZIP code"
-                />
-              </div>
-
-              <div className="border-t pt-4">
-                <div className="flex justify-between font-semibold">
-                  <span>Total: ${finalTotal.toFixed(2)}</span>
-                </div>
-              </div>
-
-              <Button 
-                onClick={processOrder} 
-                className="w-full" 
-                disabled={
-                  processingOrder || 
-                  !customerInfo.name || 
-                  !customerInfo.email || 
-                  !customerInfo.address.line1 || 
-                  !customerInfo.address.city || 
-                  !customerInfo.address.state || 
-                  !customerInfo.address.postal_code
-                }
-              >
-                {processingOrder ? "Processing..." : "Place Order"}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
       </div>
     </Card>
   );
