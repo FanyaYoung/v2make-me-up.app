@@ -8,6 +8,7 @@ import { Camera, Upload, ShoppingCart, Sparkles, ArrowLeft, Check } from 'lucide
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useCart } from '@/contexts/CartContext';
+import { detectFaceLandmarks, applyMakeupOverlay } from '@/utils/faceDetection';
 
 interface ProductPair {
   lightProduct: any;
@@ -26,6 +27,8 @@ const VirtualTryOn = () => {
   const [cameraActive, setCameraActive] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [makeupPreviewUrl, setMakeupPreviewUrl] = useState<string | null>(null);
+  const [isApplyingMakeup, setIsApplyingMakeup] = useState(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -278,6 +281,67 @@ const VirtualTryOn = () => {
     toast.success('Added both shades to cart!');
   };
 
+  const applyMakeupToFace = async (productIndex: number) => {
+    if (!capturedImage || productIndex === null) return;
+
+    setIsApplyingMakeup(true);
+    try {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = capturedImage;
+      });
+
+      // Detect face landmarks
+      const landmarks = await detectFaceLandmarks(img);
+      
+      if (!landmarks) {
+        toast.error('Could not detect face in image');
+        setIsApplyingMakeup(false);
+        return;
+      }
+
+      // Create canvas for makeup application
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      
+      if (!ctx) throw new Error('Could not get canvas context');
+
+      // Draw original image
+      ctx.drawImage(img, 0, 0);
+
+      // Apply makeup overlay
+      const lightColor = currentRecommendations[productIndex].lightProduct.hex;
+      const darkColor = currentRecommendations[productIndex].darkProduct.hex;
+      
+      applyMakeupOverlay(canvas, landmarks, lightColor, darkColor);
+
+      // Convert to data URL
+      const makeupImage = canvas.toDataURL('image/jpeg', 0.95);
+      setMakeupPreviewUrl(makeupImage);
+      
+    } catch (error) {
+      console.error('Error applying makeup:', error);
+      toast.error('Failed to apply makeup preview');
+    } finally {
+      setIsApplyingMakeup(false);
+    }
+  };
+
+  // Apply makeup when product is selected
+  useEffect(() => {
+    if (selectedProductIndex !== null && capturedImage) {
+      applyMakeupToFace(selectedProductIndex);
+    } else {
+      setMakeupPreviewUrl(null);
+    }
+  }, [selectedProductIndex, capturedImage]);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background">
       <Header />
@@ -422,27 +486,15 @@ const VirtualTryOn = () => {
                     <div>
                       <p className="text-xs font-semibold text-muted-foreground mb-2">AFTER (with foundation)</p>
                       <div className="relative aspect-video bg-muted rounded-lg overflow-hidden">
-                        <img src={capturedImage} alt="After" className="w-full h-full object-cover" />
-                        
-                        {/* Light shade overlay for highlight areas (forehead, nose bridge, chin) */}
-                        <div 
-                          className="absolute inset-0 pointer-events-none mix-blend-multiply opacity-30"
-                          style={{
-                            background: `radial-gradient(ellipse 35% 20% at 50% 25%, ${currentRecommendations[selectedProductIndex].lightProduct.hex}DD, transparent 70%),
-                                        radial-gradient(ellipse 15% 25% at 50% 50%, ${currentRecommendations[selectedProductIndex].lightProduct.hex}DD, transparent 70%),
-                                        radial-gradient(ellipse 25% 15% at 50% 75%, ${currentRecommendations[selectedProductIndex].lightProduct.hex}DD, transparent 70%)`
-                          }}
-                        />
-                        
-                        {/* Dark shade overlay for contour areas (cheeks, jawline) */}
-                        <div 
-                          className="absolute inset-0 pointer-events-none mix-blend-multiply opacity-25"
-                          style={{
-                            background: `radial-gradient(ellipse 25% 30% at 25% 55%, ${currentRecommendations[selectedProductIndex].darkProduct.hex}CC, transparent 60%),
-                                        radial-gradient(ellipse 25% 30% at 75% 55%, ${currentRecommendations[selectedProductIndex].darkProduct.hex}CC, transparent 60%),
-                                        radial-gradient(ellipse 40% 15% at 50% 85%, ${currentRecommendations[selectedProductIndex].darkProduct.hex}CC, transparent 60%)`
-                          }}
-                        />
+                        {isApplyingMakeup ? (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <p className="text-muted-foreground">Applying makeup...</p>
+                          </div>
+                        ) : makeupPreviewUrl ? (
+                          <img src={makeupPreviewUrl} alt="After" className="w-full h-full object-cover" />
+                        ) : (
+                          <img src={capturedImage} alt="After" className="w-full h-full object-cover" />
+                        )}
                       </div>
                       
                       <div className="mt-2 bg-muted/50 rounded-lg p-3">
