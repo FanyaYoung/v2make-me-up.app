@@ -273,6 +273,7 @@ export const AISkinToneMatcher = () => {
         };
 
         // Try Rakuten Product Search for enhanced data (pricing and better images)
+        // Silently fail if Rakuten is unavailable - CSV data is sufficient
         try {
           const { data: rakutenData, error: rakutenError } = await supabase.functions.invoke('rakuten-product-search', {
             body: { 
@@ -280,21 +281,10 @@ export const AISkinToneMatcher = () => {
               productName: lightMatch.product,
               limit: 3
             }
-          });
+          }).catch(() => ({ data: null, error: true }));
 
           if (!rakutenError && rakutenData?.products && rakutenData.products.length > 0) {
             const product = rakutenData.products[0];
-            const rakutenInfo = {
-              id: product.id,
-              name: product.name,
-              imageUrl: product.imageUrl,
-              salePrice: product.salePrice || product.price,
-              clickUrl: product.productUrl,
-              merchant: product.brand
-            };
-            
-            light.rakutenData = rakutenInfo;
-            dark.rakutenData = rakutenInfo;
             
             // Use Rakuten pricing if available
             if (product.salePrice || product.price) {
@@ -303,19 +293,26 @@ export const AISkinToneMatcher = () => {
               dark.price = price;
             }
             
-            // Use Rakuten image if available and CSV image is missing or broken
-            if (product.imageUrl) {
-              if (!light.img || light.img === '') {
-                light.img = product.imageUrl;
-              }
-              if (!dark.img || dark.img === '') {
-                dark.img = product.imageUrl;
-              }
+            // Enhance with Rakuten image only if CSV image is missing
+            if (product.imageUrl && (!light.img || !dark.img)) {
+              if (!light.img) light.img = product.imageUrl;
+              if (!dark.img) dark.img = product.imageUrl;
             }
+            
+            // Store Rakuten data for purchase tracking
+            const rakutenInfo = {
+              id: product.id,
+              name: product.name,
+              imageUrl: product.imageUrl,
+              salePrice: product.salePrice || product.price,
+              clickUrl: product.productUrl,
+              merchant: product.brand
+            };
+            light.rakutenData = rakutenInfo;
+            dark.rakutenData = rakutenInfo;
           }
         } catch (error) {
-          console.log('Rakuten Product Search not available for brand:', brand, error);
-          // Continue with CSV data
+          // Silently continue with CSV data
         }
 
         const avgDistance = (lightMatches[0].distance + darkMatches[0].distance) / 2;
