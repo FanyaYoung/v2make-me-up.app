@@ -42,21 +42,36 @@ serve(async (req) => {
 
     const data = await response.json();
     
-    // Parse and format the response
-    const products = data.item?.map((item: any) => ({
-      id: item.mid || item.linkid,
-      name: item.productname || item.title,
-      brand: item.merchantname,
-      description: item.description,
-      price: parseFloat(item.price?.replace(/[^0-9.]/g, '') || '0'),
-      salePrice: item.saleprice ? parseFloat(item.saleprice.replace(/[^0-9.]/g, '')) : null,
-      imageUrl: item.imageurl || item.thumbnailimage,
-      productUrl: item.linkurl || item.link,
-      category: item.category,
-      inStock: item.isclearance !== 'Yes'
-    })) || [];
+    // Get Rakuten Site ID for affiliate tracking
+    const rakutenSID = Deno.env.get('RAKUTEN_SITE_ID');
+    
+    // Parse and format the response with deep links
+    const products = data.item?.map((item: any) => {
+      const merchantId = item.mid || '2417';
+      const productUrl = item.linkurl || item.link;
+      
+      // Generate proper deep link with affiliate tracking if SID is available
+      const affiliateUrl = rakutenSID && productUrl
+        ? `https://click.linksynergy.com/deeplink?id=${rakutenSID}&mid=${merchantId}&murl=${encodeURIComponent(productUrl)}`
+        : productUrl;
+      
+      return {
+        id: merchantId,
+        merchantId: merchantId,
+        name: item.productname || item.title,
+        brand: item.merchantname,
+        description: item.description,
+        price: parseFloat(item.price?.replace(/[^0-9.]/g, '') || '0'),
+        salePrice: item.saleprice ? parseFloat(item.saleprice.replace(/[^0-9.]/g, '')) : null,
+        imageUrl: item.imageurl || item.thumbnailimage,
+        productUrl: affiliateUrl, // Now includes affiliate tracking
+        originalUrl: productUrl, // Keep original for reference
+        category: item.category,
+        inStock: item.isclearance !== 'Yes'
+      };
+    }) || [];
 
-    console.log(`Found ${products.length} products from Rakuten`);
+    console.log(`Found ${products.length} products from Rakuten with ${rakutenSID ? 'affiliate tracking' : 'no tracking (add RAKUTEN_SITE_ID)'}`);
 
     return new Response(
       JSON.stringify({ products, total: products.length }),
