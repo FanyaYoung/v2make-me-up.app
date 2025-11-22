@@ -71,7 +71,10 @@ serve(async (req) => {
           
           if (deepLinkResponse.ok) {
             const deepLinkData = await deepLinkResponse.json();
-            affiliateUrl = deepLinkData.deep_link || deepLinkData.url || productUrl;
+            // Parse correct response format
+            affiliateUrl = deepLinkData.advertiser?.deep_link?.deep_link_url || 
+                          deepLinkData.deep_link_url || 
+                          productUrl;
           }
         } catch (deepLinkError) {
           console.error('Deep link creation failed, using direct URL:', deepLinkError);
