@@ -23,6 +23,8 @@ interface CartItem {
 
 interface CheckoutRequest {
   items: CartItem[];
+  fulfillment_method?: string;
+  fulfillment_price?: number;
   customer_email?: string;
   customer_name?: string;
   shipping_address?: {
@@ -73,7 +75,7 @@ serve(async (req) => {
     }
 
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
-      apiVersion: "2023-10-16",
+      apiVersion: "2025-08-27.basil",
     });
 
     // Check if customer exists
@@ -113,6 +115,21 @@ serve(async (req) => {
       quantity: item.quantity,
     }));
 
+    // Add fulfillment fee if applicable
+    if (checkoutData.fulfillment_price && checkoutData.fulfillment_price > 0) {
+      lineItems.push({
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: `${checkoutData.fulfillment_method || 'Shipping'} Fee`,
+            description: 'Fulfillment service fee',
+          },
+          unit_amount: Math.round(checkoutData.fulfillment_price * 100),
+        },
+        quantity: 1,
+      });
+    }
+
     logStep("Created line items", { lineItemsCount: lineItems.length });
 
     // Calculate total for order tracking
@@ -137,6 +154,7 @@ serve(async (req) => {
         user_id: user.id,
         total_amount: totalAmount.toString(),
         item_count: checkoutData.items.length.toString(),
+        fulfillment_method: checkoutData.fulfillment_method || 'shipping',
       },
     });
 
