@@ -85,13 +85,13 @@ export function analyzePigmentMix(targetHex: string): PigmentMix {
     cadmiumYellow += (gRatio - bRatio) * 0.5;
   }
   
-  // Blue/cool component
-  if (bRatio > gRatio * 0.8) {
-    ultramarineBlue = (bRatio - gRatio * 0.8) * 0.3;
-  }
+  // Blue/cool component - maintain blue presence across all shades
+  // Base blue on actual blue content, not just when it exceeds green
+  ultramarineBlue = bRatio * 0.5; // Increased from 0.3 and made unconditional
   
   // Brown/depth component (inverse of luminance)
-  burntUmber = (1 - luminance) * 0.7;
+  // Reduced coefficient to allow more room for other pigments
+  burntUmber = (1 - luminance) * 0.4; // Reduced from 0.7 to 0.4
   
   // Green/olive component (when green is prominent)
   if (gRatio > rRatio * 0.9 && gRatio > bRatio * 1.1) {
