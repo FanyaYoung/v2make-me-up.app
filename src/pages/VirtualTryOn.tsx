@@ -166,16 +166,16 @@ const VirtualTryOn = () => {
           const light = lightMatches[0];
           const dark = darkMatches[0];
           
-          // Try to fetch Rakuten data
+          // Try to fetch Rakuten data (silently fail if unavailable)
           try {
             const { data: rakutenData } = await supabase.functions.invoke('rakuten-product-search', {
               body: { brand: light.brand, productName: light.product, limit: 1 }
-            });
+            }).catch(() => ({ data: null }));
             
             if (rakutenData?.products?.[0]) {
               const rakutenProduct = rakutenData.products[0];
-              light.imageUrl = rakutenProduct.imageUrl;
-              light.price = rakutenProduct.price || 45;
+              if (rakutenProduct.imageUrl) light.imageUrl = rakutenProduct.imageUrl;
+              if (rakutenProduct.price) light.price = rakutenProduct.price;
               light.rakutenData = {
                 id: rakutenProduct.id,
                 productUrl: rakutenProduct.productUrl,
