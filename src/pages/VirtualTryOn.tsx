@@ -173,8 +173,21 @@ const VirtualTryOn = () => {
             });
             
             if (rakutenData?.products?.[0]) {
-              light.imageUrl = rakutenData.products[0].imageUrl;
-              light.price = rakutenData.products[0].price || 45;
+              const rakutenProduct = rakutenData.products[0];
+              light.imageUrl = rakutenProduct.imageUrl;
+              light.price = rakutenProduct.price || 45;
+              light.rakutenData = {
+                id: rakutenProduct.id,
+                productUrl: rakutenProduct.productUrl,
+                merchant: rakutenProduct.brand,
+                imageUrl: rakutenProduct.imageUrl
+              };
+              dark.rakutenData = {
+                id: rakutenProduct.id,
+                productUrl: rakutenProduct.productUrl,
+                merchant: rakutenProduct.brand,
+                imageUrl: rakutenProduct.imageUrl
+              };
             }
           } catch (error) {
             console.error('Rakuten fetch error:', error);
@@ -210,75 +223,118 @@ const VirtualTryOn = () => {
     return Math.sqrt(Math.pow(r2 - r1, 2) + Math.pow(g2 - g1, 2) + Math.pow(b2 - b1, 2));
   };
 
-  const handleBuyProduct = (product: any, type: 'light' | 'dark') => {
-    const foundationMatch: any = {
-      id: `${product.brand}-${product.shade}`,
-      brand: product.brand,
-      shade: product.shade,
-      product: product.product,
-      price: product.price || 45,
-      rating: 4.5,
-      reviewCount: 0,
-      availability: {
-        online: true,
-        inStore: false,
-        readyForPickup: false,
-        nearbyStores: []
-      },
-      matchPercentage: 95,
-      undertone: 'neutral',
-      coverage: 'medium',
-      finish: 'natural',
-      imageUrl: product.imageUrl || product.imgSrc
-    };
-    addToCart(foundationMatch);
-    toast.success(`Added ${type} shade to cart!`);
+  const handleBuyProduct = async (product: any, type: 'light' | 'dark') => {
+    // Check if product has Rakuten affiliate link
+    if (product.rakutenData?.productUrl) {
+      try {
+        // Track affiliate click
+        await supabase.functions.invoke('track-affiliate-click', {
+          body: {
+            provider: 'rakuten',
+            offerId: product.rakutenData.id,
+            clickUrl: product.rakutenData.productUrl,
+            productName: product.product,
+            productBrand: product.brand,
+          }
+        });
+
+        // Open Rakuten affiliate link
+        window.open(product.rakutenData.productUrl, '_blank');
+
+        toast.success(`Opening ${type} shade purchase link...`);
+      } catch (error) {
+        console.error('Affiliate tracking error:', error);
+        // Still open the link even if tracking fails
+        window.open(product.rakutenData.productUrl, '_blank');
+      }
+    } else {
+      // Fallback: add to cart for checkout
+      const foundationMatch: any = {
+        id: `${product.brand}-${product.shade}`,
+        brand: product.brand,
+        shade: product.shade,
+        product: product.product,
+        price: product.price || 45,
+        rating: 4.5,
+        reviewCount: 0,
+        availability: {
+          online: true,
+          inStore: false,
+          readyForPickup: false,
+          nearbyStores: []
+        },
+        matchPercentage: 95,
+        undertone: 'neutral',
+        coverage: 'medium',
+        finish: 'natural',
+        imageUrl: product.imageUrl || product.imgSrc
+      };
+      addToCart(foundationMatch);
+      toast.success(`Added ${type} shade to cart!`);
+    }
   };
 
-  const handleBuySet = (pair: ProductPair) => {
-    const lightMatch: any = {
-      id: `${pair.brand}-${pair.lightProduct.shade}`,
-      brand: pair.brand,
-      shade: pair.lightProduct.shade,
-      product: pair.lightProduct.product,
-      price: pair.lightProduct.price || 45,
-      rating: 4.5,
-      reviewCount: 0,
-      availability: {
-        online: true,
-        inStore: false,
-        readyForPickup: false,
-        nearbyStores: []
-      },
-      matchPercentage: 95,
-      undertone: 'neutral',
-      coverage: 'medium',
-      finish: 'natural',
-      imageUrl: pair.lightProduct.imageUrl || pair.lightProduct.imgSrc
-    };
-    const darkMatch: any = {
-      id: `${pair.brand}-${pair.darkProduct.shade}`,
-      brand: pair.brand,
-      shade: pair.darkProduct.shade,
-      product: pair.darkProduct.product,
-      price: pair.darkProduct.price || 45,
-      rating: 4.5,
-      reviewCount: 0,
-      availability: {
-        online: true,
-        inStore: false,
-        readyForPickup: false,
-        nearbyStores: []
-      },
-      matchPercentage: 95,
-      undertone: 'neutral',
-      coverage: 'medium',
-      finish: 'natural',
-      imageUrl: pair.darkProduct.imageUrl || pair.darkProduct.imgSrc
-    };
-    addToCart(lightMatch);
-    addToCart(darkMatch);
-    toast.success('Added both shades to cart!');
+  const handleBuySet = async (pair: ProductPair) => {
+    // Check if products have Rakuten affiliate links
+    const lightHasLink = pair.lightProduct.rakutenData?.productUrl;
+    const darkHasLink = pair.darkProduct.rakutenData?.productUrl;
+
+    if (lightHasLink || darkHasLink) {
+      // Open affiliate links
+      if (lightHasLink) {
+        await handleBuyProduct(pair.lightProduct, 'light');
+      }
+      if (darkHasLink) {
+        await handleBuyProduct(pair.darkProduct, 'dark');
+      }
+      
+      toast.success('Opening purchase links for both shades...');
+    } else {
+      // Fallback: add to cart
+      const lightMatch: any = {
+        id: `${pair.brand}-${pair.lightProduct.shade}`,
+        brand: pair.brand,
+        shade: pair.lightProduct.shade,
+        product: pair.lightProduct.product,
+        price: pair.lightProduct.price || 45,
+        rating: 4.5,
+        reviewCount: 0,
+        availability: {
+          online: true,
+          inStore: false,
+          readyForPickup: false,
+          nearbyStores: []
+        },
+        matchPercentage: 95,
+        undertone: 'neutral',
+        coverage: 'medium',
+        finish: 'natural',
+        imageUrl: pair.lightProduct.imageUrl || pair.lightProduct.imgSrc
+      };
+      const darkMatch: any = {
+        id: `${pair.brand}-${pair.darkProduct.shade}`,
+        brand: pair.brand,
+        shade: pair.darkProduct.shade,
+        product: pair.darkProduct.product,
+        price: pair.darkProduct.price || 45,
+        rating: 4.5,
+        reviewCount: 0,
+        availability: {
+          online: true,
+          inStore: false,
+          readyForPickup: false,
+          nearbyStores: []
+        },
+        matchPercentage: 95,
+        undertone: 'neutral',
+        coverage: 'medium',
+        finish: 'natural',
+        imageUrl: pair.darkProduct.imageUrl || pair.darkProduct.imgSrc
+      };
+      addToCart(lightMatch);
+      addToCart(darkMatch);
+      toast.success('Added both shades to cart!');
+    }
   };
 
   const applyMakeupToFace = async (productIndex: number) => {

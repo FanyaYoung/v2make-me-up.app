@@ -28,6 +28,13 @@ export interface FoundationMatch {
     purpose: 'face_sides';
     mixable: boolean;
   };
+  // Rakuten affiliate data
+  rakutenData?: {
+    id: string;
+    productUrl: string;
+    merchant: string;
+    imageUrl?: string;
+  };
 }
 
 export interface FeedbackCategory {
