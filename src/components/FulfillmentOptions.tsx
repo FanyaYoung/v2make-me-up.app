@@ -87,53 +87,48 @@ const FulfillmentOptions: React.FC<FulfillmentOptionsProps> = ({ products, onPur
 
     setProcessingOrder(true);
     try {
-      // Check if products have Rakuten affiliate data
-      const hasRakutenLinks = products.some(p => p.rakutenData?.productUrl);
-
-      if (hasRakutenLinks) {
-        // Redirect through Rakuten affiliate links
-        for (const product of products) {
-          if (product.rakutenData?.productUrl) {
-            // Track affiliate click
-            await supabase.functions.invoke('track-affiliate-click', {
-              body: {
-                provider: 'rakuten',
-                offerId: product.rakutenData.id,
-                clickUrl: product.rakutenData.productUrl,
-                productName: product.name || product.product,
-                productBrand: product.brand,
-                userId: user.id
-              }
-            });
-
-            // Open Rakuten affiliate link in new tab
-            window.open(product.rakutenData.productUrl, '_blank');
-          }
+      // Create checkout session with Stripe
+      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+        body: {
+          items: products.map(product => ({
+            id: product.id,
+            product: {
+              id: product.id,
+              brand: product.brand,
+              product: product.name || product.product || '',
+              shade: product.shade,
+              price: product.price
+            },
+            quantity: 1,
+            shadeName: product.shade
+          })),
+          fulfillment_method: selectedMethod,
+          fulfillment_price: selectedOption?.price || 0
         }
+      });
 
+      if (error) {
+        console.error('Checkout error:', error);
         toast({
-          title: "Opening Affiliate Links",
-          description: `Opening ${products.filter(p => p.rakutenData?.productUrl).length} product(s) in new tabs to complete your purchase.`,
-        });
-
-        // Call onPurchase callback after small delay
-        setTimeout(() => {
-          onPurchase(selectedMethod, products);
-        }, 1000);
-      } else {
-        // Fallback to direct checkout if no Rakuten links available
-        toast({
-          title: "No Affiliate Links Available",
-          description: "These products don't have affiliate links. Proceeding with direct checkout.",
+          title: "Checkout Failed",
+          description: error.message || "Failed to create checkout session. Please try again.",
           variant: "destructive"
         });
+        return;
+      }
+
+      if (data?.checkout_url) {
+        // Redirect to Stripe checkout
+        window.location.href = data.checkout_url;
+      } else {
+        throw new Error('No checkout URL returned');
       }
 
     } catch (error) {
       console.error('Purchase error:', error);
       toast({
         title: "Purchase Failed",
-        description: "Failed to open purchase links. Please try again.",
+        description: "Failed to initiate checkout. Please try again.",
         variant: "destructive"
       });
     } finally {
