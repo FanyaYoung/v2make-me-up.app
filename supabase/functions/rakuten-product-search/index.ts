@@ -42,18 +42,41 @@ serve(async (req) => {
 
     const data = await response.json();
     
-    // Get Rakuten Site ID for affiliate tracking
-    const rakutenSID = Deno.env.get('RAKUTEN_SITE_ID');
+    // Get Rakuten API token for deep link creation
+    const rakutenToken = Deno.env.get('RAKUTEN_ADVERTISING_TOKEN');
     
     // Parse and format the response with deep links
-    const products = data.item?.map((item: any) => {
-      const merchantId = item.mid || '2417';
+    const products = await Promise.all(data.item?.map(async (item: any) => {
+      const merchantId = item.mid || '99999';
       const productUrl = item.linkurl || item.link;
       
-      // Generate proper deep link with affiliate tracking if SID is available
-      const affiliateUrl = rakutenSID && productUrl
-        ? `https://click.linksynergy.com/deeplink?id=${rakutenSID}&mid=${merchantId}&murl=${encodeURIComponent(productUrl)}`
-        : productUrl;
+      // Create proper deep link via Rakuten API if token is available
+      let affiliateUrl = productUrl;
+      
+      if (rakutenToken && productUrl) {
+        try {
+          const deepLinkResponse = await fetch('https://api.linksynergy.com/v1/deeplink', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${rakutenToken}`,
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+              url: productUrl,
+              advertiser_id: parseInt(merchantId),
+              u1: 'makeup-matcher'
+            })
+          });
+          
+          if (deepLinkResponse.ok) {
+            const deepLinkData = await deepLinkResponse.json();
+            affiliateUrl = deepLinkData.deep_link || deepLinkData.url || productUrl;
+          }
+        } catch (deepLinkError) {
+          console.error('Deep link creation failed, using direct URL:', deepLinkError);
+        }
+      }
       
       return {
         id: merchantId,
@@ -64,14 +87,14 @@ serve(async (req) => {
         price: parseFloat(item.price?.replace(/[^0-9.]/g, '') || '0'),
         salePrice: item.saleprice ? parseFloat(item.saleprice.replace(/[^0-9.]/g, '')) : null,
         imageUrl: item.imageurl || item.thumbnailimage,
-        productUrl: affiliateUrl, // Now includes affiliate tracking
+        productUrl: affiliateUrl, // Deep link with affiliate tracking
         originalUrl: productUrl, // Keep original for reference
         category: item.category,
         inStock: item.isclearance !== 'Yes'
       };
-    }) || [];
+    }) || []);
 
-    console.log(`Found ${products.length} products from Rakuten with ${rakutenSID ? 'affiliate tracking' : 'no tracking (add RAKUTEN_SITE_ID)'}`);
+    console.log(`Found ${products.length} products from Rakuten with ${rakutenToken ? 'affiliate deep links' : 'direct URLs (add token for tracking)'}`);
 
     return new Response(
       JSON.stringify({ products, total: products.length }),

@@ -11,29 +11,53 @@ serve(async (req) => {
   }
 
   try {
-    const { productUrl, merchantId } = await req.json();
+    const { productUrl, advertiserId, trackingParam } = await req.json();
     
     if (!productUrl) {
       throw new Error('Product URL is required');
     }
 
-    // Get your Rakuten Site ID (SID) from environment
-    const rakutenSID = Deno.env.get('RAKUTEN_SITE_ID');
-    if (!rakutenSID) {
-      throw new Error('RAKUTEN_SITE_ID not configured. Please add your Rakuten affiliate Site ID to secrets.');
+    // Get Rakuten API token
+    const rakutenToken = Deno.env.get('RAKUTEN_ADVERTISING_TOKEN');
+    if (!rakutenToken) {
+      throw new Error('RAKUTEN_ADVERTISING_TOKEN not configured');
     }
 
-    // Generate Rakuten deep link with proper tracking
-    const deepLink = `https://click.linksynergy.com/deeplink?id=${rakutenSID}&mid=${merchantId || '2417'}&murl=${encodeURIComponent(productUrl)}`;
+    // Create deep link using Rakuten Deep Link API
+    const deepLinkPayload = {
+      url: productUrl,
+      advertiser_id: advertiserId || 99999, // Use provided or default advertiser ID
+      u1: trackingParam || 'makeup-matcher' // Custom tracking parameter
+    };
 
-    console.log('Generated deep link:', deepLink);
+    console.log('Creating Rakuten deep link:', deepLinkPayload);
+
+    const response = await fetch('https://api.linksynergy.com/v1/deeplink', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${rakutenToken}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify(deepLinkPayload)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Rakuten Deep Link API error:', response.status, errorText);
+      throw new Error(`Failed to create deep link: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    console.log('Deep link created successfully:', data);
 
     return new Response(
       JSON.stringify({ 
-        deepLink,
+        deepLink: data.deep_link || data.url,
         originalUrl: productUrl,
-        siteId: rakutenSID,
-        merchantId: merchantId || '2417'
+        advertiserId: advertiserId,
+        trackingParam: trackingParam
       }),
       { 
         headers: { 
@@ -47,7 +71,8 @@ serve(async (req) => {
     console.error('Error generating deep link:', error);
     return new Response(
       JSON.stringify({ 
-        error: error.message
+        error: error.message,
+        fallbackUrl: req.body?.productUrl // Return original URL as fallback
       }),
       { 
         headers: { 
