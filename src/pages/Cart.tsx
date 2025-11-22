@@ -254,6 +254,7 @@ const Cart = () => {
                     name: item.product.product,
                     shade: item.shadeName,
                     price: item.product.price * item.quantity,
+                    rakutenData: (item.product as any).rakutenData,
                   }))}
                   onPurchase={handlePurchaseComplete}
                 />

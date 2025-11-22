@@ -10,7 +10,20 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 
 interface FulfillmentOptionsProps {
-  products: any[];
+  products: {
+    id: string;
+    brand: string;
+    product?: string;
+    name?: string;
+    shade: string;
+    price: number;
+    rakutenData?: {
+      id: string;
+      productUrl: string;
+      merchant: string;
+      imageUrl?: string;
+    };
+  }[];
   onPurchase: (fulfillmentMethod: string, products: any[]) => void;
 }
 
@@ -74,42 +87,53 @@ const FulfillmentOptions: React.FC<FulfillmentOptionsProps> = ({ products, onPur
 
     setProcessingOrder(true);
     try {
-      // Convert products to cart items format expected by Stripe checkout
-      const cartItems = products.map(product => ({
-        id: product.id,
-        product: {
-          id: product.id,
-          brand: product.brand,
-          product: product.product || product.name,
-          shade: product.shade,
-          price: product.price || 0,
-        },
-        quantity: 1,
-        selectedShade: 'primary' as const,
-        shadeName: product.shade,
-      }));
+      // Check if products have Rakuten affiliate data
+      const hasRakutenLinks = products.some(p => p.rakutenData?.productUrl);
 
-      // Create Stripe checkout session
-      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
-        body: {
-          items: cartItems,
+      if (hasRakutenLinks) {
+        // Redirect through Rakuten affiliate links
+        for (const product of products) {
+          if (product.rakutenData?.productUrl) {
+            // Track affiliate click
+            await supabase.functions.invoke('track-affiliate-click', {
+              body: {
+                provider: 'rakuten',
+                offerId: product.rakutenData.id,
+                clickUrl: product.rakutenData.productUrl,
+                productName: product.name || product.product,
+                productBrand: product.brand,
+                userId: user.id
+              }
+            });
+
+            // Open Rakuten affiliate link in new tab
+            window.open(product.rakutenData.productUrl, '_blank');
+          }
         }
-      });
 
-      if (error) throw error;
+        toast({
+          title: "Opening Affiliate Links",
+          description: `Opening ${products.filter(p => p.rakutenData?.productUrl).length} product(s) in new tabs to complete your purchase.`,
+        });
 
-      if (data?.checkout_url) {
-        // Redirect to Stripe checkout
-        window.location.href = data.checkout_url;
+        // Call onPurchase callback after small delay
+        setTimeout(() => {
+          onPurchase(selectedMethod, products);
+        }, 1000);
       } else {
-        throw new Error('No checkout URL returned');
+        // Fallback to direct checkout if no Rakuten links available
+        toast({
+          title: "No Affiliate Links Available",
+          description: "These products don't have affiliate links. Proceeding with direct checkout.",
+          variant: "destructive"
+        });
       }
 
     } catch (error) {
-      console.error('Checkout error:', error);
+      console.error('Purchase error:', error);
       toast({
-        title: "Checkout Failed",
-        description: "Failed to create checkout session. Please try again.",
+        title: "Purchase Failed",
+        description: "Failed to open purchase links. Please try again.",
         variant: "destructive"
       });
     } finally {
