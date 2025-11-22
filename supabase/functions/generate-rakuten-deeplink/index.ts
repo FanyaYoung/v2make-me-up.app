@@ -50,14 +50,27 @@ serve(async (req) => {
 
     const data = await response.json();
     
-    console.log('Deep link created successfully:', data);
+    // Parse Rakuten deep link response format
+    const deepLinkUrl = data.advertiser?.deep_link?.deep_link_url || data.deep_link_url || productUrl;
+    const advertiserInfo = data.advertiser || {};
+    
+    console.log('Deep link created successfully:', {
+      deepLinkUrl,
+      advertiserId: advertiserInfo.id,
+      advertiserName: advertiserInfo.name
+    });
 
     return new Response(
       JSON.stringify({ 
-        deepLink: data.deep_link || data.url,
+        deepLink: deepLinkUrl,
         originalUrl: productUrl,
-        advertiserId: advertiserId,
-        trackingParam: trackingParam
+        advertiser: {
+          id: advertiserInfo.id,
+          name: advertiserInfo.name,
+          url: advertiserInfo.url,
+          description: advertiserInfo.description
+        },
+        trackingParam: data.advertiser?.deep_link?.u1 || trackingParam
       }),
       { 
         headers: { 
