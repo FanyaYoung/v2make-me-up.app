@@ -1,6 +1,7 @@
 import { Home, User, Palette, ShoppingCart, Package, Lightbulb, Pipette, ScanFace, Sparkles } from "lucide-react";
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
+import AuthCallback from "./pages/AuthCallback";
 import ShadeMatcher from "./pages/ShadeMatcher";
 import CosmeticsLibrary from "./pages/CosmeticsLibrary";
 import Cart from "./pages/Cart";
@@ -63,5 +64,11 @@ export const navItems = [
     to: "/auth",
     icon: <User className="h-4 w-4" />,
     page: <Auth />,
+  },
+  {
+    title: "Auth Callback",
+    to: "/auth/callback",
+    icon: <User className="h-4 w-4" />,
+    page: <AuthCallback />,
   },
 ];
