@@ -42,9 +42,6 @@ serve(async (req) => {
 
     const data = await response.json();
     
-    // Get Rakuten API token for deep link creation
-    const rakutenToken = Deno.env.get('RAKUTEN_ADVERTISING_TOKEN');
-    
     // Parse and format the response with deep links
     const products = await Promise.all(data.item?.map(async (item: any) => {
       const merchantId = item.mid || '99999';

@@ -548,6 +548,8 @@ export const AISkinToneMatcher = () => {
         description: "Please sign in to purchase products",
         variant: "destructive"
       });
+      // Redirect to auth page
+      window.location.href = '/auth';
       return;
     }
 
