@@ -14,8 +14,21 @@ serve(async (req) => {
     const { keywords, brand, productName, limit = 20 } = await req.json();
     
     const rakutenToken = Deno.env.get('RAKUTEN_ADVERTISING_TOKEN');
-    if (!rakutenToken) {
-      throw new Error('Rakuten API token not configured');
+    if (!rakutenToken || rakutenToken.trim() === '') {
+      console.log('Rakuten API token not configured - returning empty results');
+      return new Response(
+        JSON.stringify({ 
+          products: [],
+          total: 0,
+          message: 'Rakuten integration not configured'
+        }),
+        { 
+          headers: { 
+            ...corsHeaders, 
+            'Content-Type': 'application/json' 
+          } 
+        }
+      );
     }
 
     // Build search keyword
@@ -37,7 +50,21 @@ serve(async (req) => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Rakuten API error:', response.status, errorText);
-      throw new Error(`Rakuten API returned ${response.status}: ${errorText}`);
+      // Return empty results instead of throwing - let CSV images work
+      console.log('Rakuten API unavailable - returning empty results to allow CSV fallback');
+      return new Response(
+        JSON.stringify({ 
+          products: [],
+          total: 0,
+          message: 'Rakuten API unavailable'
+        }),
+        { 
+          headers: { 
+            ...corsHeaders, 
+            'Content-Type': 'application/json' 
+          } 
+        }
+      );
     }
 
     const data = await response.json();
@@ -108,18 +135,18 @@ serve(async (req) => {
 
   } catch (error: any) {
     console.error('Error in rakuten-product-search:', error);
+    // Return success with empty products to allow CSV fallback
     return new Response(
       JSON.stringify({ 
-        error: error.message,
         products: [],
-        total: 0
+        total: 0,
+        message: 'Rakuten service temporarily unavailable'
       }),
       { 
         headers: { 
           ...corsHeaders, 
           'Content-Type': 'application/json' 
-        },
-        status: 500
+        }
       }
     );
   }
