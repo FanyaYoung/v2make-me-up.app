@@ -31,10 +31,12 @@ const ProductPurchase: React.FC<ProductPurchaseProps> = ({ product }) => {
   const handlePurchase = async () => {
     if (!user) {
       toast({
-        title: "Authentication Required",
+        title: "Sign In Required",
         description: "Please sign in to purchase products",
         variant: "destructive",
       });
+      // Redirect to auth page
+      window.location.href = '/auth';
       return;
     }
 

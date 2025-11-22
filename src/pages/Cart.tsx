@@ -58,7 +58,7 @@ const Cart = () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
       toast({
-        title: "Authentication Required",
+        title: "Sign In Required",
         description: "Please sign in to proceed with checkout.",
         variant: "destructive",
       });
