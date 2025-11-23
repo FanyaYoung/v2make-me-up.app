@@ -209,6 +209,54 @@ export function createPigmentColor(hex: string): PigmentColor {
 }
 
 /**
+ * Create a light color by adding pigments to a dark base color
+ * This ensures the light and dark colors are related in pigment percentages
+ */
+export function createLightFromDark(darkPigmentColor: PigmentColor): PigmentColor {
+  const darkMix = darkPigmentColor.pigmentMix;
+  
+  // Calculate how much to lighten (target about 30-40% lighter)
+  const lightenFactor = 0.35;
+  
+  // Add white to lighten, while reducing the dark pigments proportionally
+  const whiteAddition = lightenFactor;
+  const darkReduction = 1 - lightenFactor;
+  
+  // Create light mix by reducing dark pigments and adding white
+  const lightMix: PigmentMix = {
+    aquamarine: darkMix.aquamarine * darkReduction,
+    burntUmber: darkMix.burntUmber * darkReduction,
+    cadmiumRed: darkMix.cadmiumRed * darkReduction,
+    cadmiumYellow: darkMix.cadmiumYellow * darkReduction,
+    ultramarineBlue: darkMix.ultramarineBlue * darkReduction,
+    white: Math.min(1, darkMix.white + whiteAddition)
+  };
+  
+  // Normalize to ensure sum = 1.0
+  const sum = lightMix.aquamarine + lightMix.burntUmber + lightMix.cadmiumRed + 
+              lightMix.cadmiumYellow + lightMix.ultramarineBlue + lightMix.white;
+  
+  if (sum > 0) {
+    lightMix.aquamarine /= sum;
+    lightMix.burntUmber /= sum;
+    lightMix.cadmiumRed /= sum;
+    lightMix.cadmiumYellow /= sum;
+    lightMix.ultramarineBlue /= sum;
+    lightMix.white /= sum;
+  }
+  
+  const recreatedRgb = recreateColorFromPigments(lightMix);
+  const recreatedHex = rgbToHex(...recreatedRgb);
+  
+  return {
+    hex: recreatedHex,
+    rgb: recreatedRgb,
+    pigmentMix: lightMix,
+    isRecreated: true
+  };
+}
+
+/**
  * Calculate color difference between two pigment colors
  */
 export function calculatePigmentColorDistance(color1: PigmentColor, color2: PigmentColor): number {
