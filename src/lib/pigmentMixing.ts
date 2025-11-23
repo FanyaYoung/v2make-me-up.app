@@ -53,13 +53,14 @@ export function hexToRgb(hex: string): [number, number, number] {
 
 /**
  * Analyze a target color and determine the best pigment mix
- * CRITICAL: White is calculated separately and added AFTER base pigments
+ * CRITICAL: Never use 100% of any single pigment. Always mix multiple pigments.
+ * Use darker pigments for depth and lighter pigments for brightness.
  */
 export function analyzePigmentMix(targetHex: string): PigmentMix {
   const target = hexToRgb(targetHex);
   const [r, g, b] = target;
   
-  // Calculate luminance to determine white amount
+  // Calculate luminance to determine darkness level
   const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
   
   // Analyze undertone from RGB ratios
@@ -67,62 +68,73 @@ export function analyzePigmentMix(targetHex: string): PigmentMix {
   const gRatio = g / 255;
   const bRatio = b / 255;
   
-  // Calculate base pigment amounts (before white)
-  // CRITICAL: High amounts of Burnt Umber and Ultramarine Blue establish base depth
-  let cadmiumRed = 0;
-  let cadmiumYellow = 0;
-  let ultramarineBlue = 0;
-  let burntUmber = 0;
-  let aquamarine = 0;
+  // Start with minimum base amounts to ensure no pure pigments (10% minimum each)
+  const MIN_PIGMENT = 0.10;
+  let cadmiumRed = MIN_PIGMENT;
+  let cadmiumYellow = MIN_PIGMENT;
+  let ultramarineBlue = MIN_PIGMENT;
+  let burntUmber = MIN_PIGMENT;
+  let aquamarine = MIN_PIGMENT;
   
-  // Burnt Umber (brown/depth) - HIGH amounts for base darkness
-  burntUmber = (1 - luminance) * 0.8; // High coefficient for depth
+  // Burnt Umber (brown/depth) - controls darkness but NEVER dominates
+  // Cap at 40% maximum to prevent pure brown
+  burntUmber += Math.min(0.30, (1 - luminance) * 0.4);
   
-  // Ultramarine Blue - HIGH amounts for undertone depth
-  ultramarineBlue = bRatio * 0.7; // Strong blue presence
+  // Ultramarine Blue - for cool/blue undertones, capped at 30%
+  ultramarineBlue += Math.min(0.20, bRatio * 0.4);
   
-  // Red component
-  if (rRatio > gRatio && rRatio > bRatio) {
-    cadmiumRed = rRatio * 0.5;
-    cadmiumYellow = gRatio * 0.3;
-  }
+  // Cadmium Red - warm undertones and red tones
+  cadmiumRed += rRatio * 0.35;
   
-  // Yellow/warm component
-  if (gRatio > bRatio && rRatio > 0.5) {
-    cadmiumYellow += (gRatio - bRatio) * 0.4;
-  }
+  // Cadmium Yellow - brightness and warm tones, increases with luminance
+  cadmiumYellow += (gRatio + luminance) * 0.25;
   
-  // Green/olive component (when green is prominent)
+  // Aquamarine - green/olive tones when green is prominent
   if (gRatio > rRatio * 0.9 && gRatio > bRatio * 1.1) {
-    aquamarine = (gRatio - Math.max(rRatio, bRatio)) * 0.3;
+    aquamarine += (gRatio - Math.max(rRatio, bRatio)) * 0.3;
   }
   
-  // Normalize base pigments to sum to 1.0 (before white)
-  const baseSum = cadmiumRed + cadmiumYellow + ultramarineBlue + burntUmber + aquamarine;
-  if (baseSum > 0) {
-    const baseFactor = 1.0 / baseSum;
-    cadmiumRed *= baseFactor;
-    cadmiumYellow *= baseFactor;
-    ultramarineBlue *= baseFactor;
-    burntUmber *= baseFactor;
-    aquamarine *= baseFactor;
+  // Normalize all pigments to sum to 1.0
+  const totalSum = cadmiumRed + cadmiumYellow + ultramarineBlue + burntUmber + aquamarine;
+  if (totalSum > 0) {
+    const normalizer = 1.0 / totalSum;
+    cadmiumRed *= normalizer;
+    cadmiumYellow *= normalizer;
+    ultramarineBlue *= normalizer;
+    burntUmber *= normalizer;
+    aquamarine *= normalizer;
   }
   
-  // Calculate white amount (added AFTER base mix)
-  // White is ONLY for lightness adjustment, never dominates
-  // Cap at 0.4 maximum to prevent washed-out colors
-  const maxRgb = Math.max(r, g, b);
-  const minRgb = Math.min(r, g, b);
-  const saturation = maxRgb > 0 ? (maxRgb - minRgb) / maxRgb : 0;
-  const white = Math.min(0.4, luminance * (1 - saturation * 0.6));
+  // Enforce maximum caps to prevent any single pigment from dominating
+  const MAX_SINGLE_PIGMENT = 0.45;
+  burntUmber = Math.min(MAX_SINGLE_PIGMENT, burntUmber);
+  ultramarineBlue = Math.min(MAX_SINGLE_PIGMENT, ultramarineBlue);
+  cadmiumRed = Math.min(MAX_SINGLE_PIGMENT, cadmiumRed);
+  cadmiumYellow = Math.min(MAX_SINGLE_PIGMENT, cadmiumYellow);
+  aquamarine = Math.min(MAX_SINGLE_PIGMENT, aquamarine);
+  
+  // Re-normalize after capping
+  const finalSum = cadmiumRed + cadmiumYellow + ultramarineBlue + burntUmber + aquamarine;
+  if (finalSum > 0) {
+    const finalNormalizer = 1.0 / finalSum;
+    cadmiumRed *= finalNormalizer;
+    cadmiumYellow *= finalNormalizer;
+    ultramarineBlue *= finalNormalizer;
+    burntUmber *= finalNormalizer;
+    aquamarine *= finalNormalizer;
+  }
+  
+  // White: minimal amount (max 15%) only for very light tones
+  // Use lighter pigments (yellow, red) instead of white for brightness
+  const white = Math.min(0.15, Math.max(0, luminance - 0.7) * 0.3);
   
   return {
-    aquamarine: Math.max(0, Math.min(1, aquamarine)),
-    burntUmber: Math.max(0, Math.min(1, burntUmber)),
-    cadmiumRed: Math.max(0, Math.min(1, cadmiumRed)),
-    cadmiumYellow: Math.max(0, Math.min(1, cadmiumYellow)),
-    ultramarineBlue: Math.max(0, Math.min(1, ultramarineBlue)),
-    white: Math.max(0, Math.min(1, white))
+    aquamarine: Math.max(MIN_PIGMENT * 0.5, Math.min(1, aquamarine)),
+    burntUmber: Math.max(MIN_PIGMENT * 0.5, Math.min(1, burntUmber)),
+    cadmiumRed: Math.max(MIN_PIGMENT * 0.5, Math.min(1, cadmiumRed)),
+    cadmiumYellow: Math.max(MIN_PIGMENT * 0.5, Math.min(1, cadmiumYellow)),
+    ultramarineBlue: Math.max(MIN_PIGMENT * 0.5, Math.min(1, ultramarineBlue)),
+    white: Math.max(0, Math.min(0.15, white))
   };
 }
 
@@ -209,27 +221,35 @@ export function createPigmentColor(hex: string): PigmentColor {
 }
 
 /**
- * Create a light color by adding pigments to a dark base color
- * This ensures the light and dark colors are related in pigment percentages
+ * Create a light color from a dark base by adjusting pigment ratios
+ * CRITICAL: Uses LIGHTER PIGMENTS (Yellow, Red) to brighten, NOT white
+ * Reduces DARKER PIGMENTS (Burnt Umber, Ultramarine Blue) for lightness
  */
 export function createLightFromDark(darkPigmentColor: PigmentColor): PigmentColor {
   const darkMix = darkPigmentColor.pigmentMix;
   
-  // Calculate how much to lighten (target about 30-40% lighter)
-  const lightenFactor = 0.35;
+  // Strategy: Reduce dark pigments, increase light pigments
+  // Dark pigments: burntUmber, ultramarineBlue
+  // Light pigments: cadmiumYellow, cadmiumRed
   
-  // Add white to lighten, while reducing the dark pigments proportionally
-  const whiteAddition = lightenFactor;
-  const darkReduction = 1 - lightenFactor;
+  const DARKEN_REDUCTION = 0.4;  // Reduce dark pigments by 40%
+  const LIGHTEN_BOOST = 1.6;     // Increase light pigments by 60%
   
-  // Create light mix by reducing dark pigments and adding white
+  // Create light mix by shifting pigment balance
   const lightMix: PigmentMix = {
-    aquamarine: darkMix.aquamarine * darkReduction,
-    burntUmber: darkMix.burntUmber * darkReduction,
-    cadmiumRed: darkMix.cadmiumRed * darkReduction,
-    cadmiumYellow: darkMix.cadmiumYellow * darkReduction,
-    ultramarineBlue: darkMix.ultramarineBlue * darkReduction,
-    white: Math.min(1, darkMix.white + whiteAddition)
+    // Reduce dark pigments significantly
+    burntUmber: darkMix.burntUmber * DARKEN_REDUCTION,
+    ultramarineBlue: darkMix.ultramarineBlue * DARKEN_REDUCTION,
+    
+    // Increase light warm pigments
+    cadmiumYellow: darkMix.cadmiumYellow * LIGHTEN_BOOST,
+    cadmiumRed: darkMix.cadmiumRed * LIGHTEN_BOOST,
+    
+    // Keep aquamarine relatively stable for undertone
+    aquamarine: darkMix.aquamarine * 0.9,
+    
+    // Minimal white, only if absolutely needed
+    white: Math.min(0.10, darkMix.white * 1.5)
   };
   
   // Normalize to ensure sum = 1.0
@@ -243,6 +263,28 @@ export function createLightFromDark(darkPigmentColor: PigmentColor): PigmentColo
     lightMix.cadmiumYellow /= sum;
     lightMix.ultramarineBlue /= sum;
     lightMix.white /= sum;
+  }
+  
+  // Enforce caps to prevent any single pigment dominating
+  const MAX_PIGMENT = 0.45;
+  lightMix.cadmiumYellow = Math.min(MAX_PIGMENT, lightMix.cadmiumYellow);
+  lightMix.cadmiumRed = Math.min(MAX_PIGMENT, lightMix.cadmiumRed);
+  lightMix.burntUmber = Math.min(MAX_PIGMENT, lightMix.burntUmber);
+  lightMix.ultramarineBlue = Math.min(MAX_PIGMENT, lightMix.ultramarineBlue);
+  lightMix.aquamarine = Math.min(MAX_PIGMENT, lightMix.aquamarine);
+  lightMix.white = Math.min(0.10, lightMix.white);
+  
+  // Final normalization after caps
+  const finalSum = lightMix.aquamarine + lightMix.burntUmber + lightMix.cadmiumRed + 
+                   lightMix.cadmiumYellow + lightMix.ultramarineBlue + lightMix.white;
+  
+  if (finalSum > 0) {
+    lightMix.aquamarine /= finalSum;
+    lightMix.burntUmber /= finalSum;
+    lightMix.cadmiumRed /= finalSum;
+    lightMix.cadmiumYellow /= finalSum;
+    lightMix.ultramarineBlue /= finalSum;
+    lightMix.white /= finalSum;
   }
   
   const recreatedRgb = recreateColorFromPigments(lightMix);
