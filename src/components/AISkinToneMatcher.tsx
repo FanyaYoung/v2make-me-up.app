@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Camera, Upload, Loader2, ShoppingBag, ShoppingCart, Eye } from 'lucide-react';
-import { createPigmentColor, calculatePigmentMatch, PigmentColor } from '@/lib/pigmentMixing';
+import { createPigmentColor, createLightFromDark, calculatePigmentMatch, PigmentColor } from '@/lib/pigmentMixing';
 import { PigmentColorDisplay } from './PigmentColorDisplay';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/hooks/useAuth';
@@ -239,11 +239,13 @@ export const AISkinToneMatcher = () => {
         .sort((a, b) => a.distance - b.distance);
 
       if (lightMatches[0] && darkMatches[0]) {
-        const lightMatch = lightMatches[0].shade;
         const darkMatch = darkMatches[0].shade;
-
-        const lightPigmentColor = createPigmentColor(lightMatch.hex);
+        
+        // Create dark color first, then derive light from it
         const darkPigmentColor = createPigmentColor(darkMatch.hex);
+        const lightPigmentColor = createLightFromDark(darkPigmentColor);
+        
+        const lightMatch = lightMatches[0].shade;
 
         // Use CSV image URLs as base
         const light: FoundationMatch = {
@@ -496,14 +498,16 @@ export const AISkinToneMatcher = () => {
 
       if (error) throw error;
 
-      const [rLight, gLight, bLight] = hexToRgb(data.lightest_hex);
       const [rDark, gDark, bDark] = hexToRgb(data.darkest_hex);
       
-      const lightPigmentColor = createPigmentColor(data.lightest_hex);
+      // Create dark color first, then derive light from it
       const darkPigmentColor = createPigmentColor(data.darkest_hex);
+      const lightPigmentColor = createLightFromDark(darkPigmentColor);
+      
+      const [rLight, gLight, bLight] = lightPigmentColor.rgb;
 
       setLightestResult({
-        hex: data.lightest_hex,
+        hex: lightPigmentColor.hex,
         rgb: [rLight, gLight, bLight],
         analysis: getPigmentMix(rLight, gLight, bLight),
         pigmentColor: lightPigmentColor
