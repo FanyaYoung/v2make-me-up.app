@@ -68,34 +68,33 @@ export function analyzePigmentMix(targetHex: string): PigmentMix {
   const bRatio = b / 255;
   
   // Calculate base pigment amounts (before white)
+  // CRITICAL: High amounts of Burnt Umber and Ultramarine Blue establish base depth
   let cadmiumRed = 0;
   let cadmiumYellow = 0;
   let ultramarineBlue = 0;
   let burntUmber = 0;
   let aquamarine = 0;
   
+  // Burnt Umber (brown/depth) - HIGH amounts for base darkness
+  burntUmber = (1 - luminance) * 0.8; // High coefficient for depth
+  
+  // Ultramarine Blue - HIGH amounts for undertone depth
+  ultramarineBlue = bRatio * 0.7; // Strong blue presence
+  
   // Red component
   if (rRatio > gRatio && rRatio > bRatio) {
-    cadmiumRed = rRatio * 0.6;
-    cadmiumYellow = gRatio * 0.4;
+    cadmiumRed = rRatio * 0.5;
+    cadmiumYellow = gRatio * 0.3;
   }
   
   // Yellow/warm component
   if (gRatio > bRatio && rRatio > 0.5) {
-    cadmiumYellow += (gRatio - bRatio) * 0.5;
+    cadmiumYellow += (gRatio - bRatio) * 0.4;
   }
-  
-  // Blue/cool component - maintain blue presence across all shades
-  // Base blue on actual blue content, not just when it exceeds green
-  ultramarineBlue = bRatio * 0.5; // Increased from 0.3 and made unconditional
-  
-  // Brown/depth component (inverse of luminance)
-  // Reduced coefficient to allow more room for other pigments
-  burntUmber = (1 - luminance) * 0.4; // Reduced from 0.7 to 0.4
   
   // Green/olive component (when green is prominent)
   if (gRatio > rRatio * 0.9 && gRatio > bRatio * 1.1) {
-    aquamarine = (gRatio - Math.max(rRatio, bRatio)) * 0.4;
+    aquamarine = (gRatio - Math.max(rRatio, bRatio)) * 0.3;
   }
   
   // Normalize base pigments to sum to 1.0 (before white)
@@ -110,11 +109,12 @@ export function analyzePigmentMix(targetHex: string): PigmentMix {
   }
   
   // Calculate white amount (added AFTER base mix)
-  // White increases with luminance and decreases with saturation
+  // White is ONLY for lightness adjustment, never dominates
+  // Cap at 0.4 maximum to prevent washed-out colors
   const maxRgb = Math.max(r, g, b);
   const minRgb = Math.min(r, g, b);
   const saturation = maxRgb > 0 ? (maxRgb - minRgb) / maxRgb : 0;
-  const white = luminance * (1 - saturation * 0.5);
+  const white = Math.min(0.4, luminance * (1 - saturation * 0.6));
   
   return {
     aquamarine: Math.max(0, Math.min(1, aquamarine)),
