@@ -35,14 +35,15 @@ serve(async (req) => {
     let searchKeyword = keywords || `${brand} ${productName} foundation makeup`;
     searchKeyword = encodeURIComponent(searchKeyword);
 
-    // Call Rakuten Product Search API with correct URL format
-    const rakutenUrl = `https://api.linksynergy.com/productsearch/1.0?keyword=${searchKeyword}&max=${limit}&pagenumber=1&sort=productname&sorttype=asc&token=${rakutenToken}`;
+    // Call Rakuten Product Search API with Bearer token
+    const rakutenUrl = `https://api.linksynergy.com/productsearch/1.0?keyword=${searchKeyword}&max=${limit}&pagenumber=1&sort=productname&sorttype=asc`;
     
-    console.log('Calling Rakuten API:', rakutenUrl.replace(rakutenToken, 'REDACTED'));
+    console.log('Calling Rakuten API with Bearer token');
 
     const response = await fetch(rakutenUrl, {
       method: 'GET',
       headers: {
+        'Authorization': `Bearer ${rakutenToken}`,
         'Accept': 'application/json'
       }
     });
