@@ -19,23 +19,29 @@ serve(async (req) => {
     }
 
     // Build Coupon API URL with filters
-    let apiUrl = `https://api.linksynergy.com/coupon/1.0?token=${rakutenToken}`;
+    let apiUrl = `https://api.linksynergy.com/coupon/1.0`;
+    const params = new URLSearchParams();
     
     if (category) {
-      apiUrl += `&category=${encodeURIComponent(category)}`;
+      params.append('category', category);
     }
     
     if (advertiserId) {
-      apiUrl += `&mid=${advertiserId}`;
+      params.append('mid', advertiserId);
     }
     
-    apiUrl += `&resultsperpage=${limit}`;
+    params.append('resultsperpage', limit.toString());
+    
+    if (params.toString()) {
+      apiUrl += `?${params.toString()}`;
+    }
 
-    console.log('Fetching Rakuten coupons...');
+    console.log('Fetching Rakuten coupons with Bearer token');
 
     const response = await fetch(apiUrl, {
       method: 'GET',
       headers: {
+        'Authorization': `Bearer ${rakutenToken}`,
         'Accept': 'application/xml'
       }
     });
