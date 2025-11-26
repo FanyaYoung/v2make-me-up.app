@@ -17,9 +17,9 @@ const Landing = () => {
         
         <div className="container mx-auto px-4 relative">
           <div className="grid lg:grid-cols-2 gap-8 items-center">
-            {/* Hero Image - Full height on mobile */}
-            <div className="relative order-1 lg:order-2">
-              <div className="relative aspect-[3/4] lg:aspect-square rounded-3xl overflow-hidden shadow-2xl">
+            {/* Hero Image - Smaller size */}
+            <div className="relative order-1 lg:order-2 flex justify-center">
+              <div className="relative w-full max-w-sm aspect-[4/5] rounded-3xl overflow-hidden shadow-2xl">
                 <ImageSlideshow
                   images={[
                     '/lovable-uploads/efce4647-6298-4ee0-a79a-919451a96f45.png',
