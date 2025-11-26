@@ -9,12 +9,16 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useCart } from '@/contexts/CartContext';
 import { detectFaceLandmarks, applyMakeupOverlay } from '@/utils/faceDetection';
+import { captureFrameFromVideo, startCameraStream, stopMediaStream } from '@/utils/camera';
 
 interface ProductPair {
   lightProduct: any;
   darkProduct: any;
   brand: string;
 }
+
+const PLACEHOLDER_IMAGE = '/placeholder.svg';
+const withFallbackImage = (src?: string | null) => src?.trim() || PLACEHOLDER_IMAGE;
 
 const VirtualTryOn = () => {
   const location = useLocation();
@@ -52,28 +56,30 @@ const VirtualTryOn = () => {
     }
   }, [location.state, navigate]);
 
+  useEffect(() => () => {
+    stopCamera();
+  }, []);
+
   // Camera functions
   const startCamera = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } } 
+      const stream = await startCameraStream(videoRef, {
+        facingMode: 'user',
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
       });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        streamRef.current = stream;
-        setCameraActive(true);
-      }
+      streamRef.current = stream;
+      setCameraActive(true);
     } catch (error) {
       console.error('Camera error:', error);
-      toast.error('Unable to access camera. Please check permissions.');
+      const message = error instanceof Error ? error.message : 'Unable to access camera. Please check permissions.';
+      toast.error(message);
     }
   };
 
   const stopCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
+    stopMediaStream(streamRef.current);
+    streamRef.current = null;
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
@@ -81,22 +87,19 @@ const VirtualTryOn = () => {
   };
 
   const takeSnapshot = () => {
-    if (videoRef.current && canvasRef.current) {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.save();
-        ctx.scale(-1, 1);
-        ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
-        ctx.restore();
-        const imageData = canvas.toDataURL('image/jpeg', 0.9);
+    captureFrameFromVideo(videoRef, canvasRef, { mirror: true })
+      .then((imageData) => {
+        if (!imageData) {
+          toast.error('Unable to capture a frame from your camera.');
+          return;
+        }
         setCapturedImage(imageData);
         stopCamera();
-      }
-    }
+      })
+      .catch((error) => {
+        console.error('Snapshot error:', error);
+        toast.error('Failed to capture photo from camera.');
+      });
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -138,7 +141,7 @@ const VirtualTryOn = () => {
           product: parts[1]?.trim() || '',
           shade: parts[2]?.trim() || '',
           hex: parts[3]?.trim() || '',
-          imgSrc: parts[4]?.trim() || ''
+          imgSrc: withFallbackImage(parts[4]?.trim() || '')
         };
       }).filter(item => item.hex && item.hex.match(/^#[0-9A-F]{6}$/i));
 
@@ -172,32 +175,39 @@ const VirtualTryOn = () => {
               body: { brand: light.brand, productName: light.product, limit: 1 }
             }).catch(() => ({ data: null }));
             
-            if (rakutenData?.products?.[0]) {
-              const rakutenProduct = rakutenData.products[0];
-              if (rakutenProduct.imageUrl) light.imageUrl = rakutenProduct.imageUrl;
-              if (rakutenProduct.price) light.price = rakutenProduct.price;
-              light.rakutenData = {
-                id: rakutenProduct.id,
-                productUrl: rakutenProduct.productUrl,
-                merchant: rakutenProduct.brand,
-                imageUrl: rakutenProduct.imageUrl
-              };
-              dark.rakutenData = {
-                id: rakutenProduct.id,
-                productUrl: rakutenProduct.productUrl,
-                merchant: rakutenProduct.brand,
-                imageUrl: rakutenProduct.imageUrl
-              };
-            }
-          } catch (error) {
-            console.error('Rakuten fetch error:', error);
+          if (rakutenData?.products?.[0]) {
+            const rakutenProduct = rakutenData.products[0];
+            if (rakutenProduct.imageUrl) light.imageUrl = rakutenProduct.imageUrl;
+            if (rakutenProduct.price) light.price = rakutenProduct.price;
+            light.rakutenData = {
+              id: rakutenProduct.id,
+              productUrl: rakutenProduct.productUrl,
+              merchant: rakutenProduct.brand,
+              imageUrl: rakutenProduct.imageUrl
+            };
+            dark.rakutenData = {
+              id: rakutenProduct.id,
+              productUrl: rakutenProduct.productUrl,
+              merchant: rakutenProduct.brand,
+              imageUrl: rakutenProduct.imageUrl
+            };
           }
+        } catch (error) {
+          console.error('Rakuten fetch error:', error);
+        }
 
-          newPairs.push({
-            brand,
-            lightProduct: light,
-            darkProduct: dark
-          });
+        const lightImage = withFallbackImage(light.imageUrl || light.imgSrc);
+        const darkImage = withFallbackImage(dark.imageUrl || dark.imgSrc);
+        light.imageUrl = lightImage;
+        light.imgSrc = lightImage;
+        dark.imageUrl = darkImage;
+        dark.imgSrc = darkImage;
+
+        newPairs.push({
+          brand,
+          lightProduct: light,
+          darkProduct: dark
+        });
         }
       }
 
@@ -267,7 +277,7 @@ const VirtualTryOn = () => {
         undertone: 'neutral',
         coverage: 'medium',
         finish: 'natural',
-        imageUrl: product.imageUrl || product.imgSrc
+        imageUrl: withFallbackImage(product.imageUrl || product.imgSrc)
       };
       addToCart(foundationMatch);
       toast.success(`Added ${type} shade to cart!`);
@@ -309,7 +319,7 @@ const VirtualTryOn = () => {
         undertone: 'neutral',
         coverage: 'medium',
         finish: 'natural',
-        imageUrl: pair.lightProduct.imageUrl || pair.lightProduct.imgSrc
+        imageUrl: withFallbackImage(pair.lightProduct.imageUrl || pair.lightProduct.imgSrc)
       };
       const darkMatch: any = {
         id: `${pair.brand}-${pair.darkProduct.shade}`,
@@ -329,7 +339,7 @@ const VirtualTryOn = () => {
         undertone: 'neutral',
         coverage: 'medium',
         finish: 'natural',
-        imageUrl: pair.darkProduct.imageUrl || pair.darkProduct.imgSrc
+        imageUrl: withFallbackImage(pair.darkProduct.imageUrl || pair.darkProduct.imgSrc)
       };
       addToCart(lightMatch);
       addToCart(darkMatch);

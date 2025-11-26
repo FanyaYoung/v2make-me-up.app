@@ -1,13 +1,30 @@
 import React, { useState } from 'react';
-import { hexToRgb, rgbToXyz, xyzToLab, deltaE2000 } from '../lib/colorUtils';
+import { hexToRgb, rgbToXyz, xyzToLab, deltaE2000, type Lab, type RGB, type XYZ } from '../lib/colorUtils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
+interface ColorAnalysis {
+  hex: string;
+  rgb: RGB;
+  xyz: XYZ;
+  lab: Lab;
+}
+
+type MatchResult =
+  | {
+      color1: ColorAnalysis;
+      color2: ColorAnalysis;
+      deltaE: string;
+      matchPercentage: string;
+      interpretation: string;
+    }
+  | { error: string };
+
 const ColorMatchingTest = () => {
   const [color1, setColor1] = useState('#F5C6A8'); // Light skin tone
   const [color2, setColor2] = useState('#D4A574'); // Medium skin tone
-  const [results, setResults] = useState<any>(null);
+  const [results, setResults] = useState<MatchResult | null>(null);
 
   const testColorMatching = () => {
     // Test the complete CIELAB pipeline
