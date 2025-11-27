@@ -27,7 +27,13 @@ export async function startCameraStream(
 
   const video = videoRef.current;
   if (video) {
+    // Set video attributes programmatically before attaching stream
+    video.muted = true;
+    video.autoplay = true;
+    video.playsInline = true;
+    
     video.srcObject = stream;
+    
     await new Promise<void>((resolve, reject) => {
       const cleanup = () => {
         video.onloadedmetadata = null;
@@ -43,6 +49,7 @@ export async function startCameraStream(
         reject(event);
       };
 
+      // If video is already ready, play immediately
       if (video.readyState >= 2) {
         video.play().then(resolve).catch(reject);
         cleanup();
