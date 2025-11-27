@@ -32,7 +32,7 @@ serve(async (req) => {
 
     console.log('Creating Rakuten deep link:', deepLinkPayload);
 
-    const response = await fetch('https://api.linksynergy.com/v1/deeplink', {
+    const response = await fetch(`https://api.linksynergy.com/v1/deeplink?token=${rakutenToken}`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${rakutenToken}`,
