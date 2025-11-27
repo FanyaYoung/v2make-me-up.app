@@ -40,15 +40,18 @@ const Auth = () => {
       setIsLogin(false);
     }
 
+    // Get return URL from query params
+    const returnTo = searchParams.get('returnTo') || '/';
+
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         
-        // Redirect authenticated users to home
+        // Redirect authenticated users to return URL
         if (session?.user && !isResetPassword) {
-          navigate('/');
+          navigate(returnTo);
         }
       }
     );
@@ -59,7 +62,7 @@ const Auth = () => {
       setUser(session?.user ?? null);
       
       if (session?.user && !isResetPassword) {
-        navigate('/');
+        navigate(returnTo);
       }
     });
 
@@ -136,7 +139,8 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      const redirectUrl = `${window.location.origin}/`;
+      const returnTo = searchParams.get('returnTo') || '/';
+      const redirectUrl = `${window.location.origin}${returnTo}`;
       
       const { error } = await supabase.auth.signUp({
         email,
@@ -235,7 +239,8 @@ const Auth = () => {
 
   const handleOAuthSignIn = async (provider: 'google' | 'apple') => {
     try {
-      const redirectUrl = `${window.location.origin}/auth/callback`;
+      const returnTo = searchParams.get('returnTo') || '/';
+      const redirectUrl = `${window.location.origin}/auth/callback?next=${encodeURIComponent(returnTo)}`;
       
       const { error } = await supabase.auth.signInWithOAuth({
         provider,

@@ -13,7 +13,9 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
 
   useEffect(() => {
     if (!loading && !user) {
-      navigate('/auth');
+      // Save current location to return to after auth
+      const returnTo = window.location.pathname + window.location.search;
+      navigate(`/auth?returnTo=${encodeURIComponent(returnTo)}`);
     }
   }, [user, loading, navigate]);
 
