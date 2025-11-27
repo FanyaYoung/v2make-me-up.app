@@ -13,6 +13,7 @@ import { createPigmentColor, createLightFromDark, calculatePigmentMatch, Pigment
 import { PigmentColorDisplay } from './PigmentColorDisplay';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/hooks/useAuth';
+import { captureFrameFromVideo, startCameraStream, stopMediaStream } from '@/utils/camera';
 
 interface PigmentMix {
   White: number;
@@ -65,6 +66,8 @@ interface ShadeData {
   lightness: string;
 }
 
+const PLACEHOLDER_IMAGE = '/placeholder.svg';
+
 export const AISkinToneMatcher = () => {
   const { toast } = useToast();
   const { addToCart } = useCart();
@@ -85,7 +88,7 @@ export const AISkinToneMatcher = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isCamera, setIsCamera] = useState(false);
   const [cameraLoading, setCameraLoading] = useState(false);
-  const [stream, setStream] = useState<MediaStream | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load CSV database on mount
@@ -93,21 +96,9 @@ export const AISkinToneMatcher = () => {
     loadShadeDatabase();
   }, []);
 
-  // Setup video stream when camera is started
-  React.useEffect(() => {
-    if (stream && videoRef.current && isCamera) {
-      videoRef.current.srcObject = stream;
-      videoRef.current.play().catch(error => {
-        console.error('Error playing video:', error);
-        toast({
-          title: "Camera Error",
-          description: "Failed to start video playback",
-          variant: "destructive"
-        });
-        stopCamera();
-      });
-    }
-  }, [stream, isCamera]);
+  React.useEffect(() => () => {
+    stopCamera();
+  }, []);
 
   const loadShadeDatabase = async () => {
     try {
@@ -146,6 +137,8 @@ export const AISkinToneMatcher = () => {
     }
   };
 
+  const withFallbackImage = (src?: string | null) => src?.trim() || PLACEHOLDER_IMAGE;
+
   const colorDistance = (hex1: string, hex2: string): number => {
     const [r1, g1, b1] = hexToRgb(hex1);
     const [r2, g2, b2] = hexToRgb(hex2);
@@ -171,7 +164,7 @@ export const AISkinToneMatcher = () => {
         hex: match.hex,
         undertone: '',
         url: match.url,
-        img: match.imgSrc,
+        img: withFallbackImage(match.imgSrc),
         score: 100 - (match.distance / 441.67) * 100,
         pigmentColor: productPigmentColor,
         price: 39.99
@@ -196,9 +189,7 @@ export const AISkinToneMatcher = () => {
             merchant: offer.merchant
           };
           baseMatch.price = offer.salePrice;
-          if (offer.imageUrl) {
-            baseMatch.img = offer.imageUrl;
-          }
+          baseMatch.img = withFallbackImage(offer.imageUrl || baseMatch.img);
         }
       } catch (error) {
         console.log('Could not fetch Rakuten data for product:', match.brand, match.product);
@@ -255,7 +246,7 @@ export const AISkinToneMatcher = () => {
           hex: lightMatch.hex,
           undertone: '',
           url: lightMatch.url,
-          img: lightMatch.imgSrc || '', // CSV image
+          img: withFallbackImage(lightMatch.imgSrc), // CSV image
           score: 100 - (lightMatches[0].distance / 441.67) * 100,
           pigmentColor: lightPigmentColor,
           price: 39.99
@@ -268,7 +259,7 @@ export const AISkinToneMatcher = () => {
           hex: darkMatch.hex,
           undertone: '',
           url: darkMatch.url,
-          img: darkMatch.imgSrc || '', // CSV image
+          img: withFallbackImage(darkMatch.imgSrc), // CSV image
           score: 100 - (darkMatches[0].distance / 441.67) * 100,
           pigmentColor: darkPigmentColor,
           price: 45.99
@@ -295,11 +286,9 @@ export const AISkinToneMatcher = () => {
               dark.price = price;
             }
             
-            // Enhance with Rakuten image only if CSV image is missing
-            if (product.imageUrl && (!light.img || !dark.img)) {
-              if (!light.img) light.img = product.imageUrl;
-              if (!dark.img) dark.img = product.imageUrl;
-            }
+            const rakutenImage = withFallbackImage(product.imageUrl);
+            if (!light.img) light.img = rakutenImage;
+            if (!dark.img) dark.img = rakutenImage;
             
             // Store Rakuten data for purchase tracking
             const rakutenInfo = {
@@ -413,10 +402,8 @@ export const AISkinToneMatcher = () => {
   };
 
   const stopCamera = () => {
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
-      setStream(null);
-    }
+    stopMediaStream(streamRef.current);
+    streamRef.current = null;
     setIsCamera(false);
   };
 
@@ -424,21 +411,19 @@ export const AISkinToneMatcher = () => {
     setCameraLoading(true);
     try {
       console.log('Starting camera...');
-      const mediaStream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
-          facingMode: 'user',
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        } 
+      const mediaStream = await startCameraStream(videoRef, {
+        facingMode: 'user',
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
       });
       console.log('Camera permission granted, setting stream...');
-      setStream(mediaStream);
+      streamRef.current = mediaStream;
       setIsCamera(true);
     } catch (error) {
       console.error('Camera access error:', error);
       toast({
         title: "Camera Error",
-        description: "Could not access camera. Please ensure permissions are granted.",
+        description: error instanceof Error ? error.message : "Could not access camera. Please ensure permissions are granted.",
         variant: "destructive"
       });
     } finally {
@@ -447,21 +432,27 @@ export const AISkinToneMatcher = () => {
   };
 
   const takeSnapshot = () => {
-    if (!videoRef.current || !canvasRef.current) return;
-    
-    const canvas = canvasRef.current;
-    const video = videoRef.current;
-    
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const imageData = canvas.toDataURL('image/jpeg');
-      setCurrentImage(imageData);
-      stopCamera();
-    }
+    captureFrameFromVideo(videoRef, canvasRef)
+      .then((imageData) => {
+        if (!imageData) {
+          toast({
+            title: "Capture Failed",
+            description: "Could not read a frame from the camera stream.",
+            variant: "destructive"
+          });
+          return;
+        }
+        setCurrentImage(imageData);
+        stopCamera();
+      })
+      .catch((error) => {
+        console.error('Capture error:', error);
+        toast({
+          title: "Capture Error",
+          description: "Failed to capture image from camera.",
+          variant: "destructive"
+        });
+      });
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
