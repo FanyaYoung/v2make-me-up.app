@@ -36,7 +36,7 @@ serve(async (req) => {
     searchKeyword = encodeURIComponent(searchKeyword);
 
     // Call Rakuten Product Search API with Bearer token
-    const rakutenUrl = `https://api.linksynergy.com/productsearch/1.0?keyword=${searchKeyword}&max=${limit}&pagenumber=1&sort=productname&sorttype=asc&token=${rakutenToken}`;
+    const rakutenUrl = `https://api.linksynergy.com/productsearch/1.0?keyword=${searchKeyword}&max=${limit}&pagenumber=1&sort=productname&sorttype=asc`;
     
     console.log('Calling Rakuten API with Bearer token');
 
@@ -52,18 +52,15 @@ serve(async (req) => {
       const errorText = await response.text();
       console.error('Rakuten API error:', response.status, errorText);
       // Return empty results instead of throwing - let CSV images work
-      const message = response.status === 401
-        ? 'Rakuten token rejected - refresh RAKUTEN_ADVERTISING_TOKEN'
-        : 'Rakuten API unavailable';
-      console.log(`${message} - returning empty results to allow CSV fallback`);
+      console.log('Rakuten API unavailable - returning empty results to allow CSV fallback');
       return new Response(
-        JSON.stringify({
+        JSON.stringify({ 
           products: [],
           total: 0,
-          message
+          message: 'Rakuten API unavailable'
         }),
-        {
-          headers: {
+        { 
+          headers: { 
             ...corsHeaders, 
             'Content-Type': 'application/json' 
           } 
@@ -83,7 +80,7 @@ serve(async (req) => {
       
       if (rakutenToken && productUrl) {
         try {
-          const deepLinkResponse = await fetch(`https://api.linksynergy.com/v1/deeplink?token=${rakutenToken}`, {
+          const deepLinkResponse = await fetch('https://api.linksynergy.com/v1/deeplink', {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${rakutenToken}`,
