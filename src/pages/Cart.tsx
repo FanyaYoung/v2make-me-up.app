@@ -42,12 +42,11 @@ const Cart = () => {
 
   const getShadeColor = (item: any) => {
     // Use pigment-based color recreation for accurate color display
-    const hex = (item.product as any)?.hex || (item as any).hex;
+    const hex = item.shadeHex || (item.product as any)?.hex || (item as any).hex;
     if (hex && hex.startsWith('#')) {
       const pigmentColor = createPigmentColor(hex);
       return pigmentColor.hex;
     }
-    // Fallback if no hex available
     return '#D4A574';
   };
 

@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
+import { createPigmentColor } from '@/lib/pigmentMixing';
 
 interface SavedMatch {
   id: string;
@@ -128,12 +129,12 @@ export const SavedMatches = () => {
               <div className="grid md:grid-cols-2 gap-4 mb-4">
                 <div className="space-y-2">
                   <Badge>Light</Badge>
-                  <div className="h-20 rounded-lg" style={{ backgroundColor: match.lightest_hex }} />
+                  <div className="h-20 rounded-lg" style={{ backgroundColor: createPigmentColor(match.lightest_hex).hex }} />
                   <p className="text-xs font-mono text-center">{match.lightest_hex}</p>
                 </div>
                 <div className="space-y-2">
                   <Badge>Dark</Badge>
-                  <div className="h-20 rounded-lg" style={{ backgroundColor: match.darkest_hex }} />
+                  <div className="h-20 rounded-lg" style={{ backgroundColor: createPigmentColor(match.darkest_hex).hex }} />
                   <p className="text-xs font-mono text-center">{match.darkest_hex}</p>
                 </div>
               </div>

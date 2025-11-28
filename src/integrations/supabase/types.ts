@@ -2961,6 +2961,18 @@ export type Database = {
           total_products: number
         }[]
       }
+      get_hex_catalog: {
+        Args: never
+        Returns: {
+          brand: string
+          description: string
+          hex: string
+          imgsrc: string
+          name: string
+          product: string
+          url: string
+        }[]
+      }
       get_shade_ladder: {
         Args: { brand_name: string; product_name: string }
         Returns: {
