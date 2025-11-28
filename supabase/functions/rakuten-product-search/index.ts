@@ -14,36 +14,19 @@ serve(async (req) => {
     const { keywords, brand, productName, limit = 20 } = await req.json();
     
     const rakutenToken = Deno.env.get('RAKUTEN_ADVERTISING_TOKEN');
-    if (!rakutenToken || rakutenToken.trim() === '') {
-      console.log('Rakuten API token not configured - returning empty results');
-      return new Response(
-        JSON.stringify({ 
-          products: [],
-          total: 0,
-          message: 'Rakuten integration not configured'
-        }),
-        { 
-          headers: { 
-            ...corsHeaders, 
-            'Content-Type': 'application/json' 
-          } 
-        }
-      );
-    }
 
     // Build search keyword
     let searchKeyword = keywords || `${brand} ${productName} foundation makeup`;
     searchKeyword = encodeURIComponent(searchKeyword);
 
-    // Call Rakuten Product Search API with Bearer token
-    const rakutenUrl = `https://api.linksynergy.com/productsearch/1.0?keyword=${searchKeyword}&max=${limit}&pagenumber=1&sort=productname&sorttype=asc`;
+    // Call Rakuten Product Search API - NO authentication needed for product search
+    const rakutenUrl = `https://api.linksynergy.com/productsearch/1.0?keyword=${searchKeyword}&max=${limit}&pagenumber=1&sort=productname&sorttype=asc&language=en_US&cat=beauty`;
     
-    console.log('Calling Rakuten API with Bearer token');
+    console.log('Calling Rakuten Product Search API (no auth required)');
 
     const response = await fetch(rakutenUrl, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${rakutenToken}`,
         'Accept': 'application/json'
       }
     });
@@ -51,7 +34,6 @@ serve(async (req) => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Rakuten API error:', response.status, errorText);
-      // Return empty results instead of throwing - let CSV images work
       console.log('Rakuten API unavailable - returning empty results to allow CSV fallback');
       return new Response(
         JSON.stringify({ 
@@ -71,6 +53,7 @@ serve(async (req) => {
     const data = await response.json();
     
     // Parse and format the response with deep links
+    const rakutenToken = Deno.env.get('RAKUTEN_ADVERTISING_TOKEN');
     const products = await Promise.all(data.item?.map(async (item: any) => {
       const merchantId = item.mid || '99999';
       const productUrl = item.linkurl || item.link;
