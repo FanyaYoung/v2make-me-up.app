@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Camera, Upload, Loader2, ShoppingBag, ShoppingCart, Eye } from 'lucide-react';
+import { Camera, Upload, Loader2, ShoppingBag, ShoppingCart, Eye, Save, BookmarkPlus } from 'lucide-react';
 import { createPigmentColor, createLightFromDark, calculatePigmentMatch, PigmentColor } from '@/lib/pigmentMixing';
 import { PigmentColorDisplay } from './PigmentColorDisplay';
 import { useCart } from '@/contexts/CartContext';
@@ -572,7 +572,7 @@ export const AISkinToneMatcher = () => {
       // Match to product database - find brand pairs
       setLoadingMessage("Finding matching foundation pairs from brands...");
       
-      const pairs = await findBrandPairs(data.lightest_hex, data.darkest_hex, 4);
+      const pairs = await findBrandPairs(lightPigmentColor.hex, data.darkest_hex, 4);
       setBrandPairs(pairs);
 
       toast({
@@ -587,6 +587,54 @@ export const AISkinToneMatcher = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const saveShadeMatch = async () => {
+    if (!user) {
+      toast({
+        title: "Sign In Required",
+        description: "Please sign in to save your shade matches",
+        variant: "destructive"
+      });
+      navigate('/auth');
+      return;
+    }
+
+    if (!lightestResult || !darkestResult || brandPairs.length === 0) {
+      toast({
+        title: "No Analysis to Save",
+        description: "Please complete a shade analysis first",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase.from('saved_shade_matches').insert([{
+        user_id: user.id,
+        lightest_hex: lightestResult.hex,
+        lightest_rgb: lightestResult.rgb as any,
+        lightest_pigment_mix: lightestResult.pigmentColor.pigmentMix as any,
+        darkest_hex: darkestResult.hex,
+        darkest_rgb: darkestResult.rgb as any,
+        darkest_pigment_mix: darkestResult.pigmentColor.pigmentMix as any,
+        matched_products: brandPairs as any,
+        photo_url: currentImage
+      }]);
+
+      if (error) throw error;
+
+      toast({
+        title: "Saved Successfully",
+        description: "Your shade match has been saved to your account"
+      });
+    } catch (error: any) {
+      toast({
+        title: "Save Failed",
+        description: error.message || "Failed to save shade match",
+        variant: "destructive"
+      });
     }
   };
 
@@ -899,6 +947,23 @@ export const AISkinToneMatcher = () => {
           />
         )}
       </div>
+
+      {/* Save Match Button */}
+      {lightestResult && darkestResult && brandPairs.length > 0 && (
+        <Card className="border-2 border-primary/20 bg-primary/5">
+          <CardContent className="pt-6">
+            <Button 
+              onClick={saveShadeMatch}
+              variant="default"
+              size="lg"
+              className="w-full"
+            >
+              <BookmarkPlus className="mr-2 h-5 w-5" />
+              Save This Shade Match to My Account
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {brandPairs.length > 0 && (
         <Card>

@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import Header from '@/components/Header';
 import FulfillmentOptions from '@/components/FulfillmentOptions';
+import { createPigmentColor } from '@/lib/pigmentMixing';
 
 const Cart = () => {
   const { items, removeFromCart, updateQuantity, clearCart, getTotalPrice, getTotalItems } = useCart();
@@ -39,19 +40,15 @@ const Cart = () => {
     }
   }, [success, canceled, sessionId, clearCart, navigate]);
 
-  const getShadeColor = (shade: string, undertone: string) => {
-    const shadeLower = shade.toLowerCase();
-    let baseColor = '#D4A574';
-    
-    if (shadeLower.includes('fair') || shadeLower.includes('light')) {
-      baseColor = undertone === 'cool' ? '#F5DCC4' : undertone === 'warm' ? '#F0D0A6' : '#F2D3B3';
-    } else if (shadeLower.includes('medium')) {
-      baseColor = undertone === 'cool' ? '#E8C2A0' : undertone === 'warm' ? '#D4A574' : '#DEBA8A';
-    } else if (shadeLower.includes('deep') || shadeLower.includes('dark')) {
-      baseColor = undertone === 'cool' ? '#B5967A' : undertone === 'warm' ? '#A0835C' : '#AA8B6E';
+  const getShadeColor = (item: any) => {
+    // Use pigment-based color recreation for accurate color display
+    const hex = (item.product as any)?.hex || (item as any).hex;
+    if (hex && hex.startsWith('#')) {
+      const pigmentColor = createPigmentColor(hex);
+      return pigmentColor.hex;
     }
-    
-    return baseColor;
+    // Fallback if no hex available
+    return '#D4A574';
   };
 
   const handleCheckout = async () => {
@@ -144,10 +141,7 @@ const Cart = () => {
                         <div 
                           className="w-16 h-16 rounded-lg border shadow-sm"
                           style={{ 
-                            backgroundColor: getShadeColor(
-                              item.shadeName || item.product.shade, 
-                              item.product.undertone
-                            )
+                            backgroundColor: getShadeColor(item)
                           }}
                         />
                       </div>
