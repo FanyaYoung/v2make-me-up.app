@@ -14,6 +14,11 @@ import { PigmentColorDisplay } from './PigmentColorDisplay';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/hooks/useAuth';
 
+const PLACEHOLDER_IMAGE = '/placeholder.svg';
+const withFallbackImage = (src: string | undefined | null) => {
+  return (src && src.trim()) || PLACEHOLDER_IMAGE;
+};
+
 interface PigmentMix {
   White: number;
   CadmiumRed: number;
@@ -171,7 +176,7 @@ export const AISkinToneMatcher = () => {
         hex: match.hex,
         undertone: '',
         url: match.url,
-        img: match.imgSrc,
+        img: withFallbackImage(match.imgSrc),
         score: 100 - (match.distance / 441.67) * 100,
         pigmentColor: productPigmentColor,
         price: 39.99
@@ -255,7 +260,7 @@ export const AISkinToneMatcher = () => {
           hex: lightMatch.hex,
           undertone: '',
           url: lightMatch.url,
-          img: lightMatch.imgSrc || '', // CSV image
+          img: withFallbackImage(lightMatch.imgSrc), // CSV image with fallback
           score: 100 - (lightMatches[0].distance / 441.67) * 100,
           pigmentColor: lightPigmentColor,
           price: 39.99
@@ -268,7 +273,7 @@ export const AISkinToneMatcher = () => {
           hex: darkMatch.hex,
           undertone: '',
           url: darkMatch.url,
-          img: darkMatch.imgSrc || '', // CSV image
+          img: withFallbackImage(darkMatch.imgSrc), // CSV image with fallback
           score: 100 - (darkMatches[0].distance / 441.67) * 100,
           pigmentColor: darkPigmentColor,
           price: 45.99
@@ -307,10 +312,10 @@ export const AISkinToneMatcher = () => {
                 dark.price = price;
               }
               
-              // Enhance with Rakuten image only if CSV image is missing
-              if (bestProduct.imageUrl && (!light.img || !dark.img)) {
-                if (!light.img) light.img = bestProduct.imageUrl;
-                if (!dark.img) dark.img = bestProduct.imageUrl;
+              // Enhance with Rakuten image only if CSV image is missing/placeholder
+              if (bestProduct.imageUrl && (!light.img || light.img === PLACEHOLDER_IMAGE || !dark.img || dark.img === PLACEHOLDER_IMAGE)) {
+                if (!light.img || light.img === PLACEHOLDER_IMAGE) light.img = withFallbackImage(bestProduct.imageUrl);
+                if (!dark.img || dark.img === PLACEHOLDER_IMAGE) dark.img = withFallbackImage(bestProduct.imageUrl);
               }
               
               // Store Rakuten data with best store info for purchase tracking
@@ -884,22 +889,16 @@ export const AISkinToneMatcher = () => {
                     {/* Light Shade with Image */}
                     <div className="p-3 border-b bg-background">
                       <p className="text-xs font-semibold text-primary mb-2">LIGHT SHADE</p>
-                      {pair.light.img ? (
-                        <div className="h-32 bg-gradient-to-br from-background to-muted rounded-lg mb-2 flex items-center justify-center p-2">
-                          <img 
-                            src={pair.light.img} 
-                            alt={pair.light.shade_name}
-                            className="max-h-full max-w-full object-contain"
-                          />
-                        </div>
-                      ) : (
-                        <div 
-                          className="h-32 rounded-lg mb-2 flex items-center justify-center"
-                          style={{ backgroundColor: pair.light.hex }}
-                        >
-                          <span className="text-xs text-white/70">No image</span>
-                        </div>
-                      )}
+                      <div className="h-32 bg-gradient-to-br from-background to-muted rounded-lg mb-2 flex items-center justify-center p-2">
+                        <img 
+                          src={pair.light.img} 
+                          alt={pair.light.shade_name}
+                          className="max-h-full max-w-full object-contain"
+                          onError={(e) => {
+                            e.currentTarget.src = PLACEHOLDER_IMAGE;
+                          }}
+                        />
+                      </div>
                       <p className="text-sm font-medium line-clamp-2 min-h-[2.5rem] mb-2">{pair.light.shade_name}</p>
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
@@ -932,22 +931,16 @@ export const AISkinToneMatcher = () => {
                     {/* Dark Shade with Image */}
                     <div className="p-3 border-b bg-background">
                       <p className="text-xs font-semibold text-primary mb-2">DARK SHADE (CONTOUR)</p>
-                      {pair.dark.img ? (
-                        <div className="h-32 bg-gradient-to-br from-background to-muted rounded-lg mb-2 flex items-center justify-center p-2">
-                          <img 
-                            src={pair.dark.img} 
-                            alt={pair.dark.shade_name}
-                            className="max-h-full max-w-full object-contain"
-                          />
-                        </div>
-                      ) : (
-                        <div 
-                          className="h-32 rounded-lg mb-2 flex items-center justify-center"
-                          style={{ backgroundColor: pair.dark.hex }}
-                        >
-                          <span className="text-xs text-white/70">No image</span>
-                        </div>
-                      )}
+                      <div className="h-32 bg-gradient-to-br from-background to-muted rounded-lg mb-2 flex items-center justify-center p-2">
+                        <img 
+                          src={pair.dark.img} 
+                          alt={pair.dark.shade_name}
+                          className="max-h-full max-w-full object-contain"
+                          onError={(e) => {
+                            e.currentTarget.src = PLACEHOLDER_IMAGE;
+                          }}
+                        />
+                      </div>
                       <p className="text-sm font-medium line-clamp-2 min-h-[2.5rem] mb-2">{pair.dark.shade_name}</p>
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
