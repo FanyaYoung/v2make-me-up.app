@@ -921,10 +921,24 @@ export const AISkinToneMatcher = () => {
                         variant="secondary" 
                         size="sm" 
                         className="w-full"
-                        onClick={() => handleBuyNow([pair.light])}
+                        onClick={() => {
+                          addToCart({
+                            id: `${pair.light.brand}-${pair.light.shade_name}`,
+                            brand: pair.light.brand,
+                            product: pair.light.product,
+                            shade: pair.light.shade_name,
+                            price: pair.light.price || 39.99,
+                            hex: pair.light.hex,
+                            imgSrc: pair.light.img
+                          } as any);
+                          toast({
+                            title: "Added to Cart",
+                            description: `${pair.light.shade_name} added to cart`
+                          });
+                        }}
                       >
                         <ShoppingCart className="w-3 h-3 mr-1" />
-                        Buy Light
+                        Add Light
                       </Button>
                     </div>
 
@@ -963,10 +977,24 @@ export const AISkinToneMatcher = () => {
                         variant="secondary" 
                         size="sm" 
                         className="w-full"
-                        onClick={() => handleBuyNow([pair.dark])}
+                        onClick={() => {
+                          addToCart({
+                            id: `${pair.dark.brand}-${pair.dark.shade_name}`,
+                            brand: pair.dark.brand,
+                            product: pair.dark.product,
+                            shade: pair.dark.shade_name,
+                            price: pair.dark.price || 45.99,
+                            hex: pair.dark.hex,
+                            imgSrc: pair.dark.img
+                          } as any);
+                          toast({
+                            title: "Added to Cart",
+                            description: `${pair.dark.shade_name} added to cart`
+                          });
+                        }}
                       >
                         <ShoppingCart className="w-3 h-3 mr-1" />
-                        Buy Dark
+                        Add Dark
                       </Button>
                     </div>
 
@@ -1011,10 +1039,33 @@ export const AISkinToneMatcher = () => {
                         variant="default" 
                         size="sm" 
                         className="w-full font-semibold"
-                        onClick={() => handleBuyNow([pair.light, pair.dark])}
+                        onClick={() => {
+                          addToCart({
+                            id: `${pair.light.brand}-${pair.light.shade_name}`,
+                            brand: pair.light.brand,
+                            product: pair.light.product,
+                            shade: pair.light.shade_name,
+                            price: pair.light.price || 39.99,
+                            hex: pair.light.hex,
+                            imgSrc: pair.light.img
+                          } as any);
+                          addToCart({
+                            id: `${pair.dark.brand}-${pair.dark.shade_name}`,
+                            brand: pair.dark.brand,
+                            product: pair.dark.product,
+                            shade: pair.dark.shade_name,
+                            price: pair.dark.price || 45.99,
+                            hex: pair.dark.hex,
+                            imgSrc: pair.dark.img
+                          } as any);
+                          toast({
+                            title: "Added to Cart",
+                            description: "Complete set added to cart"
+                          });
+                        }}
                       >
                         <ShoppingCart className="w-3 h-3 mr-1" />
-                        Buy Set - ${((pair.light.price || 0) + (pair.dark.price || 0)).toFixed(2)}
+                        Add Set - ${((pair.light.price || 0) + (pair.dark.price || 0)).toFixed(2)}
                       </Button>
                     </div>
                   </CardContent>
