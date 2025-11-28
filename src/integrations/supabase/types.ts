@@ -1492,6 +1492,54 @@ export type Database = {
           },
         ]
       }
+      saved_shade_matches: {
+        Row: {
+          created_at: string | null
+          darkest_hex: string
+          darkest_pigment_mix: Json
+          darkest_rgb: Json
+          id: string
+          lightest_hex: string
+          lightest_pigment_mix: Json
+          lightest_rgb: Json
+          matched_products: Json
+          notes: string | null
+          photo_url: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          darkest_hex: string
+          darkest_pigment_mix: Json
+          darkest_rgb: Json
+          id?: string
+          lightest_hex: string
+          lightest_pigment_mix: Json
+          lightest_rgb: Json
+          matched_products: Json
+          notes?: string | null
+          photo_url?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          darkest_hex?: string
+          darkest_pigment_mix?: Json
+          darkest_rgb?: Json
+          id?: string
+          lightest_hex?: string
+          lightest_pigment_mix?: Json
+          lightest_rgb?: Json
+          matched_products?: Json
+          notes?: string | null
+          photo_url?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       scan_sessions: {
         Row: {
           analysis_complete: boolean | null
