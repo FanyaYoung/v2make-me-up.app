@@ -275,43 +275,56 @@ export const AISkinToneMatcher = () => {
         };
 
         // Try Rakuten Product Search for enhanced data (pricing and better images)
-        // Silently fail if Rakuten is unavailable - CSV data is sufficient
+        // Automatically select best available store based on price/availability
         try {
           const { data: rakutenData, error: rakutenError } = await supabase.functions.invoke('rakuten-product-search', {
             body: { 
               brand: brand,
               productName: lightMatch.product,
-              limit: 3
+              limit: 20 // Get more results to find best pricing
             }
           }).catch(() => ({ data: null, error: true }));
 
           if (!rakutenError && rakutenData?.products && rakutenData.products.length > 0) {
-            const product = rakutenData.products[0];
+            // Filter for in-stock products only
+            const inStockProducts = rakutenData.products.filter((p: any) => p.inStock);
             
-            // Use Rakuten pricing if available
-            if (product.salePrice || product.price) {
-              const price = product.salePrice || product.price;
-              light.price = price;
-              dark.price = price;
+            if (inStockProducts.length > 0) {
+              // Sort by price (use salePrice if available, otherwise regular price)
+              const sortedByPrice = inStockProducts.sort((a: any, b: any) => {
+                const priceA = a.salePrice || a.price || 999999;
+                const priceB = b.salePrice || b.price || 999999;
+                return priceA - priceB;
+              });
+
+              // Select the cheapest available option (best store automatically)
+              const bestProduct = sortedByPrice[0];
+              
+              // Use best available pricing
+              if (bestProduct.salePrice || bestProduct.price) {
+                const price = bestProduct.salePrice || bestProduct.price;
+                light.price = price;
+                dark.price = price;
+              }
+              
+              // Enhance with Rakuten image only if CSV image is missing
+              if (bestProduct.imageUrl && (!light.img || !dark.img)) {
+                if (!light.img) light.img = bestProduct.imageUrl;
+                if (!dark.img) dark.img = bestProduct.imageUrl;
+              }
+              
+              // Store Rakuten data with best store info for purchase tracking
+              const rakutenInfo = {
+                id: bestProduct.id,
+                name: bestProduct.name,
+                imageUrl: bestProduct.imageUrl,
+                salePrice: bestProduct.salePrice || bestProduct.price,
+                clickUrl: bestProduct.productUrl,
+                merchant: bestProduct.brand // This is the selected store (Sephora, Ulta, etc.)
+              };
+              light.rakutenData = rakutenInfo;
+              dark.rakutenData = rakutenInfo;
             }
-            
-            // Enhance with Rakuten image only if CSV image is missing
-            if (product.imageUrl && (!light.img || !dark.img)) {
-              if (!light.img) light.img = product.imageUrl;
-              if (!dark.img) dark.img = product.imageUrl;
-            }
-            
-            // Store Rakuten data for purchase tracking
-            const rakutenInfo = {
-              id: product.id,
-              name: product.name,
-              imageUrl: product.imageUrl,
-              salePrice: product.salePrice || product.price,
-              clickUrl: product.productUrl,
-              merchant: product.brand
-            };
-            light.rakutenData = rakutenInfo;
-            dark.rakutenData = rakutenInfo;
           }
         } catch (error) {
           // Silently continue with CSV data
@@ -900,6 +913,11 @@ export const AISkinToneMatcher = () => {
                           <span className="text-sm font-bold text-primary">${pair.light.price.toFixed(2)}</span>
                         )}
                       </div>
+                      {pair.light.rakutenData?.merchant && (
+                        <p className="text-xs text-muted-foreground mb-2">
+                          Available at: <span className="font-medium text-foreground">{pair.light.rakutenData.merchant}</span>
+                        </p>
+                      )}
                       <Button 
                         variant="secondary" 
                         size="sm" 
@@ -943,6 +961,11 @@ export const AISkinToneMatcher = () => {
                           <span className="text-sm font-bold text-primary">${pair.dark.price.toFixed(2)}</span>
                         )}
                       </div>
+                      {pair.dark.rakutenData?.merchant && (
+                        <p className="text-xs text-muted-foreground mb-2">
+                          Available at: <span className="font-medium text-foreground">{pair.dark.rakutenData.merchant}</span>
+                        </p>
+                      )}
                       <Button 
                         variant="secondary" 
                         size="sm" 
