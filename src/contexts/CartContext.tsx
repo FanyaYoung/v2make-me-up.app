@@ -7,6 +7,7 @@ export interface CartItem {
   quantity: number;
   selectedShade?: 'primary' | 'contour';
   shadeName?: string;
+  shadeHex?: string;
   addedAt: Date;
 }
 
@@ -42,6 +43,9 @@ export const CartProvider = ({ children }: CartProviderProps) => {
       ? product.contourShade?.name 
       : product.primaryShade?.name || product.shade;
     
+    // Get hex from the product itself (it's on the main object, not on shade sub-objects)
+    const shadeHex = (product as any).hex;
+    
     const itemId = `${product.id}-${selectedShade || 'primary'}`;
     
     setItems(prevItems => {
@@ -61,6 +65,7 @@ export const CartProvider = ({ children }: CartProviderProps) => {
         quantity: 1,
         selectedShade,
         shadeName,
+        shadeHex,
         addedAt: new Date()
       }];
     });
