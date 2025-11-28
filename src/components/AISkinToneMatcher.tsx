@@ -280,55 +280,86 @@ export const AISkinToneMatcher = () => {
         };
 
         // Try Rakuten Product Search for enhanced data (pricing and better images)
-        // Automatically select best available store based on price/availability
+        // Search for the SPECIFIC matched shade, not just the product
         try {
-          const { data: rakutenData, error: rakutenError } = await supabase.functions.invoke('rakuten-product-search', {
+          const lightShadeSearch = `${brand} ${lightMatch.product} ${lightMatch.name || lightMatch.description}`;
+          const darkShadeSearch = `${brand} ${darkMatch.product} ${darkMatch.name || darkMatch.description}`;
+          
+          const { data: lightRakutenData, error: lightRakutenError } = await supabase.functions.invoke('rakuten-product-search', {
             body: { 
-              brand: brand,
-              productName: lightMatch.product,
-              limit: 20 // Get more results to find best pricing
+              keywords: lightShadeSearch,
+              limit: 10
             }
           }).catch(() => ({ data: null, error: true }));
 
-          if (!rakutenError && rakutenData?.products && rakutenData.products.length > 0) {
-            // Filter for in-stock products only
-            const inStockProducts = rakutenData.products.filter((p: any) => p.inStock);
+          const { data: darkRakutenData, error: darkRakutenError } = await supabase.functions.invoke('rakuten-product-search', {
+            body: { 
+              keywords: darkShadeSearch,
+              limit: 10
+            }
+          }).catch(() => ({ data: null, error: true }));
+
+          // Process light shade Rakuten data
+          if (!lightRakutenError && lightRakutenData?.products && lightRakutenData.products.length > 0) {
+            const inStockProducts = lightRakutenData.products.filter((p: any) => p.inStock);
             
             if (inStockProducts.length > 0) {
-              // Sort by price (use salePrice if available, otherwise regular price)
               const sortedByPrice = inStockProducts.sort((a: any, b: any) => {
                 const priceA = a.salePrice || a.price || 999999;
                 const priceB = b.salePrice || b.price || 999999;
                 return priceA - priceB;
               });
 
-              // Select the cheapest available option (best store automatically)
               const bestProduct = sortedByPrice[0];
               
-              // Use best available pricing
               if (bestProduct.salePrice || bestProduct.price) {
-                const price = bestProduct.salePrice || bestProduct.price;
-                light.price = price;
-                dark.price = price;
+                light.price = bestProduct.salePrice || bestProduct.price;
               }
               
-              // Enhance with Rakuten image only if CSV image is missing/placeholder
-              if (bestProduct.imageUrl && (!light.img || light.img === PLACEHOLDER_IMAGE || !dark.img || dark.img === PLACEHOLDER_IMAGE)) {
-                if (!light.img || light.img === PLACEHOLDER_IMAGE) light.img = withFallbackImage(bestProduct.imageUrl);
-                if (!dark.img || dark.img === PLACEHOLDER_IMAGE) dark.img = withFallbackImage(bestProduct.imageUrl);
+              if (bestProduct.imageUrl && (!light.img || light.img === PLACEHOLDER_IMAGE)) {
+                light.img = withFallbackImage(bestProduct.imageUrl);
               }
               
-              // Store Rakuten data with best store info for purchase tracking
-              const rakutenInfo = {
+              light.rakutenData = {
                 id: bestProduct.id,
                 name: bestProduct.name,
                 imageUrl: bestProduct.imageUrl,
                 salePrice: bestProduct.salePrice || bestProduct.price,
                 clickUrl: bestProduct.productUrl,
-                merchant: bestProduct.brand // This is the selected store (Sephora, Ulta, etc.)
+                merchant: bestProduct.brand
               };
-              light.rakutenData = rakutenInfo;
-              dark.rakutenData = rakutenInfo;
+            }
+          }
+
+          // Process dark shade Rakuten data
+          if (!darkRakutenError && darkRakutenData?.products && darkRakutenData.products.length > 0) {
+            const inStockProducts = darkRakutenData.products.filter((p: any) => p.inStock);
+            
+            if (inStockProducts.length > 0) {
+              const sortedByPrice = inStockProducts.sort((a: any, b: any) => {
+                const priceA = a.salePrice || a.price || 999999;
+                const priceB = b.salePrice || b.price || 999999;
+                return priceA - priceB;
+              });
+
+              const bestProduct = sortedByPrice[0];
+              
+              if (bestProduct.salePrice || bestProduct.price) {
+                dark.price = bestProduct.salePrice || bestProduct.price;
+              }
+              
+              if (bestProduct.imageUrl && (!dark.img || dark.img === PLACEHOLDER_IMAGE)) {
+                dark.img = withFallbackImage(bestProduct.imageUrl);
+              }
+              
+              dark.rakutenData = {
+                id: bestProduct.id,
+                name: bestProduct.name,
+                imageUrl: bestProduct.imageUrl,
+                salePrice: bestProduct.salePrice || bestProduct.price,
+                clickUrl: bestProduct.productUrl,
+                merchant: bestProduct.brand
+              };
             }
           }
         } catch (error) {
