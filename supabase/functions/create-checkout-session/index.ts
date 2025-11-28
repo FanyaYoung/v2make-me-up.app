@@ -150,6 +150,9 @@ serve(async (req) => {
       shipping_address_collection: {
         allowed_countries: ['US', 'CA'],
       },
+      customer_update: {
+        shipping: 'auto',
+      },
       metadata: {
         user_id: user.id,
         total_amount: totalAmount.toString(),
