@@ -371,7 +371,11 @@ export const AISkinToneMatcher = () => {
       }
     }
 
-    return pairs.sort((a, b) => a.avgDistance - b.avgDistance).slice(0, limit);
+    // Filter out pairs without valid product images, then sort and limit
+    const validPairs = pairs.filter(pair => 
+      pair.light.img !== PLACEHOLDER_IMAGE && pair.dark.img !== PLACEHOLDER_IMAGE
+    );
+    return validPairs.sort((a, b) => a.avgDistance - b.avgDistance).slice(0, limit);
   };
 
   const rgbToHex = (r: number, g: number, b: number): string => {
@@ -731,14 +735,6 @@ export const AISkinToneMatcher = () => {
               <p className="text-xs text-muted-foreground">
                 HSL: H: {result.analysis.h}°, S: {result.analysis.s}%, L: {result.analysis.l}%
               </p>
-            </div>
-            <div className="pt-2 border-t">
-              <p className="text-sm font-semibold mb-2">Pigment Mix:</p>
-              <PigmentBar label="Titanium White" percentage={result.analysis.mix.White} color="linear-gradient(to right, #ffffff, #d1d5db)" />
-              <PigmentBar label="Cadmium Yellow" percentage={result.analysis.mix.CadmiumYellow} color="#facc15" />
-              <PigmentBar label="Cadmium Red" percentage={result.analysis.mix.CadmiumRed} color="#ef4444" />
-              <PigmentBar label="Ultramarine Blue" percentage={result.analysis.mix.UltramarineBlue} color="#3b82f6" />
-              <PigmentBar label="Burnt Umber" percentage={result.analysis.mix.BurntUmber} color="#654321" />
             </div>
           </>
         ) : (
