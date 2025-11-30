@@ -23,12 +23,12 @@ serve(async (req) => {
     let responseSchema: any = null;
 
     if (analysisType === 'image') {
-      prompt = "Analyze the skin tone in the provided image. Provide the exact hexadecimal color codes for the lightest, non-highlighted skin tone, and the darkest, non-shadowed skin tone. Return only valid JSON with 'lightest_hex' and 'darkest_hex' properties.";
+      prompt = "Analyze ONLY the facial skin tone in this image. CRITICAL INSTRUCTIONS:\n\n1. EXCLUDE these areas completely:\n   - Hair (scalp, facial hair, eyebrows)\n   - Eyes and lips\n   - Any non-skin areas\n\n2. For LIGHTEST tone:\n   - Focus on forehead, nose bridge, or under-eye areas\n   - Choose naturally light areas, NOT highlights or reflections\n   - Must be actual skin, not hair or background\n\n3. For DARKEST tone:\n   - Focus on lower cheek area near jawline or temples\n   - Choose naturally darker facial skin areas\n   - Must be actual skin tone, NOT shadows, hair, or facial hair\n   - The darkest FACIAL SKIN area, not the darkest thing in the image\n\nReturn exact hexadecimal color codes for both tones. Ensure both colors represent actual facial skin, with darkest being from the lower cheek/jawline area.";
       responseSchema = {
         type: "object",
         properties: {
-          lightest_hex: { type: "string", description: "The hexadecimal color code (#RRGGBB format) of the lightest skin tone area" },
-          darkest_hex: { type: "string", description: "The hexadecimal color code (#RRGGBB format) of the darkest skin tone area" }
+          lightest_hex: { type: "string", description: "The hexadecimal color code (#RRGGBB format) of the lightest facial skin tone area (forehead, nose bridge, or under-eye)" },
+          darkest_hex: { type: "string", description: "The hexadecimal color code (#RRGGBB format) of the darkest facial skin tone area (lower cheek near jawline or temples, NOT hair)" }
         },
         required: ["lightest_hex", "darkest_hex"]
       };
