@@ -1,4 +1,4 @@
-import { Home, User, Palette, ShoppingCart, Package, Lightbulb, Pipette, ScanFace, Sparkles } from "lucide-react";
+import { Home, User, Palette, ShoppingCart, Package, Lightbulb, Pipette, ScanFace, Sparkles, FileText } from "lucide-react";
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import AuthCallback from "./pages/AuthCallback";
@@ -9,6 +9,10 @@ import LightingMatcher from "./pages/LightingMatcher";
 import PigmentMixer from "./pages/PigmentMixer";
 import AISkinAnalyzer from "./pages/AISkinAnalyzer";
 import VirtualTryOn from "./pages/VirtualTryOn";
+import TermsOfService from "./pages/TermsOfService";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import RefundPolicy from "./pages/RefundPolicy";
+import ShippingPolicy from "./pages/ShippingPolicy";
 
 export const navItems = [
   {
@@ -70,5 +74,29 @@ export const navItems = [
     to: "/auth/callback",
     icon: <User className="h-4 w-4" />,
     page: <AuthCallback />,
+  },
+  {
+    title: "Terms of Service",
+    to: "/terms-of-service",
+    icon: <FileText className="h-4 w-4" />,
+    page: <TermsOfService />,
+  },
+  {
+    title: "Privacy Policy",
+    to: "/privacy-policy",
+    icon: <FileText className="h-4 w-4" />,
+    page: <PrivacyPolicy />,
+  },
+  {
+    title: "Refund Policy",
+    to: "/refund-policy",
+    icon: <FileText className="h-4 w-4" />,
+    page: <RefundPolicy />,
+  },
+  {
+    title: "Shipping Policy",
+    to: "/shipping-policy",
+    icon: <FileText className="h-4 w-4" />,
+    page: <ShippingPolicy />,
   },
 ];
