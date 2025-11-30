@@ -50,18 +50,8 @@ const Cart = () => {
     return '#D4A574';
   };
 
-  const handleCheckout = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      toast({
-        title: "Sign In Required",
-        description: "Please sign in to proceed with checkout.",
-        variant: "destructive",
-      });
-      navigate('/auth');
-      return;
-    }
-    setShowFulfillment(true);
+  const handleCheckout = () => {
+    window.open('https://square.link/u/rr83QcPf', '_blank');
   };
 
   const handlePurchaseComplete = (fulfillmentMethod: string, products: any[]) => {
@@ -231,10 +221,10 @@ const Cart = () => {
                       className="w-full bg-gradient-to-r from-rose-500 to-purple-500 text-white"
                       onClick={handleCheckout}
                     >
-                      Continue to Fulfillment
+                      Proceed to Checkout
                     </Button>
                     <p className="text-xs text-gray-500 text-center">
-                      Choose your delivery method on next step
+                      You'll be redirected to Square to complete your purchase
                     </p>
                   </CardContent>
                 </Card>
