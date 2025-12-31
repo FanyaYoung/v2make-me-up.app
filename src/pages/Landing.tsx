@@ -16,37 +16,25 @@ const Landing = () => {
         <div className="absolute inset-0 bg-gradient-to-br from-rose-50/50 via-pink-50/30 to-purple-50/50" />
         
         <div className="container mx-auto px-4 relative">
-          <div className="grid lg:grid-cols-5 gap-12 items-center">
-            {/* Hero Image */}
-            <div className="relative order-1 lg:order-2 lg:col-span-2 flex justify-center">
-              <div className="relative w-56 h-72 lg:w-72 lg:h-80 rounded-2xl overflow-hidden shadow-xl">
-                <ImageSlideshow
-                  images={[
-                    '/lovable-uploads/efce4647-6298-4ee0-a79a-919451a96f45.png',
-                    '/lovable-uploads/b7f78823-7566-40da-8231-db2bfe83f2a7.png',
-                    '/lovable-uploads/a68d3215-f709-4f7d-8787-82bf8d454614.png'
-                  ]}
-                  duration={15000}
-                  className="w-full h-[130%] object-cover object-top"
-                />
-              </div>
-            </div>
-            
-            {/* Hero Content */}
-            <div className="space-y-6 order-2 lg:order-1 lg:col-span-3">
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
+            {/* Text Column */}
+            <div className="space-y-6 order-2 lg:order-1">
               <div className="inline-block">
                 <Badge className="text-sm px-4 py-2 bg-gradient-to-r from-rose-500 to-purple-500 text-white border-0">
                   AI-Powered Matching
                 </Badge>
               </div>
-              <h1 className="text-4xl lg:text-6xl font-bold leading-tight">
+              <h1 className="text-4xl lg:text-5xl xl:text-6xl font-bold leading-tight">
                 <span className="bg-gradient-to-r from-rose-600 via-pink-600 to-purple-600 bg-clip-text text-transparent">
                   Your Perfect Shade
                 </span>
                 <br />
                 <span className="text-gray-800">Delivered Your Way</span>
               </h1>
-              <div className="flex flex-wrap gap-3 items-center text-sm text-gray-600">
+              <p className="text-lg text-gray-600 max-w-md">
+                Discover your ideal foundation match with AI-powered skin tone analysis. Shop from top retailers and choose your preferred delivery.
+              </p>
+              <div className="flex flex-wrap gap-4 items-center text-sm text-gray-600">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-full bg-rose-100 flex items-center justify-center">
                     <Sparkles className="w-4 h-4 text-rose-600" />
@@ -73,6 +61,21 @@ const Landing = () => {
                 <Button asChild variant="outline" size="lg" className="text-base px-8">
                   <Link to="/products">Browse Products</Link>
                 </Button>
+              </div>
+            </div>
+            
+            {/* Photo Column */}
+            <div className="relative order-1 lg:order-2 flex justify-center lg:justify-end">
+              <div className="relative w-72 h-96 lg:w-80 lg:h-[28rem] rounded-2xl overflow-hidden shadow-2xl">
+                <ImageSlideshow
+                  images={[
+                    '/lovable-uploads/efce4647-6298-4ee0-a79a-919451a96f45.png',
+                    '/lovable-uploads/b7f78823-7566-40da-8231-db2bfe83f2a7.png',
+                    '/lovable-uploads/a68d3215-f709-4f7d-8787-82bf8d454614.png'
+                  ]}
+                  duration={15000}
+                  className="w-full h-[120%] object-cover object-top"
+                />
               </div>
             </div>
           </div>
