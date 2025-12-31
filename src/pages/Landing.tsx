@@ -18,7 +18,7 @@ const Landing = () => {
         <div className="container mx-auto px-4 relative">
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
             {/* Text Column */}
-            <div className="space-y-6">
+            <div className="space-y-6 text-center lg:text-left flex flex-col items-center lg:items-start">
               <div className="inline-block">
                 <Badge className="text-sm px-4 py-2 bg-gradient-to-r from-rose-500 to-purple-500 text-white border-0">
                   AI-Powered Matching
@@ -31,10 +31,10 @@ const Landing = () => {
                 <br />
                 <span className="text-gray-800">Delivered Your Way</span>
               </h1>
-              <p className="text-lg text-gray-600">
+              <p className="text-lg text-gray-600 max-w-md">
                 Discover your ideal foundation match with AI-powered skin tone analysis. Shop from top retailers and choose your preferred delivery.
               </p>
-              <div className="flex flex-wrap gap-4 items-center text-sm text-gray-600">
+              <div className="flex flex-wrap gap-4 items-center justify-center lg:justify-start text-sm text-gray-600">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-full bg-rose-100 flex items-center justify-center">
                     <Sparkles className="w-4 h-4 text-rose-600" />
