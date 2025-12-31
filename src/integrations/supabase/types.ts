@@ -2828,24 +2828,6 @@ export type Database = {
           product: string | null
           url: string | null
         }
-        Insert: {
-          brand?: string | null
-          description?: string | null
-          hex?: string | null
-          imgsrc?: string | null
-          name?: string | null
-          product?: string | null
-          url?: string | null
-        }
-        Update: {
-          brand?: string | null
-          description?: string | null
-          hex?: string | null
-          imgsrc?: string | null
-          name?: string | null
-          product?: string | null
-          url?: string | null
-        }
         Relationships: []
       }
     }
