@@ -164,6 +164,11 @@ const CosmeticsLibrary = () => {
           </div>
         )}
 
+        {/* Recommended Foundations */}
+        <div className="mb-10">
+          <RecommendedFoundations />
+        </div>
+
         {/* Cosmetics Browser */}
         <CosmeticsBrowser />
       </div>
