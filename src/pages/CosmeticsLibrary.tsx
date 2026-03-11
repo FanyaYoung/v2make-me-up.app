@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import Header from '../components/Header';
 import CosmeticsBrowser from '../components/CosmeticsBrowser';
+import RecommendedFoundations from '../components/RecommendedFoundations';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -163,6 +164,11 @@ const CosmeticsLibrary = () => {
             ))}
           </div>
         )}
+
+        {/* Recommended Foundations */}
+        <div className="mb-10">
+          <RecommendedFoundations />
+        </div>
 
         {/* Cosmetics Browser */}
         <CosmeticsBrowser />
