@@ -726,6 +726,72 @@ export type Database = {
           },
         ]
       }
+      full_pricing_website_photos: {
+        Row: {
+          api_featured_image: string
+          brand: string
+          category: string
+          created_at: string | null
+          currency: string | null
+          description: string
+          id: number | null
+          image_link: string
+          name: string
+          price: number
+          price_sign: string
+          product_api_url: string
+          product_colors: string
+          product_link: string
+          product_type: string
+          rating: string | null
+          tag_list: string
+          updated_at: string | null
+          website_link: string
+        }
+        Insert: {
+          api_featured_image: string
+          brand: string
+          category: string
+          created_at?: string | null
+          currency?: string | null
+          description: string
+          id?: number | null
+          image_link: string
+          name: string
+          price: number
+          price_sign: string
+          product_api_url: string
+          product_colors: string
+          product_link: string
+          product_type: string
+          rating?: string | null
+          tag_list: string
+          updated_at?: string | null
+          website_link: string
+        }
+        Update: {
+          api_featured_image?: string
+          brand?: string
+          category?: string
+          created_at?: string | null
+          currency?: string | null
+          description?: string
+          id?: number | null
+          image_link?: string
+          name?: string
+          price?: number
+          price_sign?: string
+          product_api_url?: string
+          product_colors?: string
+          product_link?: string
+          product_type?: string
+          rating?: string | null
+          tag_list?: string
+          updated_at?: string | null
+          website_link?: string
+        }
+        Relationships: []
+      }
       "golden_and_adversarial_mst-e_image_ids": {
         Row: {
           golden_image_id: string | null
@@ -744,6 +810,120 @@ export type Database = {
           id?: string
           not_ideal_image_id?: string | null
           subject?: string | null
+        }
+        Relationships: []
+      }
+      hex_catalog_source: {
+        Row: {
+          __hex_source_col: string
+          __source_sheet: string
+          Brand: string
+          Coverage: string
+          Finish: string
+          "Group Rank (light→dark)": number
+          HEX: string
+          L_mean: number
+          Product: string
+          "Shade Code": string
+          "Shade Name": string
+          "Skin Tone": string
+          "Tone Group": string
+          "Tone Light #": string
+          "Undertone (data)": string
+          UT_pred: string
+        }
+        Insert: {
+          __hex_source_col: string
+          __source_sheet: string
+          Brand: string
+          Coverage: string
+          Finish: string
+          "Group Rank (light→dark)": number
+          HEX: string
+          L_mean: number
+          Product: string
+          "Shade Code": string
+          "Shade Name": string
+          "Skin Tone": string
+          "Tone Group": string
+          "Tone Light #": string
+          "Undertone (data)": string
+          UT_pred: string
+        }
+        Update: {
+          __hex_source_col?: string
+          __source_sheet?: string
+          Brand?: string
+          Coverage?: string
+          Finish?: string
+          "Group Rank (light→dark)"?: number
+          HEX?: string
+          L_mean?: number
+          Product?: string
+          "Shade Code"?: string
+          "Shade Name"?: string
+          "Skin Tone"?: string
+          "Tone Group"?: string
+          "Tone Light #"?: string
+          "Undertone (data)"?: string
+          UT_pred?: string
+        }
+        Relationships: []
+      }
+      hex_catelog: {
+        Row: {
+          __hex_source_col: string | null
+          __source_sheet: string | null
+          Brand: string | null
+          Coverage: string | null
+          Finish: string | null
+          "Group Rank (light→dark)": number | null
+          HEX: string | null
+          L_mean: number | null
+          Product: string | null
+          "Shade Code": string | null
+          "Shade Name": string | null
+          "Skin Tone": string | null
+          "Tone Group": string | null
+          "Tone Light #": string | null
+          "Undertone (data)": string | null
+          UT_pred: string | null
+        }
+        Insert: {
+          __hex_source_col?: string | null
+          __source_sheet?: string | null
+          Brand?: string | null
+          Coverage?: string | null
+          Finish?: string | null
+          "Group Rank (light→dark)"?: number | null
+          HEX?: string | null
+          L_mean?: number | null
+          Product?: string | null
+          "Shade Code"?: string | null
+          "Shade Name"?: string | null
+          "Skin Tone"?: string | null
+          "Tone Group"?: string | null
+          "Tone Light #"?: string | null
+          "Undertone (data)"?: string | null
+          UT_pred?: string | null
+        }
+        Update: {
+          __hex_source_col?: string | null
+          __source_sheet?: string | null
+          Brand?: string | null
+          Coverage?: string | null
+          Finish?: string | null
+          "Group Rank (light→dark)"?: number | null
+          HEX?: string | null
+          L_mean?: number | null
+          Product?: string | null
+          "Shade Code"?: string | null
+          "Shade Name"?: string | null
+          "Skin Tone"?: string | null
+          "Tone Group"?: string | null
+          "Tone Light #"?: string | null
+          "Undertone (data)"?: string | null
+          UT_pred?: string | null
         }
         Relationships: []
       }
@@ -1003,6 +1183,72 @@ export type Database = {
           "Swatch: imgSrc"?: string
           "Swatch: url"?: string
           url?: string
+        }
+        Relationships: []
+      }
+      "Product Pricing": {
+        Row: {
+          api_featured_image: string
+          brand: string
+          category: string
+          created_at: string | null
+          currency: string
+          description: string
+          id: number
+          image_link: string
+          name: string
+          price: number
+          price_sign: string
+          product_api_url: string
+          product_colors: string
+          product_link: string
+          product_type: string
+          rating: string | null
+          tag_list: string
+          updated_at: string | null
+          website_link: string
+        }
+        Insert: {
+          api_featured_image: string
+          brand: string
+          category: string
+          created_at?: string | null
+          currency: string
+          description: string
+          id: number
+          image_link: string
+          name: string
+          price: number
+          price_sign: string
+          product_api_url: string
+          product_colors: string
+          product_link: string
+          product_type: string
+          rating?: string | null
+          tag_list: string
+          updated_at?: string | null
+          website_link: string
+        }
+        Update: {
+          api_featured_image?: string
+          brand?: string
+          category?: string
+          created_at?: string | null
+          currency?: string
+          description?: string
+          id?: number
+          image_link?: string
+          name?: string
+          price?: number
+          price_sign?: string
+          product_api_url?: string
+          product_colors?: string
+          product_link?: string
+          product_type?: string
+          rating?: string | null
+          tag_list?: string
+          updated_at?: string | null
+          website_link?: string
         }
         Relationships: []
       }
@@ -2828,6 +3074,24 @@ export type Database = {
           product: string | null
           url: string | null
         }
+        Insert: {
+          brand?: string | null
+          description?: never
+          hex?: string | null
+          imgsrc?: never
+          name?: string | null
+          product?: string | null
+          url?: never
+        }
+        Update: {
+          brand?: string | null
+          description?: never
+          hex?: string | null
+          imgsrc?: never
+          name?: string | null
+          product?: string | null
+          url?: never
+        }
         Relationships: []
       }
     }
@@ -2945,6 +3209,18 @@ export type Database = {
       }
       get_hex_catalog: {
         Args: never
+        Returns: {
+          brand: string
+          description: string
+          hex: string
+          imgsrc: string
+          name: string
+          product: string
+          url: string
+        }[]
+      }
+      get_hex_catalog_for_user: {
+        Args: { p_some_check: string }
         Returns: {
           brand: string
           description: string
