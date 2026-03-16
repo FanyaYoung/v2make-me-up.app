@@ -103,9 +103,9 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    console.error('Error in analyze-skin-tone:', error);
+    console.error('Error in analyze-skin-tone:', error instanceof Error ? error.message : String(error));
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

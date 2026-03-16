@@ -98,10 +98,10 @@ Deno.serve(async (req) => {
     });
 
   } catch (e) {
-    console.error('Match foundations error:', e);
+    console.error('Match foundations error:', e instanceof Error ? e.message : String(e));
     return new Response(JSON.stringify({ 
       ok: false, 
-      error: e instanceof Error ? e.message : String(e) 
+      error: 'Internal server error' 
     }), { 
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" }
