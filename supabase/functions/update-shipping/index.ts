@@ -67,7 +67,7 @@ serve(async (req) => {
     }
 
     const updateData: UpdateShippingRequest = await req.json();
-    logStep("Update data received", { orderId: updateData.order_id });
+    logStep("Update data received");
 
     const tracking_url = updateData.tracking_url || 
       generateTrackingUrl(updateData.shipping_carrier, updateData.tracking_number);
