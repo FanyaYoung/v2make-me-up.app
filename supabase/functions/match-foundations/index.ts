@@ -30,9 +30,8 @@ Deno.serve(async (req) => {
 
     const { user_hex, lighting_cct_k = 4000, lighting_cri = 80, n_results = 5 } = await req.json();
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    // Reuse the authenticated client (anon key + user's Bearer token) instead of service_role
+    const supabase = authClient;
 
     // Query Sephora products only
     const { data, error } = await supabase
