@@ -77,7 +77,7 @@ serve(async (req) => {
     }
 
     const order_number = orderNumberData;
-    logStep("Generated order number", { order_number });
+    logStep("Generated order number");
 
     // Create order
     const { data: order, error: orderError } = await supabaseClient
