@@ -100,7 +100,7 @@ serve(async (req) => {
       throw new Error(`Failed to create order: ${orderError.message}`);
     }
 
-    logStep("Order created", { orderId: order.id });
+    logStep("Order created");
 
     // Create order items
     const orderItems = orderData.items.map(item => ({
