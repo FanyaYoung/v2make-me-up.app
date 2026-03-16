@@ -23,17 +23,16 @@ const generateTrackingUrl = (carrier: string, trackingNumber: string): string =>
   const lowerCarrier = carrier.toLowerCase();
   
   if (lowerCarrier.includes('ups')) {
-    return `https://www.ups.com/track?loc=en_US&tracknum=${trackingNumber}`;
+    return `https://www.ups.com/track?loc=en_US&tracknum=${encodeURIComponent(trackingNumber)}`;
   } else if (lowerCarrier.includes('fedex')) {
-    return `https://www.fedex.com/fedextrack/?trknbr=${trackingNumber}`;
+    return `https://www.fedex.com/fedextrack/?trknbr=${encodeURIComponent(trackingNumber)}`;
   } else if (lowerCarrier.includes('usps')) {
-    return `https://tools.usps.com/go/TrackConfirmAction?tLabels=${trackingNumber}`;
+    return `https://tools.usps.com/go/TrackConfirmAction?tLabels=${encodeURIComponent(trackingNumber)}`;
   } else if (lowerCarrier.includes('dhl')) {
-    return `https://www.dhl.com/en/express/tracking.html?AWB=${trackingNumber}`;
+    return `https://www.dhl.com/en/express/tracking.html?AWB=${encodeURIComponent(trackingNumber)}`;
   }
   
-  // Default fallback
-  return `https://www.google.com/search?q=${carrier}+tracking+${trackingNumber}`;
+  return `https://www.google.com/search?q=${encodeURIComponent(carrier)}+tracking+${encodeURIComponent(trackingNumber)}`;
 };
 
 serve(async (req) => {
@@ -67,12 +66,46 @@ serve(async (req) => {
     }
 
     const updateData: UpdateShippingRequest = await req.json();
+
+    // Input validation
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!updateData.order_id || typeof updateData.order_id !== 'string' || !uuidRegex.test(updateData.order_id)) {
+      return new Response(JSON.stringify({ success: false, error: 'Invalid order ID format' }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400,
+      });
+    }
+    if (!updateData.tracking_number || typeof updateData.tracking_number !== 'string' || updateData.tracking_number.length > 100 || !/^[A-Za-z0-9\-_.]+$/.test(updateData.tracking_number)) {
+      return new Response(JSON.stringify({ success: false, error: 'Invalid tracking number' }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400,
+      });
+    }
+    const allowedCarriers = ['ups', 'fedex', 'usps', 'dhl', 'ontrac', 'lasership'];
+    if (!updateData.shipping_carrier || typeof updateData.shipping_carrier !== 'string' || updateData.shipping_carrier.length > 50) {
+      return new Response(JSON.stringify({ success: false, error: 'Invalid shipping carrier' }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400,
+      });
+    }
+    if (updateData.tracking_url) {
+      if (typeof updateData.tracking_url !== 'string' || updateData.tracking_url.length > 500) {
+        return new Response(JSON.stringify({ success: false, error: 'Invalid tracking URL' }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400,
+        });
+      }
+      try {
+        const parsed = new URL(updateData.tracking_url);
+        if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('bad protocol');
+      } catch {
+        return new Response(JSON.stringify({ success: false, error: 'Invalid tracking URL format' }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400,
+        });
+      }
+    }
+
     logStep("Update data received");
 
     const tracking_url = updateData.tracking_url || 
       generateTrackingUrl(updateData.shipping_carrier, updateData.tracking_number);
 
-    // Update order with shipping information
     const { data: order, error: updateError } = await supabaseClient
       .from('orders')
       .update({
