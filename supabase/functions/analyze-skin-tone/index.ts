@@ -29,7 +29,24 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
     }
 
-    const { imageBase64, analysisType } = await req.json();
+    const body = await req.json();
+    const { imageBase64, analysisType } = body;
+
+    // Input validation
+    if (!analysisType || !['image'].includes(analysisType)) {
+      return new Response(JSON.stringify({ error: 'Invalid analysis type' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    if (!imageBase64 || typeof imageBase64 !== 'string') {
+      return new Response(JSON.stringify({ error: 'Image data is required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    // Validate it looks like base64 data URI or reasonable base64 string (max ~10MB)
+    if (imageBase64.length > 15_000_000) {
+      return new Response(JSON.stringify({ error: 'Image data too large' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    if (!imageBase64.startsWith('data:image/')) {
+      return new Response(JSON.stringify({ error: 'Invalid image format - must be a data URI' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 
     if (!LOVABLE_API_KEY) {

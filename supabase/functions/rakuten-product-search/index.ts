@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,54 +12,63 @@ serve(async (req) => {
   }
 
   try {
-    const { keywords, brand, productName, limit = 20 } = await req.json();
-    
-    const rakutenToken = Deno.env.get('RAKUTEN_ADVERTISING_TOKEN');
+    // Authenticate user
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+    const token = authHeader.replace('Bearer ', '');
+    const { data: userData, error: userError } = await supabase.auth.getUser(token);
+    if (userError || !userData.user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
 
-    // Build search keyword
-    let searchKeyword = keywords || `${brand} ${productName} foundation makeup`;
+    const { keywords, brand, productName, limit = 20 } = await req.json();
+
+    // Input validation
+    if (keywords && (typeof keywords !== 'string' || keywords.length > 200)) {
+      return new Response(JSON.stringify({ error: 'Invalid keywords' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    if (brand && (typeof brand !== 'string' || brand.length > 100)) {
+      return new Response(JSON.stringify({ error: 'Invalid brand' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    if (productName && (typeof productName !== 'string' || productName.length > 200)) {
+      return new Response(JSON.stringify({ error: 'Invalid productName' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    const sanitizedLimit = Math.min(Math.max(1, Number(limit) || 20), 50);
+
+    let searchKeyword = keywords || `${brand || ''} ${productName || ''} foundation makeup`.trim();
     searchKeyword = encodeURIComponent(searchKeyword);
 
-    // Call Rakuten Product Search API - NO authentication needed for product search
-    const rakutenUrl = `https://api.linksynergy.com/productsearch/1.0?keyword=${searchKeyword}&max=${limit}&pagenumber=1&sort=productname&sorttype=asc&language=en_US&cat=beauty`;
+    const rakutenUrl = `https://api.linksynergy.com/productsearch/1.0?keyword=${searchKeyword}&max=${sanitizedLimit}&pagenumber=1&sort=productname&sorttype=asc&language=en_US&cat=beauty`;
     
-    console.log('Calling Rakuten Product Search API (no auth required)');
+    console.log('Calling Rakuten Product Search API');
 
     const response = await fetch(rakutenUrl, {
       method: 'GET',
-      headers: {
-        'Accept': 'application/json'
-      }
+      headers: { 'Accept': 'application/json' }
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Rakuten API error:', response.status, errorText);
-      console.log('Rakuten API unavailable - returning empty results to allow CSV fallback');
+      console.error('Rakuten API error:', response.status);
       return new Response(
-        JSON.stringify({ 
-          products: [],
-          total: 0,
-          message: 'Rakuten API unavailable'
-        }),
-        { 
-          headers: { 
-            ...corsHeaders, 
-            'Content-Type': 'application/json' 
-          } 
-        }
+        JSON.stringify({ products: [], total: 0, message: 'Rakuten API unavailable' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     const data = await response.json();
     
-    // Parse and format the response with deep links
     const rakutenToken = Deno.env.get('RAKUTEN_ADVERTISING_TOKEN');
     const products = await Promise.all(data.item?.map(async (item: any) => {
       const merchantId = item.mid || '99999';
       const productUrl = item.linkurl || item.link;
       
-      // Create proper deep link via Rakuten API if token is available
       let affiliateUrl = productUrl;
       
       if (rakutenToken && productUrl) {
@@ -79,13 +89,12 @@ serve(async (req) => {
           
           if (deepLinkResponse.ok) {
             const deepLinkData = await deepLinkResponse.json();
-            // Parse correct response format
             affiliateUrl = deepLinkData.advertiser?.deep_link?.deep_link_url || 
                           deepLinkData.deep_link_url || 
                           productUrl;
           }
         } catch (deepLinkError) {
-          console.error('Deep link creation failed, using direct URL:', deepLinkError);
+          console.error('Deep link creation failed, using direct URL');
         }
       }
       
@@ -98,40 +107,25 @@ serve(async (req) => {
         price: parseFloat(item.price?.replace(/[^0-9.]/g, '') || '0'),
         salePrice: item.saleprice ? parseFloat(item.saleprice.replace(/[^0-9.]/g, '')) : null,
         imageUrl: item.imageurl || item.thumbnailimage,
-        productUrl: affiliateUrl, // Deep link with affiliate tracking
-        originalUrl: productUrl, // Keep original for reference
+        productUrl: affiliateUrl,
+        originalUrl: productUrl,
         category: item.category,
         inStock: item.isclearance !== 'Yes'
       };
     }) || []);
 
-    console.log(`Found ${products.length} products from Rakuten with ${rakutenToken ? 'affiliate deep links' : 'direct URLs (add token for tracking)'}`);
+    console.log(`Found ${products.length} products`);
 
     return new Response(
       JSON.stringify({ products, total: products.length }),
-      { 
-        headers: { 
-          ...corsHeaders, 
-          'Content-Type': 'application/json' 
-        } 
-      }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error: any) {
-    console.error('Error in rakuten-product-search:', error);
-    // Return success with empty products to allow CSV fallback
+    console.error('Error in rakuten-product-search:', error instanceof Error ? error.message : String(error));
     return new Response(
-      JSON.stringify({ 
-        products: [],
-        total: 0,
-        message: 'Rakuten service temporarily unavailable'
-      }),
-      { 
-        headers: { 
-          ...corsHeaders, 
-          'Content-Type': 'application/json' 
-        }
-      }
+      JSON.stringify({ products: [], total: 0, message: 'Service temporarily unavailable' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });

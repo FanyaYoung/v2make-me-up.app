@@ -27,7 +27,14 @@ interface CreateOrderRequest {
     postal_code: string;
     country: string;
   };
-  billing_address?: any;
+  billing_address?: {
+    line1: string;
+    line2?: string;
+    city: string;
+    state: string;
+    postal_code: string;
+    country: string;
+  };
   affiliate_id: string;
 }
 
@@ -35,6 +42,22 @@ const logStep = (step: string, details?: any) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
   console.log(`[PROCESS-ORDER] ${step}${detailsStr}`);
 };
+
+// Validation helpers
+const isValidString = (val: unknown, maxLen: number): val is string =>
+  typeof val === 'string' && val.trim().length > 0 && val.length <= maxLen;
+
+const isValidEmail = (val: unknown): val is string =>
+  typeof val === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val) && val.length <= 255;
+
+const isValidAddress = (addr: any): boolean =>
+  addr &&
+  isValidString(addr.line1, 200) &&
+  (!addr.line2 || isValidString(addr.line2, 200)) &&
+  isValidString(addr.city, 100) &&
+  isValidString(addr.state, 100) &&
+  isValidString(addr.postal_code, 20) &&
+  isValidString(addr.country, 100);
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -61,14 +84,62 @@ serve(async (req) => {
     if (!user) throw new Error("User not authenticated");
 
     const orderData: CreateOrderRequest = await req.json();
-    logStep("Order data received", { itemCount: orderData.items.length });
 
-    // Calculate total amount
+    // Input validation
+    if (!isValidString(orderData.customer_name, 200)) {
+      return new Response(JSON.stringify({ success: false, error: 'Invalid customer name' }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400,
+      });
+    }
+    if (!isValidEmail(orderData.customer_email)) {
+      return new Response(JSON.stringify({ success: false, error: 'Invalid email address' }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400,
+      });
+    }
+    if (!isValidAddress(orderData.shipping_address)) {
+      return new Response(JSON.stringify({ success: false, error: 'Invalid shipping address' }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400,
+      });
+    }
+    if (orderData.billing_address && !isValidAddress(orderData.billing_address)) {
+      return new Response(JSON.stringify({ success: false, error: 'Invalid billing address' }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400,
+      });
+    }
+    if (!isValidString(orderData.affiliate_id, 100)) {
+      return new Response(JSON.stringify({ success: false, error: 'Invalid affiliate ID' }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400,
+      });
+    }
+    if (!Array.isArray(orderData.items) || orderData.items.length === 0 || orderData.items.length > 50) {
+      return new Response(JSON.stringify({ success: false, error: 'Invalid items' }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400,
+      });
+    }
+    for (const item of orderData.items) {
+      if (!isValidString(item.product_name, 200) || !isValidString(item.product_brand, 200)) {
+        return new Response(JSON.stringify({ success: false, error: 'Invalid item data' }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400,
+        });
+      }
+      if (typeof item.quantity !== 'number' || item.quantity < 1 || item.quantity > 100 || !Number.isInteger(item.quantity)) {
+        return new Response(JSON.stringify({ success: false, error: 'Invalid item quantity' }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400,
+        });
+      }
+      if (typeof item.unit_price !== 'number' || item.unit_price < 0 || item.unit_price > 10000) {
+        return new Response(JSON.stringify({ success: false, error: 'Invalid item price' }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400,
+        });
+      }
+    }
+
+    logStep("Order data validated", { itemCount: orderData.items.length });
+
     const total_amount = orderData.items.reduce((sum, item) => 
       sum + (item.unit_price * item.quantity), 0
     );
 
-    // Generate order number
     const { data: orderNumberData, error: orderNumberError } = await supabaseClient
       .rpc('generate_order_number');
     
@@ -79,7 +150,6 @@ serve(async (req) => {
     const order_number = orderNumberData;
     logStep("Generated order number");
 
-    // Create order
     const { data: order, error: orderError } = await supabaseClient
       .from('orders')
       .insert({
@@ -102,7 +172,6 @@ serve(async (req) => {
 
     logStep("Order created");
 
-    // Create order items
     const orderItems = orderData.items.map(item => ({
       order_id: order.id,
       product_id: item.product_id,
