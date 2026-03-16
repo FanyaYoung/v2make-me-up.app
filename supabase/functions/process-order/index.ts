@@ -77,7 +77,7 @@ serve(async (req) => {
     }
 
     const order_number = orderNumberData;
-    logStep("Generated order number", { order_number });
+    logStep("Generated order number");
 
     // Create order
     const { data: order, error: orderError } = await supabaseClient
@@ -100,7 +100,7 @@ serve(async (req) => {
       throw new Error(`Failed to create order: ${orderError.message}`);
     }
 
-    logStep("Order created", { orderId: order.id });
+    logStep("Order created");
 
     // Create order items
     const orderItems = orderData.items.map(item => ({
@@ -143,7 +143,7 @@ serve(async (req) => {
     
     return new Response(JSON.stringify({ 
       success: false, 
-      error: errorMessage 
+      error: 'Internal server error' 
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,

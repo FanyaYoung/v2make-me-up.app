@@ -67,7 +67,7 @@ serve(async (req) => {
     }
 
     const updateData: UpdateShippingRequest = await req.json();
-    logStep("Update data received", { orderId: updateData.order_id });
+    logStep("Update data received");
 
     const tracking_url = updateData.tracking_url || 
       generateTrackingUrl(updateData.shipping_carrier, updateData.tracking_number);
@@ -90,7 +90,7 @@ serve(async (req) => {
       throw new Error(`Failed to update order: ${updateError.message}`);
     }
 
-    logStep("Order updated successfully", { orderId: order.id, trackingNumber: updateData.tracking_number });
+    logStep("Order updated successfully");
 
     return new Response(JSON.stringify({
       success: true,
@@ -113,7 +113,7 @@ serve(async (req) => {
     
     return new Response(JSON.stringify({ 
       success: false, 
-      error: errorMessage 
+      error: 'Internal server error' 
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
