@@ -90,7 +90,7 @@ serve(async (req) => {
       throw new Error(`Failed to update order: ${updateError.message}`);
     }
 
-    logStep("Order updated successfully", { orderId: order.id, trackingNumber: updateData.tracking_number });
+    logStep("Order updated successfully");
 
     return new Response(JSON.stringify({
       success: true,
