@@ -7,17 +7,33 @@ const AuthCallback = () => {
   const [searchParams] = useSearchParams();
 
   useEffect(() => {
-    // Handle the OAuth callback
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        // Redirect to 'next' param or home after successful OAuth login
-        const next = searchParams.get('next') ?? '/';
-        navigate(next);
-      } else {
-        // If no session, redirect back to auth page
-        navigate('/auth');
+    const handleCallback = async () => {
+      const oauthError = searchParams.get('error_description') || searchParams.get('error');
+      if (oauthError) {
+        navigate(`/auth?oauthError=${encodeURIComponent(oauthError)}`, { replace: true });
+        return;
       }
-    });
+
+      // Handle PKCE callback explicitly to avoid race conditions on getSession().
+      const code = searchParams.get('code');
+      if (code) {
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        if (error) {
+          navigate(`/auth?oauthError=${encodeURIComponent(error.message)}`, { replace: true });
+          return;
+        }
+      }
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const next = searchParams.get('next') ?? '/';
+        navigate(next, { replace: true });
+      } else {
+        navigate('/auth?oauthError=Unable%20to%20complete%20sign%20in', { replace: true });
+      }
+    };
+
+    handleCallback();
   }, [navigate, searchParams]);
 
   return (

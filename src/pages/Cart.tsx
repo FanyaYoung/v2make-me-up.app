@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Trash2, Plus, Minus, ShoppingBag, ArrowLeft, CheckCircle, XCircle } from 'lucide-react';
+import { Trash2, Plus, Minus, ShoppingBag, ArrowLeft } from 'lucide-react';
 import { useCart } from '@/contexts/CartContext';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -22,13 +22,7 @@ const Cart = () => {
 
   useEffect(() => {
     if (success === 'true' && sessionId) {
-      toast({
-        title: "Payment Successful!",
-        description: "Your order has been placed successfully. You'll receive a confirmation email shortly.",
-      });
-      clearCart();
-      // Clear URL params
-      navigate('/cart', { replace: true });
+      navigate(`/checkout-success?session_id=${encodeURIComponent(sessionId)}`, { replace: true });
     } else if (canceled === 'true') {
       toast({
         title: "Payment Canceled",
@@ -75,6 +69,11 @@ const Cart = () => {
     const newWindow = window.open(url, title, `scrollbars=yes, width=${w / systemZoom}, height=${h / systemZoom}, top=${top}, left=${left}`);
 
     if (window.focus && newWindow) newWindow.focus();
+  };
+
+  const handleManualPurchaseComplete = () => {
+    clearCart();
+    navigate('/checkout-success');
   };
 
   const handlePurchaseComplete = (fulfillmentMethod: string, products: any[]) => {
@@ -246,6 +245,13 @@ const Cart = () => {
                     >
                       Pay now
                     </button>
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={handleManualPurchaseComplete}
+                    >
+                      I Completed My Purchase
+                    </Button>
                     <p className="text-xs text-gray-500 text-center">
                       Secure checkout powered by Square
                     </p>

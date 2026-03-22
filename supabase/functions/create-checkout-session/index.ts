@@ -142,7 +142,7 @@ serve(async (req) => {
       customer: customerId,
       line_items: lineItems,
       mode: 'payment',
-      success_url: `${req.headers.get("origin")}/cart?session_id={CHECKOUT_SESSION_ID}&success=true`,
+      success_url: `${req.headers.get("origin")}/checkout-success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${req.headers.get("origin")}/cart?canceled=true`,
       automatic_tax: {
         enabled: true,

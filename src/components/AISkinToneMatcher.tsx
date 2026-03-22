@@ -8,8 +8,11 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Camera, Upload, Loader2, ShoppingBag, ShoppingCart, Eye, Save, BookmarkPlus } from 'lucide-react';
+import { Camera, Upload, Loader2, ShoppingCart, Eye, BookmarkPlus } from 'lucide-react';
 import { createPigmentColor, createLightFromDark, calculatePigmentMatch, PigmentColor } from '@/lib/pigmentMixing';
+import { describeSkinTone } from '@/lib/skinToneDescription';
+import { optimizeImageForAnalysis } from '@/lib/imageOptimization';
+import { loadProductMetadataMap, parseCsvRow, normalizeImageUrl, ProductMetadata, makeProductKey } from '@/lib/productMetadata';
 import { PigmentColorDisplay } from './PigmentColorDisplay';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/hooks/useAuth';
@@ -17,6 +20,45 @@ import { useAuth } from '@/hooks/useAuth';
 const PLACEHOLDER_IMAGE = '/placeholder.svg';
 const withFallbackImage = (src: string | undefined | null) => {
   return (src && src.trim()) || PLACEHOLDER_IMAGE;
+};
+
+const ANALYSIS_TIMEOUT_MS = 45000;
+
+const withTimeout = async <T,>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(() => reject(new Error('Analysis timed out. Please try a clearer, smaller photo.')), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+};
+
+const getStoreFromUrl = (url?: string) => {
+  if (!url) return 'Retailer';
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    if (host.includes('ulta')) return 'Ulta Beauty';
+    if (host.includes('sephora')) return 'Sephora';
+    if (host.includes('amazon')) return 'Amazon';
+    if (host.includes('walmart')) return 'Walmart';
+    return host.replace('www.', '');
+  } catch {
+    return 'Retailer';
+  }
+};
+
+const getWebsiteFromUrl = (url?: string) => {
+  if (!url) return '';
+  try {
+    return new URL(url).hostname.replace('www.', '');
+  } catch {
+    return '';
+  }
 };
 
 interface PigmentMix {
@@ -45,14 +87,8 @@ interface FoundationMatch {
   score: number;
   pigmentColor: PigmentColor;
   price?: number;
-  rakutenData?: {
-    id: string;
-    name: string;
-    imageUrl: string;
-    salePrice: number;
-    clickUrl: string;
-    merchant: string;
-  };
+  store?: string;
+  website?: string;
 }
 
 interface ShadeData {
@@ -68,6 +104,8 @@ interface ShadeData {
   hue: string;
   sat: string;
   lightness: string;
+  price?: number;
+  retailer?: string;
 }
 
 export const AISkinToneMatcher = () => {
@@ -79,6 +117,7 @@ export const AISkinToneMatcher = () => {
   const [loadingMessage, setLoadingMessage] = useState('');
   const [currentImage, setCurrentImage] = useState<string | null>(null);
   const [lightestResult, setLightestResult] = useState<{ hex: string; rgb: [number, number, number]; analysis: ColorAnalysis; pigmentColor: PigmentColor } | null>(null);
+  const [midResult, setMidResult] = useState<{ hex: string; rgb: [number, number, number]; analysis: ColorAnalysis; pigmentColor: PigmentColor } | null>(null);
   const [darkestResult, setDarkestResult] = useState<{ hex: string; rgb: [number, number, number]; analysis: ColorAnalysis; pigmentColor: PigmentColor } | null>(null);
   const [showDarkest, setShowDarkest] = useState(true);
   const [brandPairs, setBrandPairs] = useState<Array<{ light: FoundationMatch; dark: FoundationMatch }>>([]);
@@ -116,26 +155,64 @@ export const AISkinToneMatcher = () => {
 
   const loadShadeDatabase = async () => {
     try {
+      const productMetadataMap = await loadProductMetadataMap();
+
       const response = await fetch('/data/allShades.csv');
       const csvText = await response.text();
       const lines = csvText.trim().split('\n');
-      const headers = lines[0].split(',');
+      const headers = parseCsvRow(lines[0]).map(h => h.toLowerCase());
+      const getIdx = (...keys: string[]) => {
+        for (const k of keys) {
+          const idx = headers.findIndex(h => h === k || h.includes(k));
+          if (idx >= 0) return idx;
+        }
+        return -1;
+      };
+      const idx = {
+        brand: getIdx('brand'),
+        product: getIdx('product'),
+        url: getIdx('url', 'product_url'),
+        description: getIdx('description'),
+        imgSrc: getIdx('imgsrc', 'image_url', 'image'),
+        imgAlt: getIdx('imgalt'),
+        name: getIdx('name', 'shade_name'),
+        specific: getIdx('specific'),
+        hex: getIdx('hex'),
+        hue: getIdx('hue'),
+        sat: getIdx('sat'),
+        lightness: getIdx('lightness'),
+        price: getIdx('price', 'cost'),
+        retailer: getIdx('retailer', 'store'),
+      };
       
       const shades: ShadeData[] = lines.slice(1).map(line => {
-        const values = line.split(',');
+        const values = parseCsvRow(line);
+        const parsedPrice = idx.price >= 0 ? Number(String(values[idx.price] || '').replace(/[^0-9.]/g, '')) : NaN;
+        const brand = values[idx.brand] || values[0] || '';
+        const product = values[idx.product] || values[1] || '';
+        const metadataKey = makeProductKey(brand, product);
+        const enriched = productMetadataMap.get(metadataKey);
+        const baseUrl = values[idx.url] || values[2] || '';
+        const enrichedUrl = enriched?.productUrl || '';
+        const resolvedUrl = enrichedUrl || baseUrl;
+        const baseImg = values[idx.imgSrc] || values[4] || '';
+        const resolvedImg = enriched?.imageUrl || normalizeImageUrl(baseImg, resolvedUrl);
+
         return {
-          brand: values[0] || '',
-          product: values[1] || '',
-          url: values[2] || '',
-          description: values[3] || '',
-          imgSrc: values[4] || '',
-          imgAlt: values[5] || '',
-          name: values[6] || '',
-          specific: values[7] || '',
-          hex: values[9] || '',
-          hue: values[10] || '',
-          sat: values[11] || '',
-          lightness: values[12] || '',
+          brand,
+          product,
+          url: resolvedUrl,
+          description: values[idx.description] || values[3] || '',
+          imgSrc: resolvedImg || '',
+          imgAlt: values[idx.imgAlt] || values[5] || '',
+          name: values[idx.name] || values[6] || '',
+          specific: values[idx.specific] || values[7] || '',
+          hex: values[idx.hex] || values[9] || '',
+          hue: values[idx.hue] || values[10] || '',
+          sat: values[idx.sat] || values[11] || '',
+          lightness: values[idx.lightness] || values[12] || '',
+          price: Number.isFinite(parsedPrice) ? parsedPrice : enriched?.price,
+          retailer: values[idx.retailer] || enriched?.retailer,
         };
       }).filter(shade => shade.hex && shade.hex.startsWith('#'));
       
@@ -152,9 +229,11 @@ export const AISkinToneMatcher = () => {
   };
 
   const colorDistance = (hex1: string, hex2: string): number => {
-    const [r1, g1, b1] = hexToRgb(hex1);
-    const [r2, g2, b2] = hexToRgb(hex2);
-    return Math.sqrt(Math.pow(r1 - r2, 2) + Math.pow(g1 - g2, 2) + Math.pow(b1 - b2, 2));
+    // Use pigment-based match (subtractive model) instead of plain RGB distance.
+    // Lower "distance" is better.
+    const toneA = createPigmentColor(hex1);
+    const toneB = createPigmentColor(hex2);
+    return 100 - calculatePigmentMatch(toneA, toneB);
   };
 
   const findMatchingShades = async (targetHex: string, limit: number = 5): Promise<FoundationMatch[]> => {
@@ -179,35 +258,10 @@ export const AISkinToneMatcher = () => {
         img: withFallbackImage(match.imgSrc),
         score: 100 - (match.distance / 441.67) * 100,
         pigmentColor: productPigmentColor,
-        price: 39.99
+        price: match.price,
+        store: getStoreFromUrl(match.url),
+        website: getWebsiteFromUrl(match.url),
       };
-
-      try {
-        const { data: rakutenData } = await supabase.functions.invoke('rakuten-offers', {
-          body: { 
-            keywords: `${match.brand} ${match.product} foundation`,
-            limit: 1
-          }
-        });
-
-        if (rakutenData?.offers && rakutenData.offers.length > 0) {
-          const offer = rakutenData.offers[0];
-          baseMatch.rakutenData = {
-            id: offer.id,
-            name: offer.name,
-            imageUrl: offer.imageUrl,
-            salePrice: offer.salePrice,
-            clickUrl: offer.clickUrl,
-            merchant: offer.merchant
-          };
-          baseMatch.price = offer.salePrice;
-          if (offer.imageUrl) {
-            baseMatch.img = offer.imageUrl;
-          }
-        }
-      } catch (error) {
-        console.log('Could not fetch Rakuten data for product:', match.brand, match.product);
-      }
 
       foundationMatches.push(baseMatch);
     }
@@ -243,14 +297,20 @@ export const AISkinToneMatcher = () => {
         }))
         .sort((a, b) => a.distance - b.distance);
 
-      if (lightMatches[0] && darkMatches[0]) {
-        const darkMatch = darkMatches[0].shade;
+      const bestLight = lightMatches.find(m => m.shade.imgSrc) ?? lightMatches[0];
+      const bestDark = darkMatches.find(m => m.shade.imgSrc) ?? darkMatches[0];
+
+      if (bestLight && bestDark) {
+        const darkMatch = bestDark.shade;
         
         // Create dark color first, then derive light from it
         const darkPigmentColor = createPigmentColor(darkMatch.hex);
         const lightPigmentColor = createLightFromDark(darkPigmentColor);
         
-        const lightMatch = lightMatches[0].shade;
+        const lightMatch = bestLight.shade;
+
+        // If either side has no usable image URL, skip this pair and try other brands.
+        if (!lightMatch.imgSrc || !darkMatch.imgSrc) continue;
 
         // Use CSV image URLs as base
         const light: FoundationMatch = {
@@ -260,10 +320,12 @@ export const AISkinToneMatcher = () => {
           hex: lightMatch.hex,
           undertone: '',
           url: lightMatch.url,
-          img: withFallbackImage(lightMatch.imgSrc), // CSV image with fallback
-          score: 100 - (lightMatches[0].distance / 441.67) * 100,
+          img: withFallbackImage(lightMatch.imgSrc),
+          score: 100 - (bestLight.distance / 441.67) * 100,
           pigmentColor: lightPigmentColor,
-          price: 39.99
+          price: lightMatch.price,
+          store: getStoreFromUrl(lightMatch.url),
+          website: getWebsiteFromUrl(lightMatch.url),
         };
 
         const dark: FoundationMatch = {
@@ -273,113 +335,70 @@ export const AISkinToneMatcher = () => {
           hex: darkMatch.hex,
           undertone: '',
           url: darkMatch.url,
-          img: withFallbackImage(darkMatch.imgSrc), // CSV image with fallback
-          score: 100 - (darkMatches[0].distance / 441.67) * 100,
+          img: withFallbackImage(darkMatch.imgSrc),
+          score: 100 - (bestDark.distance / 441.67) * 100,
           pigmentColor: darkPigmentColor,
-          price: 45.99
+          price: darkMatch.price,
+          store: getStoreFromUrl(darkMatch.url),
+          website: getWebsiteFromUrl(darkMatch.url),
         };
 
-        // Try Rakuten Product Search for enhanced data (pricing and better images)
-        // Search for the SPECIFIC matched shade, not just the product
-        try {
-          const lightShadeSearch = `${brand} ${lightMatch.product} ${lightMatch.name || lightMatch.description}`;
-          const darkShadeSearch = `${brand} ${darkMatch.product} ${darkMatch.name || darkMatch.description}`;
-          
-          const { data: lightRakutenData, error: lightRakutenError } = await supabase.functions.invoke('rakuten-product-search', {
-            body: { 
-              keywords: lightShadeSearch,
-              limit: 10
-            }
-          }).catch(() => ({ data: null, error: true }));
-
-          const { data: darkRakutenData, error: darkRakutenError } = await supabase.functions.invoke('rakuten-product-search', {
-            body: { 
-              keywords: darkShadeSearch,
-              limit: 10
-            }
-          }).catch(() => ({ data: null, error: true }));
-
-          // Process light shade Rakuten data
-          if (!lightRakutenError && lightRakutenData?.products && lightRakutenData.products.length > 0) {
-            const inStockProducts = lightRakutenData.products.filter((p: any) => p.inStock);
-            
-            if (inStockProducts.length > 0) {
-              const sortedByPrice = inStockProducts.sort((a: any, b: any) => {
-                const priceA = a.salePrice || a.price || 999999;
-                const priceB = b.salePrice || b.price || 999999;
-                return priceA - priceB;
-              });
-
-              const bestProduct = sortedByPrice[0];
-              
-              if (bestProduct.salePrice || bestProduct.price) {
-                light.price = bestProduct.salePrice || bestProduct.price;
-              }
-              
-              if (bestProduct.imageUrl && (!light.img || light.img === PLACEHOLDER_IMAGE)) {
-                light.img = withFallbackImage(bestProduct.imageUrl);
-              }
-              
-              light.rakutenData = {
-                id: bestProduct.id,
-                name: bestProduct.name,
-                imageUrl: bestProduct.imageUrl,
-                salePrice: bestProduct.salePrice || bestProduct.price,
-                clickUrl: bestProduct.productUrl,
-                merchant: bestProduct.brand
-              };
-            }
-          }
-
-          // Process dark shade Rakuten data
-          if (!darkRakutenError && darkRakutenData?.products && darkRakutenData.products.length > 0) {
-            const inStockProducts = darkRakutenData.products.filter((p: any) => p.inStock);
-            
-            if (inStockProducts.length > 0) {
-              const sortedByPrice = inStockProducts.sort((a: any, b: any) => {
-                const priceA = a.salePrice || a.price || 999999;
-                const priceB = b.salePrice || b.price || 999999;
-                return priceA - priceB;
-              });
-
-              const bestProduct = sortedByPrice[0];
-              
-              if (bestProduct.salePrice || bestProduct.price) {
-                dark.price = bestProduct.salePrice || bestProduct.price;
-              }
-              
-              if (bestProduct.imageUrl && (!dark.img || dark.img === PLACEHOLDER_IMAGE)) {
-                dark.img = withFallbackImage(bestProduct.imageUrl);
-              }
-              
-              dark.rakutenData = {
-                id: bestProduct.id,
-                name: bestProduct.name,
-                imageUrl: bestProduct.imageUrl,
-                salePrice: bestProduct.salePrice || bestProduct.price,
-                clickUrl: bestProduct.productUrl,
-                merchant: bestProduct.brand
-              };
-            }
-          }
-        } catch (error) {
-          // Silently continue with CSV data
-        }
-
-        const avgDistance = (lightMatches[0].distance + darkMatches[0].distance) / 2;
+        const avgDistance = (bestLight.distance + bestDark.distance) / 2;
         pairs.push({ light, dark, avgDistance });
       }
     }
 
-    // Filter out pairs without valid product images, then sort and limit
-    const validPairs = pairs.filter(pair => 
-      pair.light.img !== PLACEHOLDER_IMAGE && pair.dark.img !== PLACEHOLDER_IMAGE
-    );
-    return validPairs.sort((a, b) => a.avgDistance - b.avgDistance).slice(0, limit);
+    return pairs.sort((a, b) => a.avgDistance - b.avgDistance).slice(0, limit);
+  };
+
+  const replacePairShadeWithAlternate = (pairIndex: number, side: 'light' | 'dark', targetHex: string) => {
+    setBrandPairs(prev => {
+      const current = prev[pairIndex];
+      if (!current) return prev;
+
+      const currentShade = side === 'light' ? current.light : current.dark;
+      const alternates = shadeDatabase
+        .filter(s => s.brand === currentShade.brand && s.hex !== currentShade.hex && !!s.imgSrc)
+        .map(s => ({ shade: s, distance: colorDistance(targetHex, s.hex) }))
+        .sort((a, b) => a.distance - b.distance);
+
+      const best = alternates[0]?.shade;
+      if (!best) return prev;
+
+      const replacement: FoundationMatch = {
+        brand: best.brand,
+        product: best.product,
+        shade_name: best.name || best.description,
+        hex: best.hex,
+        undertone: '',
+        url: best.url,
+        img: withFallbackImage(best.imgSrc),
+        score: 100 - (alternates[0].distance / 441.67) * 100,
+        pigmentColor: createPigmentColor(best.hex),
+        price: best.price,
+        store: best.retailer || getStoreFromUrl(best.url),
+        website: getWebsiteFromUrl(best.url),
+      };
+
+      const updated = [...prev];
+      updated[pairIndex] = side === 'light'
+        ? { ...current, light: replacement }
+        : { ...current, dark: replacement };
+      return updated;
+    });
   };
 
   const rgbToHex = (r: number, g: number, b: number): string => {
     return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase();
+  };
+
+  const createMidTone = (light: PigmentColor, dark: PigmentColor): PigmentColor => {
+    const [lr, lg, lb] = light.rgb;
+    const [dr, dg, db] = dark.rgb;
+    const mr = Math.round((lr + dr) / 2);
+    const mg = Math.round((lg + dg) / 2);
+    const mb = Math.round((lb + db) / 2);
+    return createPigmentColor(rgbToHex(mr, mg, mb));
   };
 
   const hexToRgb = (hex: string): [number, number, number] => {
@@ -521,12 +540,19 @@ export const AISkinToneMatcher = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      setCurrentImage(event.target?.result as string);
-      stopCamera();
-    };
-    reader.readAsDataURL(file);
+    optimizeImageForAnalysis(file)
+      .then((optimized) => {
+        setCurrentImage(optimized);
+        stopCamera();
+      })
+      .catch((error) => {
+        console.error('Failed to process image upload:', error);
+        toast({
+          title: "Image Error",
+          description: "Could not process this photo. Please try another image.",
+          variant: "destructive"
+        });
+      });
   };
 
   const analyzeImage = async () => {
@@ -545,9 +571,13 @@ export const AISkinToneMatcher = () => {
     setBrandPairs([]);
 
     try {
-      const { data, error } = await supabase.functions.invoke('analyze-skin-tone', {
-        body: { imageBase64: currentImage, analysisType: 'image' }
-      });
+      const optimizedImage = await optimizeImageForAnalysis(currentImage);
+      const { data, error } = await withTimeout(
+        supabase.functions.invoke('analyze-skin-tone', {
+          body: { imageBase64: optimizedImage, analysisType: 'image' }
+        }),
+        ANALYSIS_TIMEOUT_MS
+      );
 
       if (error) throw error;
 
@@ -556,8 +586,10 @@ export const AISkinToneMatcher = () => {
       // Create dark color first, then derive light from it
       const darkPigmentColor = createPigmentColor(data.darkest_hex);
       const lightPigmentColor = createLightFromDark(darkPigmentColor);
+      const midPigmentColor = createMidTone(lightPigmentColor, darkPigmentColor);
       
       const [rLight, gLight, bLight] = lightPigmentColor.rgb;
+      const [rMid, gMid, bMid] = midPigmentColor.rgb;
 
       setLightestResult({
         hex: lightPigmentColor.hex,
@@ -566,12 +598,33 @@ export const AISkinToneMatcher = () => {
         pigmentColor: lightPigmentColor
       });
 
+      setMidResult({
+        hex: midPigmentColor.hex,
+        rgb: [rMid, gMid, bMid],
+        analysis: getPigmentMix(rMid, gMid, bMid),
+        pigmentColor: midPigmentColor
+      });
+
       setDarkestResult({
         hex: data.darkest_hex,
         rgb: [rDark, gDark, bDark],
         analysis: getPigmentMix(rDark, gDark, bDark),
         pigmentColor: darkPigmentColor
       });
+
+      try {
+        localStorage.setItem(
+          'latest_skin_tone_analysis',
+          JSON.stringify({
+            lightHex: lightPigmentColor.hex,
+            midHex: midPigmentColor.hex,
+            darkHex: data.darkest_hex,
+            updatedAt: new Date().toISOString(),
+          })
+        );
+      } catch (storageError) {
+        console.warn('Could not persist latest skin tone analysis to localStorage', storageError);
+      }
 
       // Match to product database - find brand pairs
       setLoadingMessage("Finding matching foundation pairs from brands...");
@@ -584,9 +637,14 @@ export const AISkinToneMatcher = () => {
         description: "Found matching foundation products!"
       });
     } catch (error: any) {
+      const status = error?.context?.status;
+      const description = status === 404
+        ? "Skin analysis service is not deployed for this Supabase project. Verify your project URL/keys and deploy the analyze-skin-tone Edge Function."
+        : (error?.message || "Failed to analyze image");
+
       toast({
         title: "Analysis Failed",
-        description: error.message || "Failed to analyze image",
+        description,
         variant: "destructive"
       });
     } finally {
@@ -659,14 +717,19 @@ export const AISkinToneMatcher = () => {
       setLoading(true);
       setLoadingMessage("Preparing checkout...");
 
-      const cartItems = products.map(product => ({
+      const productsWithPrice = products.filter(product => typeof product.price === 'number' && Number.isFinite(product.price));
+      if (productsWithPrice.length === 0) {
+        throw new Error('Price unavailable for selected product(s). Please choose items with listed prices.');
+      }
+
+      const cartItems = productsWithPrice.map(product => ({
         id: `${product.brand}-${product.shade_name}`,
         product: {
           id: `${product.brand}-${product.shade_name}`,
           brand: product.brand,
           product: product.product,
           shade: product.shade_name,
-          price: product.price || 39.99
+          price: product.price as number
         },
         quantity: 1,
         shadeName: product.shade_name
@@ -717,32 +780,35 @@ export const AISkinToneMatcher = () => {
   }: { 
     title: string; 
     result: { hex: string; rgb: [number, number, number]; analysis: ColorAnalysis } | null;
-  }) => (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-lg">{title}</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {result ? (
-          <>
-            <div 
-              className="h-16 rounded-lg border-2 border-border"
-              style={{ backgroundColor: result.hex }}
-            />
-            <div className="space-y-1 text-sm">
-              <p>HEX: <span className="font-mono font-semibold">{result.hex}</span></p>
-              <p>RGB: R: {result.rgb[0]}, G: {result.rgb[1]}, B: {result.rgb[2]}</p>
-              <p className="text-xs text-muted-foreground">
-                HSL: H: {result.analysis.h}°, S: {result.analysis.s}%, L: {result.analysis.l}%
-              </p>
-            </div>
-          </>
-        ) : (
-          <p className="text-muted-foreground text-sm">Results will appear here</p>
-        )}
-      </CardContent>
-    </Card>
-  );
+  }) => {
+    const shadeInfo = result ? describeSkinTone(result.hex) : null;
+
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">{title}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {result && shadeInfo ? (
+            <>
+              <div 
+                className="h-16 rounded-lg border-2 border-border"
+                style={{ backgroundColor: result.hex }}
+              />
+              <div className="space-y-1 text-sm">
+                <p>
+                  Shade: <span className="font-semibold">{shadeInfo.name}</span>
+                </p>
+                <p className="text-muted-foreground">{shadeInfo.analysis}</p>
+              </div>
+            </>
+          ) : (
+            <p className="text-muted-foreground text-sm">Results will appear here</p>
+          )}
+        </CardContent>
+      </Card>
+    );
+  };
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -900,6 +966,7 @@ export const AISkinToneMatcher = () => {
                         onClick={() => {
                           setCurrentImage(null);
                           setLightestResult(null);
+                          setMidResult(null);
                           setDarkestResult(null);
                           setBrandPairs([]);
                         }}
@@ -931,10 +998,14 @@ export const AISkinToneMatcher = () => {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <ColorResultCard 
           title="Lightest/Target Tone" 
           result={lightestResult}
+        />
+        <ColorResultCard
+          title="Final Mid Tone Match"
+          result={midResult}
         />
         {showDarkest && (
           <ColorResultCard 
@@ -987,39 +1058,61 @@ export const AISkinToneMatcher = () => {
                           alt={pair.light.shade_name}
                           className="max-h-full max-w-full object-contain"
                           onError={(e) => {
+                            const fallbackTarget = lightestResult?.hex || pair.light.hex;
+                            replacePairShadeWithAlternate(idx, 'light', fallbackTarget);
                             e.currentTarget.src = PLACEHOLDER_IMAGE;
                           }}
                         />
                       </div>
                       <p className="text-sm font-medium line-clamp-2 min-h-[2.5rem] mb-2">{pair.light.shade_name}</p>
+                      <p className="text-xs text-muted-foreground mb-1">
+                        Brand: {pair.light.brand}
+                      </p>
+                      <p className="text-xs text-muted-foreground mb-1">
+                        Store: {pair.light.store || getStoreFromUrl(pair.light.url)}
+                      </p>
+                      <p className="text-xs text-muted-foreground mb-2">
+                        Website: {pair.light.website || getWebsiteFromUrl(pair.light.url) || 'N/A'}
+                      </p>
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
                           <div 
                             className="w-6 h-6 rounded border-2 border-border"
                             style={{ backgroundColor: pair.light.hex }}
                           />
-                          <span className="text-xs font-mono text-muted-foreground">{pair.light.hex}</span>
+                          <span className="text-xs text-muted-foreground">{describeSkinTone(pair.light.hex).name}</span>
                         </div>
-                        {pair.light.price && (
-                          <span className="text-sm font-bold text-primary">${pair.light.price.toFixed(2)}</span>
-                        )}
+                        <span className="text-sm font-bold text-primary">
+                          {typeof pair.light.price === 'number' ? `$${pair.light.price.toFixed(2)}` : 'Price unavailable'}
+                        </span>
                       </div>
-                      {pair.light.rakutenData?.merchant && (
-                        <p className="text-xs text-muted-foreground mb-2">
-                          Available at: <span className="font-medium text-foreground">{pair.light.rakutenData.merchant}</span>
-                        </p>
-                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full mb-2"
+                        disabled
+                      >
+                        External links disabled
+                      </Button>
                       <Button 
                         variant="secondary" 
                         size="sm" 
                         className="w-full"
                         onClick={() => {
+                          if (typeof pair.light.price !== 'number') {
+                            toast({
+                              title: "Price unavailable",
+                              description: "This product is missing a verified price.",
+                              variant: "destructive"
+                            });
+                            return;
+                          }
                           addToCart({
                             id: `${pair.light.brand}-${pair.light.shade_name}`,
                             brand: pair.light.brand,
                             product: pair.light.product,
                             shade: pair.light.shade_name,
-                            price: pair.light.price || 39.99,
+                            price: pair.light.price,
                             hex: pair.light.hex,
                             imgSrc: pair.light.img
                           } as any);
@@ -1043,39 +1136,61 @@ export const AISkinToneMatcher = () => {
                           alt={pair.dark.shade_name}
                           className="max-h-full max-w-full object-contain"
                           onError={(e) => {
+                            const fallbackTarget = darkestResult?.hex || pair.dark.hex;
+                            replacePairShadeWithAlternate(idx, 'dark', fallbackTarget);
                             e.currentTarget.src = PLACEHOLDER_IMAGE;
                           }}
                         />
                       </div>
                       <p className="text-sm font-medium line-clamp-2 min-h-[2.5rem] mb-2">{pair.dark.shade_name}</p>
+                      <p className="text-xs text-muted-foreground mb-1">
+                        Brand: {pair.dark.brand}
+                      </p>
+                      <p className="text-xs text-muted-foreground mb-1">
+                        Store: {pair.dark.store || getStoreFromUrl(pair.dark.url)}
+                      </p>
+                      <p className="text-xs text-muted-foreground mb-2">
+                        Website: {pair.dark.website || getWebsiteFromUrl(pair.dark.url) || 'N/A'}
+                      </p>
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
                           <div 
                             className="w-6 h-6 rounded border-2 border-border"
                             style={{ backgroundColor: pair.dark.hex }}
                           />
-                          <span className="text-xs font-mono text-muted-foreground">{pair.dark.hex}</span>
+                          <span className="text-xs text-muted-foreground">{describeSkinTone(pair.dark.hex).name}</span>
                         </div>
-                        {pair.dark.price && (
-                          <span className="text-sm font-bold text-primary">${pair.dark.price.toFixed(2)}</span>
-                        )}
+                        <span className="text-sm font-bold text-primary">
+                          {typeof pair.dark.price === 'number' ? `$${pair.dark.price.toFixed(2)}` : 'Price unavailable'}
+                        </span>
                       </div>
-                      {pair.dark.rakutenData?.merchant && (
-                        <p className="text-xs text-muted-foreground mb-2">
-                          Available at: <span className="font-medium text-foreground">{pair.dark.rakutenData.merchant}</span>
-                        </p>
-                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full mb-2"
+                        disabled
+                      >
+                        External links disabled
+                      </Button>
                       <Button 
                         variant="secondary" 
                         size="sm" 
                         className="w-full"
                         onClick={() => {
+                          if (typeof pair.dark.price !== 'number') {
+                            toast({
+                              title: "Price unavailable",
+                              description: "This product is missing a verified price.",
+                              variant: "destructive"
+                            });
+                            return;
+                          }
                           addToCart({
                             id: `${pair.dark.brand}-${pair.dark.shade_name}`,
                             brand: pair.dark.brand,
                             product: pair.dark.product,
                             shade: pair.dark.shade_name,
-                            price: pair.dark.price || 45.99,
+                            price: pair.dark.price,
                             hex: pair.dark.hex,
                             imgSrc: pair.dark.img
                           } as any);
@@ -1107,7 +1222,8 @@ export const AISkinToneMatcher = () => {
                                   shade: p.light.shade_name,
                                   hex: p.light.hex,
                                   imgSrc: p.light.img,
-                                  imageUrl: p.light.rakutenData?.imageUrl,
+                                  imageUrl: p.light.img,
+                                  url: p.light.url,
                                   price: p.light.price
                                 },
                                 darkProduct: {
@@ -1116,7 +1232,8 @@ export const AISkinToneMatcher = () => {
                                   shade: p.dark.shade_name,
                                   hex: p.dark.hex,
                                   imgSrc: p.dark.img,
-                                  imageUrl: p.dark.rakutenData?.imageUrl,
+                                  imageUrl: p.dark.img,
+                                  url: p.dark.url,
                                   price: p.dark.price
                                 }
                               }))
@@ -1132,12 +1249,20 @@ export const AISkinToneMatcher = () => {
                         size="sm" 
                         className="w-full font-semibold"
                         onClick={() => {
+                          if (typeof pair.light.price !== 'number' || typeof pair.dark.price !== 'number') {
+                            toast({
+                              title: "Price unavailable",
+                              description: "One or both products are missing verified prices.",
+                              variant: "destructive"
+                            });
+                            return;
+                          }
                           addToCart({
                             id: `${pair.light.brand}-${pair.light.shade_name}`,
                             brand: pair.light.brand,
                             product: pair.light.product,
                             shade: pair.light.shade_name,
-                            price: pair.light.price || 39.99,
+                            price: pair.light.price,
                             hex: pair.light.hex,
                             imgSrc: pair.light.img
                           } as any);
@@ -1146,7 +1271,7 @@ export const AISkinToneMatcher = () => {
                             brand: pair.dark.brand,
                             product: pair.dark.product,
                             shade: pair.dark.shade_name,
-                            price: pair.dark.price || 45.99,
+                            price: pair.dark.price,
                             hex: pair.dark.hex,
                             imgSrc: pair.dark.img
                           } as any);
@@ -1157,7 +1282,9 @@ export const AISkinToneMatcher = () => {
                         }}
                       >
                         <ShoppingCart className="w-3 h-3 mr-1" />
-                        Add Set - ${((pair.light.price || 0) + (pair.dark.price || 0)).toFixed(2)}
+                        {typeof pair.light.price === 'number' && typeof pair.dark.price === 'number'
+                          ? `Add Set - $${(pair.light.price + pair.dark.price).toFixed(2)}`
+                          : 'Add Set - Price unavailable'}
                       </Button>
                     </div>
                   </CardContent>
@@ -1191,7 +1318,7 @@ export const AISkinToneMatcher = () => {
                     className="h-16 rounded-lg border-2 border-border"
                     style={{ backgroundColor: selectedProduct.hex }}
                   />
-                  <p className="text-sm font-mono text-center">{selectedProduct.hex}</p>
+                  <p className="text-sm text-center">{describeSkinTone(selectedProduct.hex).name}</p>
                 </div>
                 <div className="space-y-4">
                   <div>
@@ -1204,11 +1331,15 @@ export const AISkinToneMatcher = () => {
                       ${selectedProduct.price.toFixed(2)}
                     </div>
                   )}
-                  {selectedProduct.rakutenData && (
-                    <div className="text-sm text-muted-foreground">
-                      Available at {selectedProduct.rakutenData.merchant}
-                    </div>
+                  {!selectedProduct.price && (
+                    <div className="text-sm text-muted-foreground">Price unavailable</div>
                   )}
+                  <div className="text-sm text-muted-foreground">
+                    Store: {selectedProduct.store || getStoreFromUrl(selectedProduct.url)}
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    Website: {selectedProduct.website || getWebsiteFromUrl(selectedProduct.url) || 'N/A'}
+                  </div>
                   <div className="space-y-2">
                     <p className="text-sm font-semibold">Match Score</p>
                     <div className="flex items-center gap-2">

@@ -1,73 +1,90 @@
-import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import React, { useEffect, useState } from 'react';
 import Header from '../components/Header';
 import CosmeticsBrowser from '../components/CosmeticsBrowser';
-import RecommendedFoundations from '../components/RecommendedFoundations';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Download, Database, TrendingUp, Package } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/components/ui/toaster';
 
 const CosmeticsLibrary = () => {
   const [isImporting, setIsImporting] = useState(false);
-
-  // Get import statistics
-  const { data: importStats, refetch: refetchStats } = useQuery({
-    queryKey: ['cosmetics-import-stats'],
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_cosmetics_import_stats');
-      if (error) throw error;
-      return data;
-    },
+  const [totalStats, setTotalStats] = useState({
+    totalProducts: 0,
+    totalBrands: 0,
+    totalCategories: 0,
   });
 
-  // Get total products count
-  const { data: totalStats } = useQuery({
-    queryKey: ['cosmetics-total-stats'],
-    queryFn: async () => {
-      const [
-        { count: cosmeticsCount },
-        { count: foundationCount },
-        { count: brandsCount }
-      ] = await Promise.all([
-        supabase.from('cosmetics_products').select('*', { count: 'exact', head: true }),
-        supabase.from('foundation_products').select('*', { count: 'exact', head: true }),
-        supabase.from('brands').select('*', { count: 'exact', head: true })
-      ]);
+  useEffect(() => {
+    const parseCsvRow = (row: string): string[] => {
+      const result: string[] = [];
+      let current = '';
+      let inQuotes = false;
 
-      return {
-        total_cosmetics: cosmeticsCount || 0,
-        total_foundations: foundationCount || 0,
-        total_brands: brandsCount || 0
-      };
-    },
-  });
+      for (let i = 0; i < row.length; i++) {
+        const ch = row[i];
+        const next = row[i + 1];
+        if (ch === '"' && inQuotes && next === '"') {
+          current += '"';
+          i++;
+          continue;
+        }
+        if (ch === '"') {
+          inQuotes = !inQuotes;
+          continue;
+        }
+        if (ch === ',' && !inQuotes) {
+          result.push(current.trim());
+          current = '';
+          continue;
+        }
+        current += ch;
+      }
+      result.push(current.trim());
+      return result;
+    };
+
+    const loadStats = async () => {
+      try {
+        const response = await fetch('/data/output.csv');
+        const csvText = await response.text();
+        const lines = csvText.trim().split('\n');
+        const headers = parseCsvRow(lines[0]).map(h => h.toLowerCase());
+        const brandIdx = headers.indexOf('brand');
+        const typeIdx = headers.indexOf('product_type');
+
+        const brands = new Set<string>();
+        const categories = new Set<string>();
+
+        lines.slice(1).forEach(line => {
+          const parts = parseCsvRow(line);
+          const brand = (parts[brandIdx] || '').trim();
+          const productType = (parts[typeIdx] || '').trim();
+          if (brand) brands.add(brand);
+          if (productType) categories.add(productType);
+        });
+
+        setTotalStats({
+          totalProducts: Math.max(0, lines.length - 1),
+          totalBrands: brands.size,
+          totalCategories: categories.size,
+        });
+      } catch (error) {
+        console.error('Failed to load browse stats', error);
+      }
+    };
+
+    loadStats();
+  }, []);
 
   const handleImport = async () => {
     setIsImporting(true);
     try {
       toast({
-        title: "Import Started",
-        description: "Importing cosmetics products. This may take a few minutes...",
+        title: "Dataset Ready",
+        description: "Product data is loaded from local dataset and available now.",
       });
-
-      const { data, error } = await supabase.functions.invoke('import-kaggle-cosmetics', {
-        body: { source: 'manual_trigger' }
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "Import Successful",
-        description: `Imported ${data.stats?.products_imported || 0} products`,
-      });
-
-      // Refetch statistics
-      refetchStats();
     } catch (error) {
       console.error('Import error:', error);
       toast({
@@ -110,7 +127,7 @@ const CosmeticsLibrary = () => {
             <CardContent className="p-6">
               <Package className="h-8 w-8 text-rose-600 mb-2" />
               <div className="text-3xl font-bold text-gray-800">
-                {totalStats ? (totalStats.total_cosmetics + totalStats.total_foundations).toLocaleString() : '0'}
+                {totalStats.totalProducts.toLocaleString()}
               </div>
               <p className="text-sm text-gray-600">Products</p>
             </CardContent>
@@ -119,7 +136,7 @@ const CosmeticsLibrary = () => {
           <Card className="bg-gradient-to-br from-purple-50 to-indigo-50 border-0">
             <CardContent className="p-6">
               <TrendingUp className="h-8 w-8 text-purple-600 mb-2" />
-              <div className="text-3xl font-bold text-gray-800">{totalStats?.total_brands || 0}</div>
+              <div className="text-3xl font-bold text-gray-800">{totalStats.totalBrands}</div>
               <p className="text-sm text-gray-600">Brands</p>
             </CardContent>
           </Card>
@@ -127,8 +144,8 @@ const CosmeticsLibrary = () => {
           <Card className="bg-gradient-to-br from-pink-50 to-rose-50 border-0">
             <CardContent className="p-6">
               <Database className="h-8 w-8 text-pink-600 mb-2" />
-              <div className="text-3xl font-bold text-gray-800">{importStats?.length || 0}</div>
-              <p className="text-sm text-gray-600">Collections</p>
+              <div className="text-3xl font-bold text-gray-800">{totalStats.totalCategories}</div>
+              <p className="text-sm text-gray-600">Categories</p>
             </CardContent>
           </Card>
 
@@ -148,26 +165,6 @@ const CosmeticsLibrary = () => {
               </div>
             </CardContent>
           </Card>
-        </div>
-
-        {/* Import Statistics - Condensed */}
-        {importStats && importStats.length > 0 && (
-          <div className="mb-8 flex gap-3 overflow-x-auto pb-2">
-            {importStats.map((stat: any, index: number) => (
-              <div key={index} className="flex-shrink-0 bg-white rounded-lg p-4 border border-gray-200 min-w-[200px]">
-                <Badge variant="outline" className="mb-2">{stat.dataset_name}</Badge>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div><span className="font-semibold">{stat.total_products}</span> products</div>
-                  <div><span className="font-semibold">{stat.brands_count}</span> brands</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Recommended Foundations */}
-        <div className="mb-10">
-          <RecommendedFoundations />
         </div>
 
         {/* Cosmetics Browser */}

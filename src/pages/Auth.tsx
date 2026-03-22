@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -26,6 +26,7 @@ const Auth = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const hasShownOauthError = useRef(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -42,6 +43,11 @@ const Auth = () => {
 
     // Get return URL from query params
     const returnTo = searchParams.get('returnTo') || '/';
+    const oauthError = searchParams.get('oauthError');
+    if (oauthError && !hasShownOauthError.current) {
+      hasShownOauthError.current = true;
+      toast.error(decodeURIComponent(oauthError));
+    }
 
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(

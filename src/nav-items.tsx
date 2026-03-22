@@ -13,6 +13,7 @@ import TermsOfService from "./pages/TermsOfService";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import RefundPolicy from "./pages/RefundPolicy";
 import ShippingPolicy from "./pages/ShippingPolicy";
+import CheckoutSuccess from "./pages/CheckoutSuccess";
 
 export const navItems = [
   {
@@ -98,5 +99,11 @@ export const navItems = [
     to: "/shipping-policy",
     icon: <FileText className="h-4 w-4" />,
     page: <ShippingPolicy />,
+  },
+  {
+    title: "Checkout Success",
+    to: "/checkout-success",
+    icon: <FileText className="h-4 w-4" />,
+    page: <CheckoutSuccess />,
   },
 ];

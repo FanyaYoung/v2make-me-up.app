@@ -1,8 +1,8 @@
-// Pigment-based color mixing system for accurate skin tone matching
-// Uses 5 base pigments + white (added last as per requirement)
+// Pigment-based color mixing system for skin-tone matching.
+// Uses an earth-pigment palette and keeps white as the final adjustment.
 
 export interface PigmentMix {
-  aquamarine: number;      // Cyan-green pigment
+  aquamarine: number;      // Mapped to Yellow Ochre-style earth pigment in UI
   burntUmber: number;      // Dark brown pigment
   cadmiumRed: number;      // Red pigment
   cadmiumYellow: number;   // Yellow pigment
@@ -19,11 +19,13 @@ export interface PigmentColor {
 
 // Base pigment colors in RGB
 const PIGMENTS = {
-  aquamarine: [127, 255, 212] as [number, number, number],
-  burntUmber: [138, 51, 36] as [number, number, number],
-  cadmiumRed: [227, 0, 34] as [number, number, number],
-  cadmiumYellow: [255, 246, 0] as [number, number, number],
-  ultramarineBlue: [18, 10, 143] as [number, number, number],
+  // Tuned toward real skin-friendly paint behavior:
+  // less neon yellow/cyan, more earth pigments.
+  aquamarine: [199, 153, 83] as [number, number, number],      // Yellow Ochre-like
+  burntUmber: [102, 65, 44] as [number, number, number],
+  cadmiumRed: [176, 74, 60] as [number, number, number],       // Burnt Sienna-like red
+  cadmiumYellow: [239, 184, 96] as [number, number, number],   // Warm ochre yellow
+  ultramarineBlue: [44, 60, 104] as [number, number, number],  // Muted ultramarine
   white: [255, 255, 255] as [number, number, number]
 };
 
@@ -67,6 +69,8 @@ export function analyzePigmentMix(targetHex: string): PigmentMix {
   const rRatio = r / 255;
   const gRatio = g / 255;
   const bRatio = b / 255;
+  const warmth = Math.max(0, (rRatio - bRatio));
+  const olive = Math.max(0, (gRatio - rRatio));
   
   // Start with minimum base amounts to ensure no pure pigments (10% minimum each)
   const MIN_PIGMENT = 0.10;
@@ -76,23 +80,20 @@ export function analyzePigmentMix(targetHex: string): PigmentMix {
   let burntUmber = MIN_PIGMENT;
   let aquamarine = MIN_PIGMENT;
   
-  // Burnt Umber (brown/depth) - controls darkness but NEVER dominates
-  // Cap at 40% maximum to prevent pure brown
-  burntUmber += Math.min(0.30, (1 - luminance) * 0.4);
-  
-  // Ultramarine Blue - for cool/blue undertones, capped at 30%
-  ultramarineBlue += Math.min(0.20, bRatio * 0.4);
-  
-  // Cadmium Red - warm undertones and red tones
-  cadmiumRed += rRatio * 0.35;
-  
-  // Cadmium Yellow - brightness and warm tones, increases with luminance
-  cadmiumYellow += (gRatio + luminance) * 0.25;
-  
-  // Aquamarine - green/olive tones when green is prominent
-  if (gRatio > rRatio * 0.9 && gRatio > bRatio * 1.1) {
-    aquamarine += (gRatio - Math.max(rRatio, bRatio)) * 0.3;
-  }
+  // Depth foundation.
+  burntUmber += 0.18 + Math.min(0.38, (1 - luminance) * 0.48);
+
+  // Warmth/redness to avoid ashen output.
+  cadmiumRed += 0.14 + (warmth * 0.26) + ((1 - luminance) * 0.08);
+
+  // Yellow kept lower than before to avoid yellow cast.
+  cadmiumYellow += 0.10 + (gRatio * 0.16) + (luminance * 0.06);
+
+  // Blue mostly for cool correction; keep subtle.
+  ultramarineBlue += 0.06 + Math.min(0.14, bRatio * 0.18);
+
+  // Earth-olive adjustment for olive undertones.
+  aquamarine += 0.08 + Math.min(0.12, olive * 0.20);
   
   // Normalize all pigments to sum to 1.0
   const totalSum = cadmiumRed + cadmiumYellow + ultramarineBlue + burntUmber + aquamarine;
@@ -124,9 +125,8 @@ export function analyzePigmentMix(targetHex: string): PigmentMix {
     aquamarine *= finalNormalizer;
   }
   
-  // White: minimal amount (max 15%) only for very light tones
-  // Use lighter pigments (yellow, red) instead of white for brightness
-  const white = Math.min(0.15, Math.max(0, luminance - 0.7) * 0.3);
+  // White: minimal amount only for very light tones.
+  const white = Math.min(0.10, Math.max(0, luminance - 0.75) * 0.22);
   
   return {
     aquamarine: Math.max(MIN_PIGMENT * 0.5, Math.min(1, aquamarine)),
@@ -209,14 +209,14 @@ export function recreateColorFromPigments(mix: PigmentMix): [number, number, num
  */
 export function createPigmentColor(hex: string): PigmentColor {
   const mix = analyzePigmentMix(hex);
-  const recreatedRgb = recreateColorFromPigments(mix);
-  const recreatedHex = rgbToHex(...recreatedRgb);
+  const sourceRgb = hexToRgb(hex);
+  const sourceHex = rgbToHex(...sourceRgb);
   
   return {
-    hex: recreatedHex,
-    rgb: recreatedRgb,
+    hex: sourceHex,
+    rgb: sourceRgb,
     pigmentMix: mix,
-    isRecreated: true
+    isRecreated: false
   };
 }
 
@@ -232,8 +232,8 @@ export function createLightFromDark(darkPigmentColor: PigmentColor): PigmentColo
   // Dark pigments: burntUmber, ultramarineBlue
   // Light pigments: cadmiumYellow, cadmiumRed
   
-  const DARKEN_REDUCTION = 0.4;  // Reduce dark pigments by 40%
-  const LIGHTEN_BOOST = 1.6;     // Increase light pigments by 60%
+  const DARKEN_REDUCTION = 0.55; // Keep more depth for natural skin look
+  const LIGHTEN_BOOST = 1.22;    // Gentle lift to avoid yellow cast
   
   // Create light mix by shifting pigment balance
   const lightMix: PigmentMix = {
@@ -241,15 +241,15 @@ export function createLightFromDark(darkPigmentColor: PigmentColor): PigmentColo
     burntUmber: darkMix.burntUmber * DARKEN_REDUCTION,
     ultramarineBlue: darkMix.ultramarineBlue * DARKEN_REDUCTION,
     
-    // Increase light warm pigments
-    cadmiumYellow: darkMix.cadmiumYellow * LIGHTEN_BOOST,
-    cadmiumRed: darkMix.cadmiumRed * LIGHTEN_BOOST,
+    // Increase warm pigments with red slightly favored over yellow.
+    cadmiumYellow: darkMix.cadmiumYellow * (LIGHTEN_BOOST * 0.92),
+    cadmiumRed: darkMix.cadmiumRed * (LIGHTEN_BOOST * 1.06),
     
-    // Keep aquamarine relatively stable for undertone
-    aquamarine: darkMix.aquamarine * 0.9,
+    // Keep undertone earth pigment stable.
+    aquamarine: darkMix.aquamarine * 0.95,
     
     // Minimal white, only if absolutely needed
-    white: Math.min(0.10, darkMix.white * 1.5)
+    white: Math.min(0.06, darkMix.white * 1.25)
   };
   
   // Normalize to ensure sum = 1.0
@@ -273,6 +273,14 @@ export function createLightFromDark(darkPigmentColor: PigmentColor): PigmentColo
   lightMix.ultramarineBlue = Math.min(MAX_PIGMENT, lightMix.ultramarineBlue);
   lightMix.aquamarine = Math.min(MAX_PIGMENT, lightMix.aquamarine);
   lightMix.white = Math.min(0.10, lightMix.white);
+
+  // Prevent yellow dominance in lighter tones.
+  if (lightMix.cadmiumYellow > lightMix.cadmiumRed + 0.08) {
+    const shift = (lightMix.cadmiumYellow - (lightMix.cadmiumRed + 0.08)) * 0.7;
+    lightMix.cadmiumYellow -= shift;
+    lightMix.cadmiumRed += shift * 0.55;
+    lightMix.burntUmber += shift * 0.45;
+  }
   
   // Final normalization after caps
   const finalSum = lightMix.aquamarine + lightMix.burntUmber + lightMix.cadmiumRed + 
@@ -302,18 +310,46 @@ export function createLightFromDark(darkPigmentColor: PigmentColor): PigmentColo
  * Calculate color difference between two pigment colors
  */
 export function calculatePigmentColorDistance(color1: PigmentColor, color2: PigmentColor): number {
+  // Prioritize pigment-composition distance so matching is not purely light-based.
+  const weights = {
+    aquamarine: 0.9,
+    burntUmber: 1.2,
+    cadmiumRed: 1.1,
+    cadmiumYellow: 1.0,
+    ultramarineBlue: 1.0,
+    white: 0.4,
+  } as const;
+
+  const mixA = color1.pigmentMix;
+  const mixB = color2.pigmentMix;
+  const weightedSum =
+    weights.aquamarine * Math.pow(mixA.aquamarine - mixB.aquamarine, 2) +
+    weights.burntUmber * Math.pow(mixA.burntUmber - mixB.burntUmber, 2) +
+    weights.cadmiumRed * Math.pow(mixA.cadmiumRed - mixB.cadmiumRed, 2) +
+    weights.cadmiumYellow * Math.pow(mixA.cadmiumYellow - mixB.cadmiumYellow, 2) +
+    weights.ultramarineBlue * Math.pow(mixA.ultramarineBlue - mixB.ultramarineBlue, 2) +
+    weights.white * Math.pow(mixA.white - mixB.white, 2);
+
+  const maxDistance = Math.sqrt(
+    weights.aquamarine +
+    weights.burntUmber +
+    weights.cadmiumRed +
+    weights.cadmiumYellow +
+    weights.ultramarineBlue +
+    weights.white
+  );
+
+  const pigmentDistance = (Math.sqrt(weightedSum) / maxDistance) * 100;
+
+  // Keep a small RGB component to avoid edge cases where very different colors
+  // accidentally get similar pigment vectors.
   const [r1, g1, b1] = color1.rgb;
   const [r2, g2, b2] = color2.rgb;
-  
-  // Use Euclidean distance in RGB space
-  const distance = Math.sqrt(
-    Math.pow(r1 - r2, 2) +
-    Math.pow(g1 - g2, 2) +
-    Math.pow(b1 - b2, 2)
-  );
-  
-  // Normalize to 0-100 scale
-  return (distance / 441.67) * 100;
+  const rgbDistance = (
+    Math.sqrt(Math.pow(r1 - r2, 2) + Math.pow(g1 - g2, 2) + Math.pow(b1 - b2, 2)) / 441.67
+  ) * 100;
+
+  return Math.min(100, pigmentDistance * 0.85 + rgbDistance * 0.15);
 }
 
 /**

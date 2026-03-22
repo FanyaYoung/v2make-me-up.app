@@ -86,9 +86,9 @@ export const PigmentColorDisplay: React.FC<PigmentColorDisplayProps> = ({
             )}
             {pigmentMix.aquamarine > 0.01 && (
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded" style={{ backgroundColor: '#7FFFD4' }} />
+                <div className="w-4 h-4 rounded" style={{ backgroundColor: '#C79953' }} />
                 <span className="text-xs text-muted-foreground">
-                  Aquamarine: {(pigmentMix.aquamarine * 100).toFixed(1)}%
+                  Yellow Ochre: {(pigmentMix.aquamarine * 100).toFixed(1)}%
                 </span>
               </div>
             )}

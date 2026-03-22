@@ -9,12 +9,77 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useCart } from '@/contexts/CartContext';
 import { detectFaceLandmarks, applyMakeupOverlay } from '@/utils/faceDetection';
+import { describeSkinTone } from '@/lib/skinToneDescription';
+import { optimizeImageForAnalysis } from '@/lib/imageOptimization';
+import { createPigmentColor, calculatePigmentMatch } from '@/lib/pigmentMixing';
+import { loadProductMetadataMap, parseCsvRow, normalizeImageUrl, makeProductKey } from '@/lib/productMetadata';
 
 interface ProductPair {
   lightProduct: any;
   darkProduct: any;
   brand: string;
 }
+
+interface ShadeRow {
+  brand: string;
+  product: string;
+  url: string;
+  shade: string;
+  hex: string;
+  imgSrc: string;
+  price?: number;
+  store?: string;
+  website?: string;
+}
+
+const ANALYSIS_TIMEOUT_MS = 45000;
+const PLACEHOLDER_IMAGE = '/placeholder.svg';
+
+const withTimeout = async <T,>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(() => reject(new Error('Analysis timed out. Please try a clearer, smaller photo.')), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+};
+
+const getStoreFromUrl = (url?: string) => {
+  if (!url) return 'Retailer';
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    if (host.includes('ulta')) return 'Ulta Beauty';
+    if (host.includes('sephora')) return 'Sephora';
+    if (host.includes('amazon')) return 'Amazon';
+    if (host.includes('walmart')) return 'Walmart';
+    return host.replace('www.', '');
+  } catch {
+    return 'Retailer';
+  }
+};
+
+const getWebsiteFromUrl = (url?: string) => {
+  if (!url) return '';
+  try {
+    return new URL(url).hostname.replace('www.', '');
+  } catch {
+    return '';
+  }
+};
+
+const normalizePrice = (value: unknown): number | undefined => {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string') {
+    const parsed = Number(value.replace(/[^0-9.]/g, ''));
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  return undefined;
+};
 
 const VirtualTryOn = () => {
   const location = useLocation();
@@ -29,6 +94,7 @@ const VirtualTryOn = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [makeupPreviewUrl, setMakeupPreviewUrl] = useState<string | null>(null);
   const [isApplyingMakeup, setIsApplyingMakeup] = useState(false);
+  const [shadeDatabase, setShadeDatabase] = useState<ShadeRow[]>([]);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -51,6 +117,72 @@ const VirtualTryOn = () => {
       navigate('/shade-matcher');
     }
   }, [location.state, navigate]);
+
+  useEffect(() => {
+    const loadShadeDatabase = async () => {
+      try {
+        const productMetadataMap = await loadProductMetadataMap();
+
+        const response = await fetch('/data/allShades.csv');
+        const csvText = await response.text();
+        const lines = csvText.trim().split('\n');
+        const headers = parseCsvRow(lines[0]).map(h => h.toLowerCase());
+        const getIdx = (...keys: string[]) => {
+          for (const key of keys) {
+            const idx = headers.findIndex(h => h === key || h.includes(key));
+            if (idx >= 0) return idx;
+          }
+          return -1;
+        };
+
+        const idx = {
+          brand: getIdx('brand'),
+          product: getIdx('product'),
+          url: getIdx('url', 'product_url'),
+          description: getIdx('description'),
+          imgSrc: getIdx('imgsrc', 'image_url', 'image'),
+          name: getIdx('name', 'shade_name'),
+          hex: getIdx('hex'),
+          price: getIdx('price', 'cost'),
+        };
+
+        const parsed: ShadeRow[] = lines
+          .slice(1)
+          .map((line) => {
+            const values = parseCsvRow(line);
+            const brand = (values[idx.brand] || values[0] || '').trim();
+            const product = (values[idx.product] || values[1] || '').trim();
+            const metadata = productMetadataMap.get(makeProductKey(brand, product));
+            const baseUrl = (values[idx.url] || values[2] || '').trim();
+            const url = (metadata?.productUrl || baseUrl || '').trim();
+            const baseImg = (values[idx.imgSrc] || values[4] || '').trim();
+            const imgSrc = metadata?.imageUrl || normalizeImageUrl(baseImg, url);
+            const price = normalizePrice(values[idx.price]) ?? metadata?.price;
+            const shade = (values[idx.name] || values[idx.description] || values[6] || values[3] || '').trim();
+            const hex = (values[idx.hex] || values[9] || '').trim();
+
+            return {
+              brand,
+              product,
+              url,
+              shade,
+              hex,
+              imgSrc: imgSrc || '',
+              price,
+              store: getStoreFromUrl(url),
+              website: getWebsiteFromUrl(url),
+            };
+          })
+          .filter((row) => row.brand && row.hex && /^#[0-9A-F]{6}$/i.test(row.hex));
+
+        setShadeDatabase(parsed);
+      } catch (error) {
+        console.error('Failed to load shade database:', error);
+      }
+    };
+
+    loadShadeDatabase();
+  }, []);
 
   // Camera functions
   const startCamera = async () => {
@@ -101,13 +233,14 @@ const VirtualTryOn = () => {
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setCapturedImage(event.target?.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
+    if (!file) return;
+
+    optimizeImageForAnalysis(file)
+      .then((optimized) => setCapturedImage(optimized))
+      .catch((error) => {
+        console.error('Error processing uploaded image:', error);
+        toast.error('Could not process this photo. Please try another image.');
+      });
   };
 
   const getNewRecommendations = async () => {
@@ -118,30 +251,18 @@ const VirtualTryOn = () => {
 
     setIsAnalyzing(true);
     try {
-      const { data, error } = await supabase.functions.invoke('analyze-skin-tone', {
-        body: { image: capturedImage }
-      });
+      const optimizedImage = await optimizeImageForAnalysis(capturedImage);
+      const { data, error } = await withTimeout(
+        supabase.functions.invoke('analyze-skin-tone', {
+          body: { imageBase64: optimizedImage, analysisType: 'image' }
+        }),
+        ANALYSIS_TIMEOUT_MS
+      );
 
       if (error) throw error;
 
-      const { lightestHex, darkestHex } = data;
+      const { lightest_hex: lightestHex, darkest_hex: darkestHex } = data;
       
-      // Load CSV and find new matches
-      const response = await fetch('/data/allShades.csv');
-      const csvText = await response.text();
-      const lines = csvText.split('\n').slice(1);
-      
-      const shadeDatabase = lines.map(line => {
-        const parts = line.split(',');
-        return {
-          brand: parts[0]?.trim() || '',
-          product: parts[1]?.trim() || '',
-          shade: parts[2]?.trim() || '',
-          hex: parts[3]?.trim() || '',
-          imgSrc: parts[4]?.trim() || ''
-        };
-      }).filter(item => item.hex && item.hex.match(/^#[0-9A-F]{6}$/i));
-
       // Find new brand pairs
       const brandMap = new Map<string, any[]>();
       shadeDatabase.forEach(shade => {
@@ -151,9 +272,8 @@ const VirtualTryOn = () => {
         brandMap.get(shade.brand)!.push(shade);
       });
 
-      // Fetch Rakuten data for products
-      const newPairs: ProductPair[] = [];
-      for (const [brand, shades] of Array.from(brandMap.entries()).slice(0, 4)) {
+      const candidatePairs: Array<ProductPair & { avgDistance: number }> = [];
+      for (const [brand, shades] of Array.from(brandMap.entries())) {
         const lightMatches = shades
           .map(s => ({ ...s, distance: colorDistance(lightestHex, s.hex) }))
           .sort((a, b) => a.distance - b.distance);
@@ -163,178 +283,131 @@ const VirtualTryOn = () => {
           .sort((a, b) => a.distance - b.distance);
 
         if (lightMatches.length > 0 && darkMatches.length > 0) {
-          const light = lightMatches[0];
-          const dark = darkMatches[0];
-          
-          // Try to fetch Rakuten data (silently fail if unavailable)
-          try {
-            const { data: rakutenData } = await supabase.functions.invoke('rakuten-product-search', {
-              body: { brand: light.brand, productName: light.product, limit: 1 }
-            }).catch(() => ({ data: null }));
-            
-            if (rakutenData?.products?.[0]) {
-              const rakutenProduct = rakutenData.products[0];
-              if (rakutenProduct.imageUrl) light.imageUrl = rakutenProduct.imageUrl;
-              if (rakutenProduct.price) light.price = rakutenProduct.price;
-              light.rakutenData = {
-                id: rakutenProduct.id,
-                productUrl: rakutenProduct.productUrl,
-                merchant: rakutenProduct.brand,
-                imageUrl: rakutenProduct.imageUrl
-              };
-              dark.rakutenData = {
-                id: rakutenProduct.id,
-                productUrl: rakutenProduct.productUrl,
-                merchant: rakutenProduct.brand,
-                imageUrl: rakutenProduct.imageUrl
-              };
-            }
-          } catch (error) {
-            console.error('Rakuten fetch error:', error);
-          }
+          const light = lightMatches.find(m => m.imgSrc) ?? lightMatches[0];
+          const dark = darkMatches.find(m => m.imgSrc) ?? darkMatches[0];
+          if (!light?.imgSrc || !dark?.imgSrc) continue;
 
-          newPairs.push({
+          candidatePairs.push({
             brand,
             lightProduct: light,
-            darkProduct: dark
+            darkProduct: dark,
+            avgDistance: (light.distance + dark.distance) / 2,
           });
         }
+      }
+
+      const newPairs = candidatePairs
+        .sort((a, b) => a.avgDistance - b.avgDistance)
+        .slice(0, 4)
+        .map(({ avgDistance, ...pair }) => pair);
+
+      if (newPairs.length === 0) {
+        throw new Error('No image-backed product pairs were found for this analysis.');
       }
 
       setCurrentRecommendations(newPairs);
       setRecommendationHistory(prev => [...prev, newPairs]);
       setSelectedProductIndex(null);
       toast.success('New recommendations generated!');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error:', error);
-      toast.error('Failed to generate new recommendations');
+      const status = error?.context?.status;
+      const message = status === 404
+        ? 'Skin analysis service is not deployed for this Supabase project. Check your project config and deploy analyze-skin-tone.'
+        : 'Failed to generate new recommendations';
+      toast.error(message);
     } finally {
       setIsAnalyzing(false);
     }
   };
 
   const colorDistance = (hex1: string, hex2: string): number => {
-    const r1 = parseInt(hex1.slice(1, 3), 16);
-    const g1 = parseInt(hex1.slice(3, 5), 16);
-    const b1 = parseInt(hex1.slice(5, 7), 16);
-    const r2 = parseInt(hex2.slice(1, 3), 16);
-    const g2 = parseInt(hex2.slice(3, 5), 16);
-    const b2 = parseInt(hex2.slice(5, 7), 16);
-    return Math.sqrt(Math.pow(r2 - r1, 2) + Math.pow(g2 - g1, 2) + Math.pow(b2 - b1, 2));
+    // Pigment-palette matching for consistency with shade analysis.
+    const toneA = createPigmentColor(hex1);
+    const toneB = createPigmentColor(hex2);
+    return 100 - calculatePigmentMatch(toneA, toneB);
   };
 
   const handleBuyProduct = async (product: any, type: 'light' | 'dark') => {
-    // Check if product has Rakuten affiliate link
-    if (product.rakutenData?.productUrl) {
-      try {
-        // Track affiliate click
-        await supabase.functions.invoke('track-affiliate-click', {
-          body: {
-            provider: 'rakuten',
-            offerId: product.rakutenData.id,
-            clickUrl: product.rakutenData.productUrl,
-            productName: product.product,
-            productBrand: product.brand,
-          }
-        });
-
-        // Open Rakuten affiliate link
-        window.open(product.rakutenData.productUrl, '_blank');
-
-        toast.success(`Opening ${type} shade purchase link...`);
-      } catch (error) {
-        console.error('Affiliate tracking error:', error);
-        // Still open the link even if tracking fails
-        window.open(product.rakutenData.productUrl, '_blank');
-      }
-    } else {
-      // Fallback: add to cart for checkout
-      const foundationMatch: any = {
-        id: `${product.brand}-${product.shade}`,
-        brand: product.brand,
-        shade: product.shade,
-        product: product.product,
-        price: product.price || 45,
-        rating: 4.5,
-        reviewCount: 0,
-        availability: {
-          online: true,
-          inStore: false,
-          readyForPickup: false,
-          nearbyStores: []
-        },
-        matchPercentage: 95,
-        undertone: 'neutral',
-        coverage: 'medium',
-        finish: 'natural',
-        imageUrl: product.imageUrl || product.imgSrc
-      };
-      addToCart(foundationMatch);
-      toast.success(`Added ${type} shade to cart!`);
+    const verifiedPrice = normalizePrice(product.price);
+    if (typeof verifiedPrice !== 'number') {
+      toast.error('Price unavailable for this product');
+      return;
     }
+    const foundationMatch: any = {
+      id: `${product.brand}-${product.shade}`,
+      brand: product.brand,
+      shade: product.shade,
+      product: product.product,
+      price: verifiedPrice,
+      rating: 4.5,
+      reviewCount: 0,
+      availability: {
+        online: true,
+        inStore: false,
+        readyForPickup: false,
+        nearbyStores: []
+      },
+      matchPercentage: 95,
+      undertone: 'neutral',
+      coverage: 'medium',
+      finish: 'natural',
+      imageUrl: product.imageUrl || product.imgSrc
+    };
+    addToCart(foundationMatch);
+    toast.success(`Added ${type} shade to cart!`);
   };
 
   const handleBuySet = async (pair: ProductPair) => {
-    // Check if products have Rakuten affiliate links
-    const lightHasLink = pair.lightProduct.rakutenData?.productUrl;
-    const darkHasLink = pair.darkProduct.rakutenData?.productUrl;
-
-    if (lightHasLink || darkHasLink) {
-      // Open affiliate links
-      if (lightHasLink) {
-        await handleBuyProduct(pair.lightProduct, 'light');
-      }
-      if (darkHasLink) {
-        await handleBuyProduct(pair.darkProduct, 'dark');
-      }
-      
-      toast.success('Opening purchase links for both shades...');
-    } else {
-      // Fallback: add to cart
-      const lightMatch: any = {
-        id: `${pair.brand}-${pair.lightProduct.shade}`,
-        brand: pair.brand,
-        shade: pair.lightProduct.shade,
-        product: pair.lightProduct.product,
-        price: pair.lightProduct.price || 45,
-        rating: 4.5,
-        reviewCount: 0,
-        availability: {
-          online: true,
-          inStore: false,
-          readyForPickup: false,
-          nearbyStores: []
-        },
-        matchPercentage: 95,
-        undertone: 'neutral',
-        coverage: 'medium',
-        finish: 'natural',
-        imageUrl: pair.lightProduct.imageUrl || pair.lightProduct.imgSrc
-      };
-      const darkMatch: any = {
-        id: `${pair.brand}-${pair.darkProduct.shade}`,
-        brand: pair.brand,
-        shade: pair.darkProduct.shade,
-        product: pair.darkProduct.product,
-        price: pair.darkProduct.price || 45,
-        rating: 4.5,
-        reviewCount: 0,
-        availability: {
-          online: true,
-          inStore: false,
-          readyForPickup: false,
-          nearbyStores: []
-        },
-        matchPercentage: 95,
-        undertone: 'neutral',
-        coverage: 'medium',
-        finish: 'natural',
-        imageUrl: pair.darkProduct.imageUrl || pair.darkProduct.imgSrc
-      };
-      addToCart(lightMatch);
-      addToCart(darkMatch);
-      toast.success('Added both shades to cart!');
+    const lightPrice = normalizePrice(pair.lightProduct.price);
+    const darkPrice = normalizePrice(pair.darkProduct.price);
+    if (typeof lightPrice !== 'number' || typeof darkPrice !== 'number') {
+      toast.error('Price unavailable for one or both products');
+      return;
     }
+    const lightMatch: any = {
+      id: `${pair.brand}-${pair.lightProduct.shade}`,
+      brand: pair.brand,
+      shade: pair.lightProduct.shade,
+      product: pair.lightProduct.product,
+      price: lightPrice,
+      rating: 4.5,
+      reviewCount: 0,
+      availability: {
+        online: true,
+        inStore: false,
+        readyForPickup: false,
+        nearbyStores: []
+      },
+      matchPercentage: 95,
+      undertone: 'neutral',
+      coverage: 'medium',
+      finish: 'natural',
+      imageUrl: pair.lightProduct.imageUrl || pair.lightProduct.imgSrc
+    };
+    const darkMatch: any = {
+      id: `${pair.brand}-${pair.darkProduct.shade}`,
+      brand: pair.brand,
+      shade: pair.darkProduct.shade,
+      product: pair.darkProduct.product,
+      price: darkPrice,
+      rating: 4.5,
+      reviewCount: 0,
+      availability: {
+        online: true,
+        inStore: false,
+        readyForPickup: false,
+        nearbyStores: []
+      },
+      matchPercentage: 95,
+      undertone: 'neutral',
+      coverage: 'medium',
+      finish: 'natural',
+      imageUrl: pair.darkProduct.imageUrl || pair.darkProduct.imgSrc
+    };
+    addToCart(lightMatch);
+    addToCart(darkMatch);
+    toast.success('Added both shades to cart!');
   };
 
   const applyMakeupToFace = async (productIndex: number) => {
@@ -607,20 +680,31 @@ const VirtualTryOn = () => {
                   <div className="space-y-2">
                     <p className="text-xs font-semibold text-primary">LIGHT SHADE</p>
                     <img
-                      src={pair.lightProduct.imageUrl || pair.lightProduct.imgSrc}
+                      src={pair.lightProduct.imageUrl || pair.lightProduct.imgSrc || PLACEHOLDER_IMAGE}
                       alt={pair.lightProduct.shade}
                       className="w-full h-32 object-cover rounded"
+                      onError={(e) => {
+                        e.currentTarget.src = PLACEHOLDER_IMAGE;
+                      }}
                     />
                     <div className="flex items-center gap-2">
                       <div 
                         className="w-6 h-6 rounded border-2 border-border"
                         style={{ backgroundColor: pair.lightProduct.hex }}
                       />
-                      <p className="text-xs font-mono">{pair.lightProduct.hex}</p>
+                      <p className="text-xs text-muted-foreground">{describeSkinTone(pair.lightProduct.hex).name}</p>
                     </div>
                     <p className="text-sm font-medium line-clamp-2">{pair.lightProduct.shade}</p>
-                    {pair.lightProduct.price && (
+                    <p className="text-xs text-muted-foreground">
+                      Store: {pair.lightProduct.store || getStoreFromUrl(pair.lightProduct.url)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Website: {pair.lightProduct.website || getWebsiteFromUrl(pair.lightProduct.url) || 'N/A'}
+                    </p>
+                    {typeof pair.lightProduct.price === 'number' ? (
                       <p className="text-sm font-bold text-primary">${pair.lightProduct.price.toFixed(2)}</p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">Price unavailable</p>
                     )}
                     <Button
                       onClick={(e) => {
@@ -640,20 +724,31 @@ const VirtualTryOn = () => {
                   <div className="space-y-2">
                     <p className="text-xs font-semibold text-primary">DARK SHADE (CONTOUR)</p>
                     <img
-                      src={pair.darkProduct.imageUrl || pair.darkProduct.imgSrc}
+                      src={pair.darkProduct.imageUrl || pair.darkProduct.imgSrc || PLACEHOLDER_IMAGE}
                       alt={pair.darkProduct.shade}
                       className="w-full h-32 object-cover rounded"
+                      onError={(e) => {
+                        e.currentTarget.src = PLACEHOLDER_IMAGE;
+                      }}
                     />
                     <div className="flex items-center gap-2">
                       <div 
                         className="w-6 h-6 rounded border-2 border-border"
                         style={{ backgroundColor: pair.darkProduct.hex }}
                       />
-                      <p className="text-xs font-mono">{pair.darkProduct.hex}</p>
+                      <p className="text-xs text-muted-foreground">{describeSkinTone(pair.darkProduct.hex).name}</p>
                     </div>
                     <p className="text-sm font-medium line-clamp-2">{pair.darkProduct.shade}</p>
-                    {pair.darkProduct.price && (
+                    <p className="text-xs text-muted-foreground">
+                      Store: {pair.darkProduct.store || getStoreFromUrl(pair.darkProduct.url)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Website: {pair.darkProduct.website || getWebsiteFromUrl(pair.darkProduct.url) || 'N/A'}
+                    </p>
+                    {typeof pair.darkProduct.price === 'number' ? (
                       <p className="text-sm font-bold text-primary">${pair.darkProduct.price.toFixed(2)}</p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">Price unavailable</p>
                     )}
                     <Button
                       onClick={(e) => {
@@ -678,7 +773,9 @@ const VirtualTryOn = () => {
                     className="w-full font-semibold"
                   >
                     <ShoppingCart className="w-4 h-4 mr-2" />
-                    Buy Set - ${((pair.lightProduct.price || 45) + (pair.darkProduct.price || 45)).toFixed(2)}
+                    {typeof pair.lightProduct.price === 'number' && typeof pair.darkProduct.price === 'number'
+                      ? `Buy Set - $${(pair.lightProduct.price + pair.darkProduct.price).toFixed(2)}`
+                      : 'Buy Set - Price unavailable'}
                   </Button>
                 </div>
               </CardContent>
@@ -714,9 +811,12 @@ const VirtualTryOn = () => {
                       {historySet.map((pair, index) => (
                         <div key={index} className="text-center">
                           <img
-                            src={pair.lightProduct.imageUrl || pair.lightProduct.imgSrc}
+                            src={pair.lightProduct.imageUrl || pair.lightProduct.imgSrc || PLACEHOLDER_IMAGE}
                             alt={pair.brand}
                             className="w-full h-24 object-cover rounded mb-2"
+                            onError={(e) => {
+                              e.currentTarget.src = PLACEHOLDER_IMAGE;
+                            }}
                           />
                           <p className="text-sm font-medium">{pair.brand}</p>
                         </div>

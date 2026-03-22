@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Palette, Target, Zap, TrendingUp } from 'lucide-react';
+import { describeSkinTone } from '@/lib/skinToneDescription';
 
 interface FaceRegionData {
   id: string;
@@ -36,6 +37,13 @@ interface SkinToneAnalysisDisplayProps {
 const SkinToneAnalysisDisplay: React.FC<SkinToneAnalysisDisplayProps> = ({ 
   analysis 
 }) => {
+  const primaryShade = describeSkinTone(analysis.dominantTone.hexColor, {
+    undertone: analysis.dominantTone.undertone,
+  });
+  const secondaryShade = describeSkinTone(analysis.secondaryTone.hexColor, {
+    undertone: analysis.secondaryTone.undertone,
+  });
+
   const getUndertoneColor = (undertone: string) => {
     switch (undertone) {
       case 'warm': return 'bg-amber-100 text-amber-800 border-amber-300';
@@ -106,7 +114,7 @@ const SkinToneAnalysisDisplay: React.FC<SkinToneAnalysisDisplayProps> = ({
               ></div>
               <div className="flex-1 space-y-2">
                 <p className="font-medium text-lg">
-                  {analysis.dominantTone.hexColor}
+                  {primaryShade.name}
                 </p>
                 <div className="flex items-center space-x-2">
                   <Badge className={getUndertoneColor(analysis.dominantTone.undertone)}>
@@ -116,6 +124,7 @@ const SkinToneAnalysisDisplay: React.FC<SkinToneAnalysisDisplayProps> = ({
                     {getDepthDescription(analysis.dominantTone.depthLevel)}
                   </Badge>
                 </div>
+                <p className="text-sm text-muted-foreground">{primaryShade.analysis}</p>
               </div>
             </div>
             
@@ -150,7 +159,7 @@ const SkinToneAnalysisDisplay: React.FC<SkinToneAnalysisDisplayProps> = ({
               ></div>
               <div className="flex-1 space-y-2">
                 <p className="font-medium text-lg">
-                  {analysis.secondaryTone.hexColor}
+                  {secondaryShade.name}
                 </p>
                 <div className="flex items-center space-x-2">
                   <Badge className={getUndertoneColor(analysis.secondaryTone.undertone)}>
@@ -160,6 +169,7 @@ const SkinToneAnalysisDisplay: React.FC<SkinToneAnalysisDisplayProps> = ({
                     {getDepthDescription(analysis.secondaryTone.depthLevel)}
                   </Badge>
                 </div>
+                <p className="text-sm text-muted-foreground">{secondaryShade.analysis}</p>
               </div>
             </div>
             
@@ -189,7 +199,10 @@ const SkinToneAnalysisDisplay: React.FC<SkinToneAnalysisDisplayProps> = ({
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {analysis.faceRegions.map((region) => (
+            {analysis.faceRegions.map((region) => {
+              const regionShade = describeSkinTone(region.hexColor, { undertone: region.undertone });
+
+              return (
               <div key={region.id} className="border rounded-lg p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <h4 className="font-medium capitalize">
@@ -203,9 +216,11 @@ const SkinToneAnalysisDisplay: React.FC<SkinToneAnalysisDisplayProps> = ({
                 
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
-                    <span>Color:</span>
-                    <span className="font-mono text-xs">{region.hexColor}</span>
+                    <span>Shade:</span>
+                    <span>{regionShade.name}</span>
                   </div>
+
+                  <p className="text-xs text-muted-foreground">{regionShade.analysis}</p>
                   
                   <div className="flex justify-between text-sm">
                     <span>Undertone:</span>
@@ -232,7 +247,7 @@ const SkinToneAnalysisDisplay: React.FC<SkinToneAnalysisDisplayProps> = ({
                   </div>
                 </div>
               </div>
-            ))}
+            )})}
           </div>
         </CardContent>
       </Card>
