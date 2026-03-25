@@ -55,8 +55,8 @@ const TermsOfService = () => {
           <section>
             <h2 className="text-2xl font-semibold text-foreground mb-4">5. Purchases and Payments</h2>
             <p>
-              Purchases made through our platform are processed via Square payment systems. All transactions are subject 
-              to Square's terms and conditions. We do not store credit card information. Prices and product availability 
+              Purchases made through our direct checkout flow are processed via Stripe payment systems. All transactions are subject 
+              to Stripe's terms and conditions. We do not store credit card information. Prices and product availability 
               are subject to change without notice.
             </p>
           </section>
@@ -64,8 +64,11 @@ const TermsOfService = () => {
           <section>
             <h2 className="text-2xl font-semibold text-foreground mb-4">6. Affiliate Partnerships</h2>
             <p>
-              MakeMeUp participates in affiliate marketing programs including Rakuten Advertising. We may earn commissions 
-              on purchases made through affiliate links. This does not affect the price you pay for products.
+              MakeMeUp participates in affiliate marketing programs including Amazon Associates and Rakuten Advertising.
+              We may earn commissions on qualifying purchases made through affiliate links. This does not affect the price
+              you pay for products. Please review our{" "}
+              <Link to="/affiliate-disclosure" className="text-primary hover:underline">Affiliate Disclosure</Link>{" "}
+              for important details about affiliate links, pricing, and external retailer checkout terms.
             </p>
           </section>
 

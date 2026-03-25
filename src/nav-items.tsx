@@ -11,6 +11,7 @@ import AISkinAnalyzer from "./pages/AISkinAnalyzer";
 import VirtualTryOn from "./pages/VirtualTryOn";
 import TermsOfService from "./pages/TermsOfService";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
+import AffiliateDisclosure from "./pages/AffiliateDisclosure";
 import RefundPolicy from "./pages/RefundPolicy";
 import ShippingPolicy from "./pages/ShippingPolicy";
 import CheckoutSuccess from "./pages/CheckoutSuccess";
@@ -87,6 +88,12 @@ export const navItems = [
     to: "/privacy-policy",
     icon: <FileText className="h-4 w-4" />,
     page: <PrivacyPolicy />,
+  },
+  {
+    title: "Affiliate Disclosure",
+    to: "/affiliate-disclosure",
+    icon: <FileText className="h-4 w-4" />,
+    page: <AffiliateDisclosure />,
   },
   {
     title: "Refund Policy",

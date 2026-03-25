@@ -37,7 +37,7 @@ const PrivacyPolicy = () => {
               <li>Process purchases and manage orders</li>
               <li>Improve our recommendation algorithms and user experience</li>
               <li>Send order confirmations and service updates</li>
-              <li>Track affiliate commissions through Rakuten partnerships</li>
+              <li>Track affiliate commissions through Amazon and Rakuten partnerships</li>
             </ul>
           </section>
 
@@ -56,12 +56,14 @@ const PrivacyPolicy = () => {
             <ul className="list-disc pl-6 space-y-2">
               <li><strong>Supabase:</strong> Backend infrastructure, database, and authentication</li>
               <li><strong>Google Gemini AI:</strong> AI-powered skin tone analysis from photos</li>
-              <li><strong>Square:</strong> Payment processing for purchases</li>
-              <li><strong>Rakuten Advertising:</strong> Affiliate marketing and product data</li>
+              <li><strong>Stripe:</strong> Payment processing for direct checkout purchases</li>
+              <li><strong>Amazon Associates and Rakuten Advertising:</strong> Affiliate marketing and product link tracking</li>
               <li><strong>Google & Apple OAuth:</strong> Account authentication</li>
             </ul>
             <p className="mt-2">
-              Each service has its own privacy policy governing their use of your data. We recommend reviewing their policies.
+              Each service has its own privacy policy governing their use of your data. We recommend reviewing their
+              policies and our{" "}
+              <Link to="/affiliate-disclosure" className="text-primary hover:underline">Affiliate Disclosure</Link>.
             </p>
           </section>
 
