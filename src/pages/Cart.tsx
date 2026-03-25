@@ -2,14 +2,16 @@ import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Trash2, Plus, Minus, ShoppingBag, ArrowLeft } from 'lucide-react';
+import { Trash2, Plus, Minus, ShoppingBag, ArrowLeft, ExternalLink } from 'lucide-react';
 import { useCart } from '@/contexts/CartContext';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import Header from '@/components/Header';
 import FulfillmentOptions from '@/components/FulfillmentOptions';
 import { createPigmentColor } from '@/lib/pigmentMixing';
+
+const PRICE_STALE_HOURS = 24;
 
 const Cart = () => {
   const { items, removeFromCart, updateQuantity, clearCart, getTotalPrice, getTotalItems } = useCart();
@@ -17,9 +19,20 @@ const Cart = () => {
   const [searchParams] = useSearchParams();
   const [showFulfillment, setShowFulfillment] = useState(false);
   const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
+  const [isProcessingAffiliate, setIsProcessingAffiliate] = useState(false);
   const sessionId = searchParams.get('session_id');
   const success = searchParams.get('success');
   const canceled = searchParams.get('canceled');
+  const affiliateItems = items.filter((item) => item.purchaseModel === 'affiliate');
+  const directItems = items.filter((item) => item.purchaseModel === 'direct');
+  const directSubtotal = directItems.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
+  const directTax = directSubtotal * 0.08;
+  const directTotal = directSubtotal + directTax;
+  const hasStalePrices = items.some((item) => {
+    const checkedAt = new Date(item.priceCheckedAt).getTime();
+    if (!Number.isFinite(checkedAt)) return true;
+    return Date.now() - checkedAt > PRICE_STALE_HOURS * 60 * 60 * 1000;
+  });
 
   useEffect(() => {
     if (success === 'true' && sessionId) {
@@ -48,11 +61,18 @@ const Cart = () => {
   const handleCheckout = async (e: React.MouseEvent) => {
     e.preventDefault();
     if (isProcessingCheckout) return;
+    if (!directItems.length) {
+      toast({
+        title: "No direct checkout items",
+        description: "This cart currently contains affiliate items only.",
+      });
+      return;
+    }
 
     try {
       setIsProcessingCheckout(true);
       const { data, error } = await supabase.functions.invoke('create-checkout-session', {
-        body: { items },
+        body: { items: directItems },
       });
 
       if (error) throw error;
@@ -68,6 +88,52 @@ const Cart = () => {
       });
     } finally {
       setIsProcessingCheckout(false);
+    }
+  };
+
+  const handleAffiliateCheckout = async () => {
+    if (isProcessingAffiliate) return;
+    const links = affiliateItems
+      .map((item) => ({
+        item,
+        url: item.affiliateUrl || item.retailerUrl,
+      }))
+      .filter((entry): entry is { item: typeof affiliateItems[number]; url: string } => Boolean(entry.url));
+
+    if (!links.length) {
+      toast({
+        title: "No affiliate links found",
+        description: "Please re-add items with retailer links to continue.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsProcessingAffiliate(true);
+
+      await Promise.all(
+        links.map(({ item, url }) =>
+          supabase.functions.invoke('track-affiliate-click', {
+            body: {
+              provider: item.affiliateProvider || 'other',
+              offerId: item.product.id,
+              clickUrl: url,
+            },
+          }).catch(() => null)
+        )
+      );
+
+      // Browser popup blockers are more permissive with a single navigation action.
+      window.open(links[0].url, '_blank', 'noopener,noreferrer');
+      if (links.length > 1) {
+        toast({
+          title: "Affiliate checkout started",
+          description: `Opened first retailer link. ${links.length - 1} more item(s) remain in cart.`,
+        });
+      }
+    } finally {
+      setIsProcessingAffiliate(false);
     }
   };
 
@@ -172,7 +238,15 @@ const Cart = () => {
                                   {item.selectedShade === 'contour' ? 'Contour Shade' : 'Main Shade'}
                                 </Badge>
                               )}
+                              <Badge variant={item.purchaseModel === 'affiliate' ? 'secondary' : 'outline'} className="text-xs">
+                                {item.purchaseModel === 'affiliate' ? 'Affiliate' : 'Direct'}
+                              </Badge>
                             </div>
+                            {item.purchaseModel === 'affiliate' && (
+                              <p className="text-xs text-gray-500 mt-1">
+                                Final price is confirmed at retailer checkout.
+                              </p>
+                            )}
                           </div>
                           <Button
                             variant="ghost"
@@ -229,23 +303,61 @@ const Cart = () => {
                       <span>Subtotal ({getTotalItems()} items)</span>
                       <span>${getTotalPrice().toFixed(2)}</span>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span>Tax</span>
-                      <span>${(getTotalPrice() * 0.08).toFixed(2)}</span>
+                    {directItems.length > 0 && (
+                      <>
+                        <div className="flex justify-between text-sm">
+                          <span>Direct checkout subtotal</span>
+                          <span>${directSubtotal.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span>Estimated tax</span>
+                          <span>${directTax.toFixed(2)}</span>
+                        </div>
+                        <div className="border-t pt-4">
+                          <div className="flex justify-between font-semibold text-lg">
+                            <span>Direct checkout total</span>
+                            <span>${directTotal.toFixed(2)}</span>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                    {hasStalePrices && (
+                      <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-2">
+                        Some prices were checked over {PRICE_STALE_HOURS} hours ago. Final pricing is shown at checkout.
+                      </p>
+                    )}
+                    {directItems.length > 0 && (
+                      <button
+                        onClick={handleCheckout}
+                        disabled={isProcessingCheckout}
+                        className="w-full text-white text-lg leading-[48px] h-[48px] bg-[#006aff] text-center rounded-md shadow-[0_0_0_1px_rgba(0,0,0,.1)_inset] hover:bg-[#0056d2] transition-colors"
+                      >
+                        {isProcessingCheckout ? 'Processing...' : 'Pay now'}
+                      </button>
+                    )}
+                    {affiliateItems.length > 0 && (
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={handleAffiliateCheckout}
+                        disabled={isProcessingAffiliate}
+                      >
+                        <ExternalLink className="w-4 h-4 mr-2" />
+                        {isProcessingAffiliate ? 'Opening...' : `Buy via Affiliate (${affiliateItems.length})`}
+                      </Button>
+                    )}
+                    <div className="border-t pt-3 space-y-1">
+                      {directItems.length > 0 && (
+                        <p className="text-xs text-gray-500 text-center">
+                          Direct checkout powered by Stripe
+                        </p>
+                      )}
+                      {affiliateItems.length > 0 && (
+                        <p className="text-xs text-gray-500 text-center">
+                          As an Amazon Associate and affiliate partner, we may earn from qualifying purchases.
+                        </p>
+                      )}
                     </div>
-                    <div className="border-t pt-4">
-                      <div className="flex justify-between font-semibold text-lg">
-                        <span>Total</span>
-                        <span>${(getTotalPrice() * 1.08).toFixed(2)}</span>
-                      </div>
-                    </div>
-                    <button
-                      onClick={handleCheckout}
-                      disabled={isProcessingCheckout}
-                      className="w-full text-white text-lg leading-[48px] h-[48px] bg-[#006aff] text-center rounded-md shadow-[0_0_0_1px_rgba(0,0,0,.1)_inset] hover:bg-[#0056d2] transition-colors"
-                    >
-                      {isProcessingCheckout ? 'Processing...' : 'Pay now'}
-                    </button>
                     <Button
                       variant="outline"
                       className="w-full"
@@ -253,9 +365,6 @@ const Cart = () => {
                     >
                       I Completed My Purchase
                     </Button>
-                    <p className="text-xs text-gray-500 text-center">
-                      Secure checkout powered by Stripe
-                    </p>
                   </CardContent>
                 </Card>
               ) : (

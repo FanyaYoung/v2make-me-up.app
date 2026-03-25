@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { FoundationMatch } from '@/types/foundation';
+import { buildAffiliateUrl, inferAffiliateProvider, type AffiliateProvider } from '@/lib/affiliate';
 
 export interface CartItem {
   id: string;
@@ -9,6 +10,11 @@ export interface CartItem {
   shadeName?: string;
   shadeHex?: string;
   addedAt: Date;
+  priceCheckedAt: Date;
+  purchaseModel: 'direct' | 'affiliate';
+  retailerUrl?: string;
+  affiliateUrl?: string;
+  affiliateProvider?: AffiliateProvider;
 }
 
 interface CartContextType {
@@ -45,6 +51,15 @@ export const CartProvider = ({ children }: CartProviderProps) => {
     
     // Get hex from the product itself (it's on the main object, not on shade sub-objects)
     const shadeHex = (product as any).hex;
+    const retailerUrl =
+      (product as any).affiliate_url ||
+      (product as any).product_link ||
+      (product as any).website_link ||
+      (product as any).productUrl ||
+      (product as any).rakutenData?.productUrl;
+    const affiliateUrl = buildAffiliateUrl(retailerUrl, product.id);
+    const purchaseModel = affiliateUrl ? 'affiliate' : 'direct';
+    const affiliateProvider = affiliateUrl ? inferAffiliateProvider(affiliateUrl) : undefined;
     
     const itemId = `${product.id}-${selectedShade || 'primary'}`;
     
@@ -66,7 +81,12 @@ export const CartProvider = ({ children }: CartProviderProps) => {
         selectedShade,
         shadeName,
         shadeHex,
-        addedAt: new Date()
+        addedAt: new Date(),
+        priceCheckedAt: new Date(),
+        purchaseModel,
+        retailerUrl,
+        affiliateUrl,
+        affiliateProvider,
       }];
     });
   };
