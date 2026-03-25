@@ -16,6 +16,7 @@ const Cart = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [showFulfillment, setShowFulfillment] = useState(false);
+  const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
   const sessionId = searchParams.get('session_id');
   const success = searchParams.get('success');
   const canceled = searchParams.get('canceled');
@@ -44,31 +45,30 @@ const Cart = () => {
     return '#D4A574';
   };
 
-  const handleCheckout = (e: React.MouseEvent) => {
+  const handleCheckout = async (e: React.MouseEvent) => {
     e.preventDefault();
+    if (isProcessingCheckout) return;
 
-    const url = 'https://square.link/u/rr83QcPf?src=embed';
-    const title = 'Square Payment Links';
+    try {
+      setIsProcessingCheckout(true);
+      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+        body: { items },
+      });
 
-    // Some platforms embed in an iframe, so we want to top window to calculate sizes correctly
-    const topWindow = window.top ? window.top : window;
+      if (error) throw error;
+      if (!data?.checkout_url) throw new Error('No checkout URL returned');
 
-    // Fixes dual-screen position                                Most browsers          Firefox
-    const dualScreenLeft = topWindow.screenLeft !== undefined ? topWindow.screenLeft : topWindow.screenX;
-    const dualScreenTop = topWindow.screenTop !== undefined ? topWindow.screenTop : topWindow.screenY;
-
-    const width = topWindow.innerWidth ? topWindow.innerWidth : document.documentElement.clientWidth ? document.documentElement.clientWidth : screen.width;
-    const height = topWindow.innerHeight ? topWindow.innerHeight : document.documentElement.clientHeight ? document.documentElement.clientHeight : screen.height;
-
-    const h = height * 0.75;
-    const w = 500;
-
-    const systemZoom = width / topWindow.screen.availWidth;
-    const left = (width - w) / 2 / systemZoom + dualScreenLeft;
-    const top = (height - h) / 2 / systemZoom + dualScreenTop;
-    const newWindow = window.open(url, title, `scrollbars=yes, width=${w / systemZoom}, height=${h / systemZoom}, top=${top}, left=${left}`);
-
-    if (window.focus && newWindow) newWindow.focus();
+      window.location.href = data.checkout_url;
+    } catch (error: any) {
+      console.error('Checkout error:', error);
+      toast({
+        title: "Checkout Error",
+        description: error?.message || "Unable to start checkout. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessingCheckout(false);
+    }
   };
 
   const handleManualPurchaseComplete = () => {
@@ -241,9 +241,10 @@ const Cart = () => {
                     </div>
                     <button
                       onClick={handleCheckout}
+                      disabled={isProcessingCheckout}
                       className="w-full text-white text-lg leading-[48px] h-[48px] bg-[#006aff] text-center rounded-md shadow-[0_0_0_1px_rgba(0,0,0,.1)_inset] hover:bg-[#0056d2] transition-colors"
                     >
-                      Pay now
+                      {isProcessingCheckout ? 'Processing...' : 'Pay now'}
                     </button>
                     <Button
                       variant="outline"
@@ -253,7 +254,7 @@ const Cart = () => {
                       I Completed My Purchase
                     </Button>
                     <p className="text-xs text-gray-500 text-center">
-                      Secure checkout powered by Square
+                      Secure checkout powered by Stripe
                     </p>
                   </CardContent>
                 </Card>
