@@ -64,6 +64,14 @@ This project is built with:
 
 Simply open [Lovable](https://lovable.dev/projects/73742088-8eca-4dbf-8a93-04d90827cedb) and click on Share -> Publish.
 
+## Mobile app (Android + iOS)
+
+This repo is configured with Capacitor for native mobile builds.
+
+See the full guide here:
+
+- [MOBILE_APP_SETUP.md](./MOBILE_APP_SETUP.md)
+
 ## Can I connect a custom domain to my Lovable project?
 
 Yes, you can!
