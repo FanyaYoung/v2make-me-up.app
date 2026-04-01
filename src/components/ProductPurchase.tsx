@@ -8,6 +8,7 @@ import { ShoppingCart, Plus, Minus, Star } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { openExternalUrl } from '@/lib/externalNavigation';
 
 interface ProductPurchaseProps {
   product: {
@@ -66,7 +67,7 @@ const ProductPurchase: React.FC<ProductPurchaseProps> = ({ product }) => {
 
       // Open Stripe checkout in new tab
       if (data.url) {
-        window.open(data.url, '_blank');
+        await openExternalUrl(data.url, { preferSameTab: true });
       }
 
     } catch (error) {

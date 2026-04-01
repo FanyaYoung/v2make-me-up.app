@@ -98,7 +98,10 @@ const PrivacyPolicy = () => {
               <li>Revoke OAuth permissions for Google or Apple sign-in</li>
             </ul>
             <p className="mt-2">
-              To exercise these rights, contact us through the platform or your account settings.
+              To exercise these rights, contact us through the platform or your account settings. For account deletion
+              instructions, see our{" "}
+              <Link to="/account-deletion" className="text-primary hover:underline">Account and Data Deletion</Link>{" "}
+              page.
             </p>
           </section>
 

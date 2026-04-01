@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ExternalLink, Store, CreditCard } from 'lucide-react';
+import { openExternalUrl } from '@/lib/externalNavigation';
 
 interface AffiliateRedirectProps {
   product: {
@@ -22,7 +23,7 @@ interface AffiliateRedirectProps {
 }
 
 const AffiliateRedirect: React.FC<AffiliateRedirectProps> = ({ product, retailer }) => {
-  const handleRedirect = () => {
+  const handleRedirect = async () => {
     // Track the click for analytics
     const trackingData = {
       product_id: product.id,
@@ -37,7 +38,7 @@ const AffiliateRedirect: React.FC<AffiliateRedirectProps> = ({ product, retailer
     localStorage.setItem('affiliate_clicks', JSON.stringify(existingClicks));
 
     // Open retailer link in new tab
-    window.open(retailer.affiliate_url, '_blank');
+    await openExternalUrl(retailer.affiliate_url);
   };
 
   return (

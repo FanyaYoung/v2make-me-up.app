@@ -10,6 +10,7 @@ import { toast } from '@/hooks/use-toast';
 import Header from '@/components/Header';
 import FulfillmentOptions from '@/components/FulfillmentOptions';
 import { createPigmentColor } from '@/lib/pigmentMixing';
+import { openExternalUrl } from '@/lib/externalNavigation';
 
 const PRICE_STALE_HOURS = 24;
 
@@ -78,7 +79,7 @@ const Cart = () => {
       if (error) throw error;
       if (!data?.checkout_url) throw new Error('No checkout URL returned');
 
-      window.location.href = data.checkout_url;
+      await openExternalUrl(data.checkout_url, { preferSameTab: true });
     } catch (error: any) {
       console.error('Checkout error:', error);
       toast({
@@ -124,14 +125,20 @@ const Cart = () => {
         )
       );
 
-      // Browser popup blockers are more permissive with a single navigation action.
-      window.open(links[0].url, '_blank', 'noopener,noreferrer');
+      await openExternalUrl(links[0].url);
       if (links.length > 1) {
         toast({
           title: "Affiliate checkout started",
-          description: `Opened first retailer link. ${links.length - 1} more item(s) remain in cart.`,
+          description: `Opened the first retailer link. ${links.length - 1} more item(s) remain in your cart.`,
         });
       }
+    } catch (error) {
+      console.error('Affiliate checkout error:', error);
+      toast({
+        title: "Unable to open retailer",
+        description: "Please try again. If the problem continues, use the web version as a fallback.",
+        variant: "destructive",
+      });
     } finally {
       setIsProcessingAffiliate(false);
     }

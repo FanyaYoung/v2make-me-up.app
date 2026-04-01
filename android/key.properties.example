@@ -1,0 +1,4 @@
+storeFile=/Users/fanyayoung/keystores/makemeup-release.jks
+storePassword=replace-with-keystore-password
+keyAlias=makemeup
+keyPassword=replace-with-key-password
