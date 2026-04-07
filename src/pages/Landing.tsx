@@ -11,6 +11,9 @@ const Landing = () => {
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50">
       <Header />
       
+      {/* Site Verification */}
+      <div style={{ display: 'none' }}>Impact-Site-Verification: c2e7dd20-dc7e-4f8a-842b-53b016d30e5b</div>
+
       {/* Hero Section */}
       <section className="relative overflow-hidden py-16 lg:py-24">
         <div className="absolute inset-0 bg-gradient-to-br from-rose-50/50 via-pink-50/30 to-purple-50/50" />
