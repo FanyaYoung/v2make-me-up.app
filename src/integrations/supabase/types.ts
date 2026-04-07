@@ -927,6 +927,69 @@ export type Database = {
         }
         Relationships: []
       }
+      live_product_prices: {
+        Row: {
+          affiliate_url: string | null
+          availability: string | null
+          brand: string
+          created_at: string
+          currency: string
+          expires_at: string
+          id: string
+          image_url: string | null
+          last_checked_at: string
+          price: number | null
+          product: string
+          product_key: string
+          product_url: string | null
+          raw_payload: Json | null
+          retailer: string | null
+          sale_price: number | null
+          source: string
+          updated_at: string
+        }
+        Insert: {
+          affiliate_url?: string | null
+          availability?: string | null
+          brand: string
+          created_at?: string
+          currency?: string
+          expires_at?: string
+          id?: string
+          image_url?: string | null
+          last_checked_at?: string
+          price?: number | null
+          product: string
+          product_key: string
+          product_url?: string | null
+          raw_payload?: Json | null
+          retailer?: string | null
+          sale_price?: number | null
+          source?: string
+          updated_at?: string
+        }
+        Update: {
+          affiliate_url?: string | null
+          availability?: string | null
+          brand?: string
+          created_at?: string
+          currency?: string
+          expires_at?: string
+          id?: string
+          image_url?: string | null
+          last_checked_at?: string
+          price?: number | null
+          product?: string
+          product_key?: string
+          product_url?: string | null
+          raw_payload?: Json | null
+          retailer?: string | null
+          sale_price?: number | null
+          source?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       makeup_brands: {
         Row: {
           country_of_origin: string | null
