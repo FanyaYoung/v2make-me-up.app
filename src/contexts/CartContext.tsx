@@ -22,6 +22,11 @@ interface CartContextType {
   addToCart: (product: FoundationMatch, selectedShade?: 'primary' | 'contour') => void;
   removeFromCart: (itemId: string) => void;
   updateQuantity: (itemId: string, quantity: number) => void;
+  updateItemPricing: (
+    itemId: string,
+    updates: Partial<FoundationMatch>,
+    options?: Partial<Pick<CartItem, 'priceCheckedAt' | 'retailerUrl' | 'affiliateUrl' | 'affiliateProvider' | 'purchaseModel'>>
+  ) => void;
   clearCart: () => void;
   getTotalPrice: () => number;
   getTotalItems: () => number;
@@ -41,22 +46,30 @@ interface CartProviderProps {
   children: ReactNode;
 }
 
+type CartSourceProduct = FoundationMatch & {
+  hex?: string;
+  affiliate_url?: string;
+  product_link?: string;
+  website_link?: string;
+};
+
 export const CartProvider = ({ children }: CartProviderProps) => {
   const [items, setItems] = useState<CartItem[]>([]);
 
   const addToCart = (product: FoundationMatch, selectedShade?: 'primary' | 'contour') => {
+    const sourceProduct = product as CartSourceProduct;
     const shadeName = selectedShade === 'contour' 
       ? product.contourShade?.name 
       : product.primaryShade?.name || product.shade;
     
     // Get hex from the product itself (it's on the main object, not on shade sub-objects)
-    const shadeHex = (product as any).hex;
+    const shadeHex = sourceProduct.hex;
     const retailerUrl =
-      (product as any).affiliate_url ||
-      (product as any).product_link ||
-      (product as any).website_link ||
-      (product as any).productUrl ||
-      (product as any).rakutenData?.productUrl;
+      sourceProduct.affiliate_url ||
+      sourceProduct.product_link ||
+      sourceProduct.website_link ||
+      sourceProduct.productUrl ||
+      sourceProduct.rakutenData?.productUrl;
     const affiliateUrl = buildAffiliateUrl(retailerUrl, product.id);
     const purchaseModel = affiliateUrl ? 'affiliate' : 'direct';
     const affiliateProvider = affiliateUrl ? inferAffiliateProvider(affiliateUrl) : undefined;
@@ -108,6 +121,31 @@ export const CartProvider = ({ children }: CartProviderProps) => {
     );
   };
 
+  const updateItemPricing = (
+    itemId: string,
+    updates: Partial<FoundationMatch>,
+    options?: Partial<Pick<CartItem, 'priceCheckedAt' | 'retailerUrl' | 'affiliateUrl' | 'affiliateProvider' | 'purchaseModel'>>
+  ) => {
+    setItems(prevItems =>
+      prevItems.map(item =>
+        item.id === itemId
+          ? {
+              ...item,
+              product: {
+                ...item.product,
+                ...updates,
+              },
+              ...(options?.priceCheckedAt ? { priceCheckedAt: options.priceCheckedAt } : {}),
+              ...(options?.retailerUrl !== undefined ? { retailerUrl: options.retailerUrl } : {}),
+              ...(options?.affiliateUrl !== undefined ? { affiliateUrl: options.affiliateUrl } : {}),
+              ...(options?.affiliateProvider !== undefined ? { affiliateProvider: options.affiliateProvider } : {}),
+              ...(options?.purchaseModel !== undefined ? { purchaseModel: options.purchaseModel } : {}),
+            }
+          : item
+      )
+    );
+  };
+
   const clearCart = () => {
     setItems([]);
   };
@@ -126,6 +164,7 @@ export const CartProvider = ({ children }: CartProviderProps) => {
       addToCart,
       removeFromCart,
       updateQuantity,
+      updateItemPricing,
       clearCart,
       getTotalPrice,
       getTotalItems

@@ -15,6 +15,7 @@ interface FoundationPairResultsProps {
 
 const FoundationPairResults = ({ pairs, onTryVirtual, onSelectPair }: FoundationPairResultsProps) => {
   const { addToCart } = useCart();
+  const formatPrice = (price: number) => (price > 0 ? `$${price.toFixed(2)}` : 'Price unavailable');
 
   const handleAddToCart = (match: FoundationMatch, selectedShade?: 'primary' | 'contour') => {
     addToCart(match, selectedShade);
@@ -97,7 +98,7 @@ const FoundationPairResults = ({ pairs, onTryVirtual, onSelectPair }: Foundation
 
                     <div className="flex items-center justify-between">
                       <span className="font-semibold text-lg">
-                        {primaryMatch.price > 0 ? `$${primaryMatch.price.toFixed(2)}` : 'Check local price'}
+                        {formatPrice(primaryMatch.price)}
                       </span>
                       <Badge 
                         variant={primaryMatch.matchPercentage >= 90 ? "default" : "secondary"}
@@ -135,7 +136,7 @@ const FoundationPairResults = ({ pairs, onTryVirtual, onSelectPair }: Foundation
 
                     <div className="flex items-center justify-between">
                       <span className="font-semibold text-lg">
-                        {contourMatch.price > 0 ? `$${contourMatch.price.toFixed(2)}` : 'Check local price'}
+                        {formatPrice(contourMatch.price)}
                       </span>
                       <Badge 
                         variant={contourMatch.matchPercentage >= 85 ? "default" : "secondary"}
@@ -195,7 +196,9 @@ const FoundationPairResults = ({ pairs, onTryVirtual, onSelectPair }: Foundation
                     className="flex items-center gap-2 ml-auto bg-gradient-to-r from-rose-500 to-purple-500 text-white"
                   >
                     <ShoppingCart className="w-4 h-4" />
-                    Add Both - ${(primaryMatch.price + contourMatch.price).toFixed(2)}
+                    {primaryMatch.price > 0 && contourMatch.price > 0
+                      ? `Add Both - $${(primaryMatch.price + contourMatch.price).toFixed(2)}`
+                      : 'Add Both'}
                   </Button>
                 </div>
 

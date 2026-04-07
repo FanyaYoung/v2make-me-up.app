@@ -9,14 +9,14 @@ if (hasReleaseKeystore) {
 }
 
 android {
-    namespace = "com.makemeup.app"
+    namespace = "com.fanyayoung.makemeupapp"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.makemeup.app"
+        applicationId "com.fanyayoung.makemeupapp"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode 3
+        versionName "1.0.2"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 

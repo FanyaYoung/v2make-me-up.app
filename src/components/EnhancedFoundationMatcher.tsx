@@ -12,6 +12,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Palette, Camera, Search, Sparkles } from 'lucide-react';
+import { hydrateFoundationPairsPricing } from '@/lib/livePricing';
 import { 
   findBestShadeMatches, 
   SkinToneAnalysis, 
@@ -36,6 +37,27 @@ interface UserQuestionnaireData {
   preferredFinish: string;
 }
 
+interface InclusiveAnalysisResult {
+  dominantTone: {
+    hex: string;
+    depth: string;
+    undertone: string;
+  };
+}
+
+interface HexProductMatch {
+  brand?: string;
+  product?: string;
+  name?: string;
+  hex: string;
+  imgsrc?: string;
+  url?: string;
+  description?: string;
+  color_distance?: number;
+  price?: number;
+  salePrice?: number;
+}
+
 const EnhancedFoundationMatcher = () => {
   const [skinTone, setSkinTone] = useState<SkinToneData | null>(null);
   const [foundationPairs, setFoundationPairs] = useState<FoundationMatch[][]>([]);
@@ -45,7 +67,7 @@ const EnhancedFoundationMatcher = () => {
   const [searchResults, setSearchResults] = useState<FoundationMatch[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<FoundationMatch[]>([]);
   const [showFulfillment, setShowFulfillment] = useState(false);
-  const [inclusiveAnalysis, setInclusiveAnalysis] = useState<any>(null);
+  const [inclusiveAnalysis, setInclusiveAnalysis] = useState<InclusiveAnalysisResult | null>(null);
 
   // Fetch product matches using the hex-based recommendation system
   const fetchProductMatches = async (hexColor: string, limit: number = 10) => {
@@ -70,7 +92,7 @@ const EnhancedFoundationMatcher = () => {
     }
   };
 
-  const handleInclusiveAnalysis = (analysis: any) => {
+  const handleInclusiveAnalysis = (analysis: InclusiveAnalysisResult) => {
     setInclusiveAnalysis(analysis);
     
     console.log('🎨 Inclusive Analysis Complete:', {
@@ -166,7 +188,7 @@ const EnhancedFoundationMatcher = () => {
       };
 
       // Group matches by brand for diversity and add lightness
-      const matchesByBrand = new Map<string, Array<any & { lightness: number }>>();
+      const matchesByBrand = new Map<string, Array<HexProductMatch & { lightness: number }>>();
       for (const match of productMatches) {
         const brandName = match.brand || 'Unknown Brand';
         if (!matchesByBrand.has(brandName)) {
@@ -271,11 +293,13 @@ const EnhancedFoundationMatcher = () => {
         finalPairs.push(createGenericRecommendations(toneData));
       }
       
-      setFoundationPairs(finalPairs);
+      const pricedPairs = await hydrateFoundationPairsPricing(finalPairs);
+      setFoundationPairs(pricedPairs);
     } catch (error) {
       console.error('❌ Error generating foundation pairs:', error);
       // Even on error, provide generic recommendations
-      setFoundationPairs([createGenericRecommendations(toneData)]);
+      const fallbackPairs = await hydrateFoundationPairsPricing([createGenericRecommendations(toneData)]);
+      setFoundationPairs(fallbackPairs);
     }
   };
 
@@ -309,7 +333,7 @@ const EnhancedFoundationMatcher = () => {
         brand: 'Fenty Beauty',
         product: 'Pro Filt\'r Soft Matte Foundation',
         shade: generateShadeName(toneData.depth, toneData.undertone),
-        price: 0, // Check local price
+        price: 0,
         rating: 4.5,
         reviewCount: 1200,
         availability: {
@@ -329,7 +353,7 @@ const EnhancedFoundationMatcher = () => {
 
   // Create foundation match from alphabeticalproductsbyhex table data
   const createFoundationMatchFromHexProduct = (
-    product: any, 
+    product: HexProductMatch, 
     toneData: SkinToneData, 
     type: 'primary' | 'contour'
   ): FoundationMatch => {
@@ -365,7 +389,11 @@ const EnhancedFoundationMatcher = () => {
       brand: product.brand || 'Unknown Brand',
       product: product.product || 'Foundation',
       shade: product.name || 'Shade Match',
-      price: 0, // Will show "Check local price" in UI
+      price: typeof product.salePrice === 'number' && product.salePrice > 0
+        ? product.salePrice
+        : typeof product.price === 'number' && product.price > 0
+          ? product.price
+          : 0,
       rating: 4.0 + Math.random() * 0.8,
       reviewCount: Math.floor(Math.random() * 300) + 50,
       availability: {
@@ -379,6 +407,9 @@ const EnhancedFoundationMatcher = () => {
       coverage: extractCoverageFromDescription(product.description) || 'medium',
       finish: extractFinishFromDescription(product.description) || 'natural',
       imageUrl: product.imgsrc || '/placeholder.svg',
+      productUrl: product.url,
+      affiliateUrl: product.url,
+      retailer: product.brand || 'Unknown Brand',
       primaryShade: type === 'primary' ? {
         name: product.name || generateShadeName(toneData.depth, toneData.undertone),
         purpose: 'face_center' as const
@@ -486,7 +517,9 @@ const EnhancedFoundationMatcher = () => {
                       <div>
                         <h4 className="font-medium">{match.brand} {match.product}</h4>
                         <p className="text-sm text-muted-foreground">Shade: {match.shade}</p>
-                        <p className="text-sm font-medium">${match.price}</p>
+                        <p className="text-sm font-medium">
+                          {match.price > 0 ? `$${match.price.toFixed(2)}` : 'Price unavailable'}
+                        </p>
                       </div>
                     </div>
                     <div className="flex gap-2">

@@ -8,9 +8,33 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Search, Package } from 'lucide-react';
 import { FoundationMatch } from '../types/foundation';
+import { hydrateFoundationMatchesPricing } from '@/lib/livePricing';
 
 interface FoundationSearchInputProps {
   onMatchFound: (matches: FoundationMatch[]) => void;
+}
+
+interface SearchBrand {
+  id: string;
+  name: string;
+  logo_url?: string | null;
+}
+
+interface SearchShade {
+  shade_name: string;
+  undertone?: string | null;
+}
+
+interface SearchProduct {
+  id: string;
+  name: string;
+  price?: number | null;
+  coverage?: string | null;
+  finish?: string | null;
+  image_url?: string | null;
+  product_url?: string | null;
+  url?: string | null;
+  foundation_shades?: SearchShade[];
 }
 
 const FoundationSearchInput: React.FC<FoundationSearchInputProps> = ({ onMatchFound }) => {
@@ -72,9 +96,9 @@ const FoundationSearchInput: React.FC<FoundationSearchInputProps> = ({ onMatchFo
 
         if (matchingProduct) {
           const brand = brands?.find(b => b.id === selectedBrand);
-          const match = createFoundationMatch(matchingProduct, brand);
+          const match = await hydrateFoundationMatchesPricing([createFoundationMatch(matchingProduct, brand)]);
           console.log('Found brand-specific match:', match);
-          onMatchFound([match]);
+          onMatchFound(match);
           return;
         }
       }
@@ -103,9 +127,10 @@ const FoundationSearchInput: React.FC<FoundationSearchInputProps> = ({ onMatchFo
         const matches = allProducts.map(product => {
           return createFoundationMatch(product, product.brands);
         }).filter(Boolean);
-        
-        console.log('Created matches:', matches);
-        onMatchFound(matches);
+        const pricedMatches = await hydrateFoundationMatchesPricing(matches);
+
+        console.log('Created matches:', pricedMatches);
+        onMatchFound(pricedMatches);
       } else {
         console.log('No products found matching:', productName);
         // Show a toast message to the user
@@ -122,12 +147,12 @@ const FoundationSearchInput: React.FC<FoundationSearchInputProps> = ({ onMatchFo
     }
   };
 
-  const createFoundationMatch = (product: any, brand: any): FoundationMatch => {
-    let matchingShade = null;
+  const createFoundationMatch = (product: SearchProduct, brand?: SearchBrand | null): FoundationMatch => {
+    let matchingShade: SearchShade | null = null;
     if (shadeName && product.foundation_shades) {
-      matchingShade = product.foundation_shades.find((shade: any) =>
+      matchingShade = product.foundation_shades.find((shade) =>
         shade.shade_name.toLowerCase().includes(shadeName.toLowerCase())
-      );
+      ) || null;
     }
 
     const foundationMatch: FoundationMatch = {
@@ -135,7 +160,7 @@ const FoundationSearchInput: React.FC<FoundationSearchInputProps> = ({ onMatchFo
       brand: brand?.name || 'Unknown',
       product: product.name,
       shade: matchingShade?.shade_name || shadeName || 'Custom Shade',
-      price: product.price || 35,
+      price: product.price || 0,
       rating: 4.2,
       reviewCount: 156,
       availability: {
@@ -148,7 +173,9 @@ const FoundationSearchInput: React.FC<FoundationSearchInputProps> = ({ onMatchFo
       undertone: matchingShade?.undertone || 'neutral',
       coverage: product.coverage || 'medium',
       finish: product.finish || 'natural',
-      imageUrl: product.image_url || '/placeholder.svg'
+      imageUrl: product.image_url || '/placeholder.svg',
+      productUrl: product.product_url || product.url,
+      retailer: brand?.name || 'Unknown',
     };
 
     return foundationMatch;

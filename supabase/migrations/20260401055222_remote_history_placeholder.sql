@@ -1,0 +1,2 @@
+-- Placeholder migration to align local history with remote Supabase migration records.
+-- The effective schema changes for this timeframe live in sibling migration files with UUID suffixes.

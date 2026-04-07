@@ -48,16 +48,17 @@ const ProductPurchase: React.FC<ProductPurchaseProps> = ({ product }) => {
       const { data, error } = await supabase.functions.invoke('create-checkout-session', {
         body: {
           items: [{
-            product_id: product.id,
-            product_name: product.name,
-            brand: product.brand,
-            shade: product.shade,
-            price: product.price,
-            quantity: quantity,
-            image_url: product.image_url
+            id: product.id,
+            product: {
+              id: product.id,
+              brand: product.brand,
+              product: product.name,
+              shade: product.shade || 'Default',
+              price: product.price,
+            },
+            quantity,
+            shadeName: product.shade,
           }],
-          mode: 'payment', // One-off payment
-          affiliate_url: product.affiliate_url
         }
       });
 
@@ -66,8 +67,9 @@ const ProductPurchase: React.FC<ProductPurchaseProps> = ({ product }) => {
       }
 
       // Open Stripe checkout in new tab
-      if (data.url) {
-        await openExternalUrl(data.url, { preferSameTab: true });
+      const checkoutUrl = data?.checkout_url || data?.url;
+      if (checkoutUrl) {
+        await openExternalUrl(checkoutUrl, { preferSameTab: true });
       }
 
     } catch (error) {

@@ -16,6 +16,8 @@ import { loadProductMetadataMap, parseCsvRow, normalizeImageUrl, ProductMetadata
 import { PigmentColorDisplay } from './PigmentColorDisplay';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/hooks/useAuth';
+import { refreshFoundationMatchesPricing } from '@/lib/livePricing';
+import { trackUserActivity } from '@/lib/activityTracking';
 
 const PLACEHOLDER_IMAGE = '/placeholder.svg';
 const withFallbackImage = (src: string | undefined | null) => {
@@ -136,6 +138,13 @@ export const AISkinToneMatcher = () => {
   React.useEffect(() => {
     loadShadeDatabase();
   }, []);
+
+  React.useEffect(() => {
+    if (!user) return;
+    void trackUserActivity(user.id, 'alpha_app_opened', {
+      surface: 'ai_skin_tone_matcher',
+    });
+  }, [user]);
 
   // Setup video stream when camera is started
   React.useEffect(() => {
@@ -717,22 +726,51 @@ export const AISkinToneMatcher = () => {
       setLoading(true);
       setLoadingMessage("Preparing checkout...");
 
-      const productsWithPrice = products.filter(product => typeof product.price === 'number' && Number.isFinite(product.price));
-      if (productsWithPrice.length === 0) {
-        throw new Error('Price unavailable for selected product(s). Please choose items with listed prices.');
-      }
-
-      const cartItems = productsWithPrice.map(product => ({
-        id: `${product.brand}-${product.shade_name}`,
-        product: {
+      const refreshedProducts = await refreshFoundationMatchesPricing(
+        products.map((product) => ({
           id: `${product.brand}-${product.shade_name}`,
           brand: product.brand,
           product: product.product,
           shade: product.shade_name,
+          price: product.price ?? 0,
+          rating: 0,
+          reviewCount: 0,
+          availability: {
+            online: true,
+            inStore: false,
+            readyForPickup: false,
+            nearbyStores: [],
+          },
+          matchPercentage: product.score,
+          undertone: product.undertone || 'unknown',
+          coverage: 'unknown',
+          finish: 'unknown',
+          imageUrl: product.img || PLACEHOLDER_IMAGE,
+          productUrl: product.url,
+        }))
+      );
+
+      const productsWithPrice = refreshedProducts.filter(product => typeof product.price === 'number' && Number.isFinite(product.price) && product.price > 0);
+      if (productsWithPrice.length === 0) {
+        throw new Error('Price unavailable for selected product(s). Please choose items with listed prices.');
+      }
+
+      await trackUserActivity(user.id, 'checkout_started', {
+        source: 'ai_skin_tone_matcher',
+        item_count: productsWithPrice.length,
+      });
+
+      const cartItems = productsWithPrice.map(product => ({
+        id: product.id,
+        product: {
+          id: product.id,
+          brand: product.brand,
+          product: product.product,
+          shade: product.shade,
           price: product.price as number
         },
         quantity: 1,
-        shadeName: product.shade_name
+        shadeName: product.shade
       }));
 
       const { data, error } = await supabase.functions.invoke('create-checkout-session', {
@@ -744,6 +782,10 @@ export const AISkinToneMatcher = () => {
       if (error) throw error;
 
       if (data?.checkout_url) {
+        await trackUserActivity(user.id, 'checkout_redirected', {
+          source: 'ai_skin_tone_matcher',
+          item_count: cartItems.length,
+        });
         window.location.href = data.checkout_url;
       }
 
@@ -752,6 +794,10 @@ export const AISkinToneMatcher = () => {
         description: "Taking you to secure payment..."
       });
     } catch (error: any) {
+      await trackUserActivity(user.id, 'checkout_failed', {
+        source: 'ai_skin_tone_matcher',
+        reason: error.message || 'unknown_error',
+      });
       toast({
         title: "Checkout Failed",
         description: error.message || "Unable to process checkout",

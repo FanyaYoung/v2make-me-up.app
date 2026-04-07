@@ -8,6 +8,8 @@ import { MapPin, Truck, ShoppingCart, Clock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { refreshFoundationMatchesPricing } from '@/lib/livePricing';
+import { trackUserActivity } from '@/lib/activityTracking';
 
 interface FulfillmentOptionsProps {
   products: {
@@ -23,8 +25,13 @@ interface FulfillmentOptionsProps {
       merchant: string;
       imageUrl?: string;
     };
+    imageUrl?: string;
+    productUrl?: string;
+    affiliateUrl?: string;
+    retailer?: string;
+    priceCheckedAt?: string;
   }[];
-  onPurchase: (fulfillmentMethod: string, products: any[]) => void;
+  onPurchase: (fulfillmentMethod: string, products: unknown[]) => void;
 }
 
 type FulfillmentMethod = 'pickup' | 'shipping' | 'delivery' | 'curbside';
@@ -87,15 +94,52 @@ const FulfillmentOptions: React.FC<FulfillmentOptionsProps> = ({ products, onPur
 
     setProcessingOrder(true);
     try {
+      const refreshedProducts = await refreshFoundationMatchesPricing(
+        products.map((product) => ({
+          id: product.id,
+          brand: product.brand,
+          product: product.name || product.product || '',
+          shade: product.shade,
+          price: product.price,
+          rating: 0,
+          reviewCount: 0,
+          availability: {
+            online: true,
+            inStore: false,
+            readyForPickup: false,
+            nearbyStores: [],
+          },
+          matchPercentage: 0,
+          undertone: 'unknown',
+          coverage: 'unknown',
+          finish: 'unknown',
+          imageUrl: product.imageUrl || '/placeholder.svg',
+          productUrl: product.productUrl,
+          affiliateUrl: product.affiliateUrl,
+          retailer: product.retailer,
+          priceCheckedAt: product.priceCheckedAt,
+        }))
+      );
+
+      if (refreshedProducts.some((product) => !(product.price > 0))) {
+        throw new Error('Unable to confirm current pricing for one or more items.');
+      }
+
+      await trackUserActivity(user.id, 'checkout_started', {
+        source: 'fulfillment_options',
+        item_count: refreshedProducts.length,
+        fulfillment_method: selectedMethod,
+      });
+
       // Create checkout session with Stripe
       const { data, error } = await supabase.functions.invoke('create-checkout-session', {
         body: {
-          items: products.map(product => ({
+          items: refreshedProducts.map(product => ({
             id: product.id,
             product: {
               id: product.id,
               brand: product.brand,
-              product: product.name || product.product || '',
+              product: product.product,
               shade: product.shade,
               price: product.price
             },
@@ -109,6 +153,10 @@ const FulfillmentOptions: React.FC<FulfillmentOptionsProps> = ({ products, onPur
 
       if (error) {
         console.error('Checkout error:', error);
+        await trackUserActivity(user.id, 'checkout_failed', {
+          source: 'fulfillment_options',
+          reason: error.message || 'checkout_function_error',
+        });
         toast({
           title: "Checkout Failed",
           description: error.message || "Failed to create checkout session. Please try again.",
@@ -118,6 +166,11 @@ const FulfillmentOptions: React.FC<FulfillmentOptionsProps> = ({ products, onPur
       }
 
       if (data?.checkout_url) {
+        await trackUserActivity(user.id, 'checkout_redirected', {
+          source: 'fulfillment_options',
+          item_count: refreshedProducts.length,
+          fulfillment_method: selectedMethod,
+        });
         // Redirect to Stripe checkout
         window.location.href = data.checkout_url;
       } else {
@@ -126,9 +179,13 @@ const FulfillmentOptions: React.FC<FulfillmentOptionsProps> = ({ products, onPur
 
     } catch (error) {
       console.error('Purchase error:', error);
+      await trackUserActivity(user.id, 'checkout_failed', {
+        source: 'fulfillment_options',
+        reason: error instanceof Error ? error.message : 'unknown_error',
+      });
       toast({
         title: "Purchase Failed",
-        description: "Failed to initiate checkout. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to initiate checkout. Please try again.",
         variant: "destructive"
       });
     } finally {

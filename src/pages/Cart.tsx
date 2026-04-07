@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,16 +11,20 @@ import Header from '@/components/Header';
 import FulfillmentOptions from '@/components/FulfillmentOptions';
 import { createPigmentColor } from '@/lib/pigmentMixing';
 import { openExternalUrl } from '@/lib/externalNavigation';
+import { hydrateFoundationMatchPricing, refreshFoundationMatchesPricing } from '@/lib/livePricing';
+import { inferAffiliateProvider } from '@/lib/affiliate';
+import type { CartItem } from '@/contexts/CartContext';
 
 const PRICE_STALE_HOURS = 24;
 
 const Cart = () => {
-  const { items, removeFromCart, updateQuantity, clearCart, getTotalPrice, getTotalItems } = useCart();
+  const { items, removeFromCart, updateQuantity, updateItemPricing, clearCart, getTotalPrice, getTotalItems } = useCart();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [showFulfillment, setShowFulfillment] = useState(false);
   const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
   const [isProcessingAffiliate, setIsProcessingAffiliate] = useState(false);
+  const [isRefreshingPrices, setIsRefreshingPrices] = useState(false);
   const sessionId = searchParams.get('session_id');
   const success = searchParams.get('success');
   const canceled = searchParams.get('canceled');
@@ -34,6 +38,7 @@ const Cart = () => {
     if (!Number.isFinite(checkedAt)) return true;
     return Date.now() - checkedAt > PRICE_STALE_HOURS * 60 * 60 * 1000;
   });
+  const hasMissingDirectPrices = directItems.some((item) => !(item.product.price > 0));
 
   useEffect(() => {
     if (success === 'true' && sessionId) {
@@ -49,9 +54,61 @@ const Cart = () => {
     }
   }, [success, canceled, sessionId, clearCart, navigate]);
 
-  const getShadeColor = (item: any) => {
+  const refreshPrices = useCallback(async (itemIds?: string[], forceRefresh = false) => {
+    const targetItems = items.filter((item) => !itemIds || itemIds.includes(item.id));
+    if (!targetItems.length) return;
+
+    try {
+      setIsRefreshingPrices(true);
+      const refreshedMatches = forceRefresh
+        ? await refreshFoundationMatchesPricing(targetItems.map((item) => item.product))
+        : await Promise.all(targetItems.map((item) => hydrateFoundationMatchPricing(item.product)));
+
+      const refreshedProducts = targetItems.map((item, index) => ({
+        item,
+        product: refreshedMatches[index],
+      }));
+
+      for (const { item, product } of refreshedProducts) {
+        updateItemPricing(
+          item.id,
+          product,
+          {
+            priceCheckedAt: new Date(product.priceCheckedAt || new Date().toISOString()),
+            retailerUrl: product.productUrl || item.retailerUrl,
+            affiliateUrl: product.affiliateUrl || item.affiliateUrl,
+            affiliateProvider: product.affiliateUrl ? inferAffiliateProvider(product.affiliateUrl) : item.affiliateProvider,
+            purchaseModel: item.purchaseModel,
+          }
+        );
+      }
+
+      return refreshedProducts;
+    } catch (error) {
+      console.error('Price refresh failed:', error);
+      throw error;
+    } finally {
+      setIsRefreshingPrices(false);
+    }
+  }, [items, updateItemPricing]);
+
+  useEffect(() => {
+    const staleOrMissingItems = items.filter((item) => {
+      const checkedAt = new Date(item.priceCheckedAt).getTime();
+      const stale = !Number.isFinite(checkedAt) || Date.now() - checkedAt > PRICE_STALE_HOURS * 60 * 60 * 1000;
+      return stale || !(item.product.price > 0);
+    });
+
+    if (!staleOrMissingItems.length || isRefreshingPrices) return;
+
+    void refreshPrices(staleOrMissingItems.map((item) => item.id));
+  }, [items, isRefreshingPrices, refreshPrices]);
+
+  const getShadeColor = (item: CartItem) => {
     // Use pigment-based color recreation for accurate color display
-    const hex = item.shadeHex || (item.product as any)?.hex || (item as any).hex;
+    const productWithHex = item.product as CartItem['product'] & { hex?: string };
+    const itemWithHex = item as CartItem & { hex?: string };
+    const hex = item.shadeHex || productWithHex.hex || itemWithHex.hex;
     if (hex && hex.startsWith('#')) {
       const pigmentColor = createPigmentColor(hex);
       return pigmentColor.hex;
@@ -69,22 +126,44 @@ const Cart = () => {
       });
       return;
     }
+    if (hasMissingDirectPrices) {
+      toast({
+        title: "Prices need refresh",
+        description: "One or more direct checkout items are missing current pricing. Refresh prices and try again.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     try {
       setIsProcessingCheckout(true);
+      const refreshedDirectItems = await refreshPrices(
+        directItems.map((item) => item.id),
+        true
+      );
+      const checkoutItems = (refreshedDirectItems || []).map(({ item, product }) => ({
+        ...item,
+        product,
+      }));
+
+      if (!checkoutItems.length || checkoutItems.some((item) => !(item.product.price > 0))) {
+        throw new Error('Unable to confirm current pricing for one or more items.');
+      }
+
       const { data, error } = await supabase.functions.invoke('create-checkout-session', {
-        body: { items: directItems },
+        body: { items: checkoutItems },
       });
 
       if (error) throw error;
       if (!data?.checkout_url) throw new Error('No checkout URL returned');
 
       await openExternalUrl(data.checkout_url, { preferSameTab: true });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Unable to start checkout. Please try again.";
       console.error('Checkout error:', error);
       toast({
         title: "Checkout Error",
-        description: error?.message || "Unable to start checkout. Please try again.",
+        description: message,
         variant: "destructive",
       });
     } finally {
@@ -149,7 +228,7 @@ const Cart = () => {
     navigate('/checkout-success');
   };
 
-  const handlePurchaseComplete = (fulfillmentMethod: string, products: any[]) => {
+  const handlePurchaseComplete = (fulfillmentMethod: string, _products: unknown[]) => {
     toast({
       title: "Order Confirmed!",
       description: `Your order will be fulfilled via ${fulfillmentMethod}`,
@@ -157,6 +236,8 @@ const Cart = () => {
     clearCart();
     setShowFulfillment(false);
   };
+
+  const formatUnitPrice = (price: number) => (price > 0 ? `$${price.toFixed(2)}` : 'Price unavailable');
 
   if (items.length === 0) {
     return (
@@ -287,8 +368,15 @@ const Cart = () => {
                             </Button>
                           </div>
                           <div className="text-right">
-                            <p className="font-semibold">${(item.product.price * item.quantity).toFixed(2)}</p>
-                            <p className="text-sm text-gray-500">${item.product.price.toFixed(2)} each</p>
+                            <p className="font-semibold">
+                              {item.product.price > 0 ? `$${(item.product.price * item.quantity).toFixed(2)}` : 'Price unavailable'}
+                            </p>
+                            <p className="text-sm text-gray-500">{formatUnitPrice(item.product.price)} each</p>
+                            {item.product.priceCheckedAt && (
+                              <p className="text-xs text-gray-400">
+                                Checked {new Date(item.product.priceCheckedAt).toLocaleString()}
+                              </p>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -333,10 +421,20 @@ const Cart = () => {
                         Some prices were checked over {PRICE_STALE_HOURS} hours ago. Final pricing is shown at checkout.
                       </p>
                     )}
+                    {(hasStalePrices || hasMissingDirectPrices) && (
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => refreshPrices(undefined, true)}
+                        disabled={isRefreshingPrices}
+                      >
+                        {isRefreshingPrices ? 'Refreshing prices...' : 'Refresh prices'}
+                      </Button>
+                    )}
                     {directItems.length > 0 && (
                       <button
                         onClick={handleCheckout}
-                        disabled={isProcessingCheckout}
+                        disabled={isProcessingCheckout || hasMissingDirectPrices}
                         className="w-full text-white text-lg leading-[48px] h-[48px] bg-[#006aff] text-center rounded-md shadow-[0_0_0_1px_rgba(0,0,0,.1)_inset] hover:bg-[#0056d2] transition-colors"
                       >
                         {isProcessingCheckout ? 'Processing...' : 'Pay now'}
@@ -377,13 +475,13 @@ const Cart = () => {
               ) : (
                 <FulfillmentOptions
                   products={items.map(item => ({
+                    ...(item.product.rakutenData ? { rakutenData: item.product.rakutenData } : {}),
                     id: item.product.id,
                     brand: item.product.brand,
                     product: item.product.product,
                     name: item.product.product,
                     shade: item.shadeName,
                     price: item.product.price * item.quantity,
-                    rakutenData: (item.product as any).rakutenData,
                   }))}
                   onPurchase={handlePurchaseComplete}
                 />

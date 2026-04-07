@@ -5,6 +5,7 @@ export interface FoundationMatch {
   product: string;
   shade: string;
   price: number;
+  salePrice?: number;
   rating: number;
   reviewCount: number;
   availability: {
@@ -18,6 +19,11 @@ export interface FoundationMatch {
   coverage: string;
   finish: string;
   imageUrl: string;
+  productUrl?: string;
+  affiliateUrl?: string;
+  retailer?: string;
+  priceCheckedAt?: string;
+  priceSource?: 'live' | 'catalog' | 'unavailable';
   // Dual recommendation support
   primaryShade?: {
     name: string;
