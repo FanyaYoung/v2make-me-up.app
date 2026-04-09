@@ -1,6 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
+import type { Json } from '@/integrations/supabase/types';
 
-type ActivityPayload = Record<string, unknown>;
+type ActivityPayload = Record<string, Json>;
 
 export const trackUserActivity = async (
   userId: string | undefined,
@@ -10,11 +11,11 @@ export const trackUserActivity = async (
   if (!userId) return;
 
   try {
-    await supabase.from('user_activity').insert({
+    await supabase.from('user_activity').insert([{
       user_id: userId,
       activity_type: activityType,
       activity_data: activityData ?? {},
-    });
+    }]);
   } catch (error) {
     console.warn(`Failed to track activity: ${activityType}`, error);
   }
