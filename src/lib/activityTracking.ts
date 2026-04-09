@@ -1,6 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
+import type { Json } from '@/integrations/supabase/types';
 
-type ActivityPayload = Record<string, unknown>;
+type ActivityPayload = Record<string, Json>;
 
 export const trackUserActivity = async (
   userId: string | undefined,
