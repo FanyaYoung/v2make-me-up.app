@@ -18,6 +18,7 @@ interface SearchBrand {
   id?: string;
   name: string;
   logo_url?: string | null;
+  [key: string]: unknown;
 }
 
 interface SearchShade {
