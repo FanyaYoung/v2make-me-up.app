@@ -15,7 +15,7 @@ interface FoundationSearchInputProps {
 }
 
 interface SearchBrand {
-  id: string;
+  id?: string;
   name: string;
   logo_url?: string | null;
 }
