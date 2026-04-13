@@ -22,6 +22,7 @@ const Landing = () => {
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
             {/* Text Column */}
             <div className="space-y-6 text-center lg:text-left flex flex-col items-center lg:items-start">
+              <p className="text-xs text-gray-400">Impact-Site-Verification: c2e7dd20-dc7e-4f8a-842b-53b016d30e5b</p>
               <div className="inline-block">
                 <Badge className="text-sm px-4 py-2 bg-gradient-to-r from-rose-500 to-purple-500 text-white border-0">
                   AI-Powered Matching
