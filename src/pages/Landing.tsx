@@ -12,7 +12,7 @@ const Landing = () => {
       <Header />
       
       {/* Site Verification */}
-      <div style={{ position: 'absolute', overflow: 'hidden', height: 0, width: 0 }}>Impact-Site-Verification: c2e7dd20-dc7e-4f8a-842b-53b016d30e5b</div>
+      <div style={{ position: 'absolute', overflow: 'hidden', height: 0, width: 0 }}>Impact-Site-Verification: 72d9ffe5-24d8-4d0a-824b-65db5a1aec6b</div>
 
       {/* Hero Section */}
       <section className="relative overflow-hidden py-16 lg:py-24">
@@ -22,7 +22,7 @@ const Landing = () => {
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
             {/* Text Column */}
             <div className="space-y-6 text-center lg:text-left flex flex-col items-center lg:items-start">
-              <p className="sr-only">Impact-Site-Verification: c2e7dd20-dc7e-4f8a-842b-53b016d30e5b</p>
+              <p className="sr-only">Impact-Site-Verification: 72d9ffe5-24d8-4d0a-824b-65db5a1aec6b</p>
               <div className="inline-block">
                 <Badge className="text-sm px-4 py-2 bg-gradient-to-r from-rose-500 to-purple-500 text-white border-0">
                   AI-Powered Matching
