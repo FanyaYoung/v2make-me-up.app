@@ -72,6 +72,43 @@ See the full guide here:
 
 - [MOBILE_APP_SETUP.md](./MOBILE_APP_SETUP.md)
 
+## Ulta affiliate API setup
+
+Keep the Ulta affiliate credentials server-side only. For Supabase edge functions, set:
+
+```sh
+supabase secrets set \
+  ULTA_AFFILIATE_ACCOUNT_SID=your_account_sid \
+  ULTA_AFFILIATE_AUTH_TOKEN=your_auth_token \
+  ULTA_AFFILIATE_PROBE_SECRET=choose_a_long_random_probe_secret
+```
+
+Optional:
+
+```sh
+supabase secrets set \
+  ULTA_AFFILIATE_API_BASE_URL=https://api.impact.com
+```
+
+This repo now includes an authenticated probe function at `supabase/functions/ulta-affiliate-probe` that validates the Impact credentials server-side. It tries these endpoints in order and returns the first successful response:
+
+```txt
+GET /Mediapartners/<AccountSID>/CompanyInformation
+GET /Mediapartners/<AccountSID>/Campaigns
+GET /Mediapartners/<AccountSID>
+```
+
+Use it first to validate the credentials from the backend before wiring product/catalog search endpoints.
+
+Example test:
+
+```sh
+curl -s https://trbvlmzrnopvubizaacb.supabase.co/functions/v1/ulta-affiliate-probe \
+  -H 'x-probe-secret: your_probe_secret'
+```
+
+The Ulta product search function at `supabase/functions/ulta-product-search` uses the same `ULTA_AFFILIATE_ACCOUNT_SID`, `ULTA_AFFILIATE_AUTH_TOKEN`, and optional `ULTA_AFFILIATE_API_BASE_URL` secrets to call Impact's catalog search endpoint server-side.
+
 ## Can I connect a custom domain to my Lovable project?
 
 Yes, you can!
