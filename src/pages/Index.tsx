@@ -1,4 +1,4 @@
-<Head><meta name='impact-site-verification' value='c2e7dd20-dc7e-4f8a-842b-53b016d30e5b'></Head>mport React from 'react';
+import React from 'react';
 import FoundationMatcher from '../components/FoundationMatcher';
 import Header from '../components/Header';
 import HeroSection from '../components/HeroSection';
