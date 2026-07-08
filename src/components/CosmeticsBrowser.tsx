@@ -4,17 +4,19 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, Star } from 'lucide-react';
+import { Search, Sparkles, Star } from 'lucide-react';
 import { calculatePigmentMatch, createPigmentColor } from '@/lib/pigmentMixing';
 import { describeSkinTone } from '@/lib/skinToneDescription';
 import { supabase } from '@/integrations/supabase/client';
 import { normalizeProductPrice } from '@/lib/productMetadata';
+import { useToast } from '@/hooks/use-toast';
 
 interface CosmeticsProduct {
   id: string;
   brand: string;
   name: string;
   price?: number;
+  salePrice?: number;
   image_link?: string;
   product_link?: string;
   website_link?: string;
@@ -24,6 +26,23 @@ interface CosmeticsProduct {
   hexCandidates?: string[];
   relevanceScore?: number;
   source?: string;
+}
+
+interface LiveSearchResponseProduct {
+  id: string;
+  provider: 'rakuten' | 'ulta';
+  brand: string;
+  name: string;
+  price: number;
+  salePrice?: number | null;
+  rating?: number;
+  reviewCount?: number;
+  imageUrl?: string;
+  productUrl?: string;
+  affiliateUrl?: string;
+  retailer?: string;
+  inStock?: boolean;
+  category: 'foundation' | 'makeup';
 }
 
 const PLACEHOLDER_IMAGE = '/placeholder.svg';
@@ -195,6 +214,7 @@ const getStoreFromUrl = (url?: string) => {
 };
 
 const CosmeticsBrowser = () => {
+  const { toast } = useToast();
   const [allProducts, setAllProducts] = useState<CosmeticsProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [sourceSummary, setSourceSummary] = useState<Record<string, number>>({});
@@ -203,6 +223,10 @@ const CosmeticsBrowser = () => {
   const [retailerFilter, setRetailerFilter] = useState('all');
   const [sortBy, setSortBy] = useState('name');
   const [analysisHex, setAnalysisHex] = useState<string | null>(null);
+  const [browseMode, setBrowseMode] = useState<'catalog' | 'live'>('catalog');
+  const [liveProducts, setLiveProducts] = useState<CosmeticsProduct[]>([]);
+  const [isLiveSearching, setIsLiveSearching] = useState(false);
+  const [isHydratingPrices, setIsHydratingPrices] = useState(false);
 
   useEffect(() => {
     try {
@@ -390,15 +414,18 @@ const CosmeticsBrowser = () => {
   ];
 
   const categories = useMemo(() => {
+    const sourceProducts = browseMode === 'live' ? liveProducts : allProducts;
     const set = new Set<string>();
-    allProducts.forEach((p) => {
+    sourceProducts.forEach((p) => {
       if (p.product_type) set.add(p.product_type);
     });
     return Array.from(set).sort();
-  }, [allProducts]);
+  }, [allProducts, liveProducts, browseMode]);
+
+  const sourceProducts = browseMode === 'live' ? liveProducts : allProducts;
 
   const filteredProducts = useMemo(() => {
-    let data = [...allProducts];
+    let data = [...sourceProducts];
     const userPigment = analysisHex ? createPigmentColor(analysisHex) : null;
 
     if (searchTerm.trim()) {
@@ -479,7 +506,164 @@ const CosmeticsBrowser = () => {
     }
 
     return data.slice(0, MAX_CARDS);
-  }, [allProducts, searchTerm, categoryFilter, retailerFilter, sortBy, analysisHex]);
+  }, [sourceProducts, searchTerm, categoryFilter, retailerFilter, sortBy, analysisHex]);
+
+  useEffect(() => {
+    const visibleProductsNeedingPrices = filteredProducts
+      .filter((product) => product.price == null && product.brand && product.name)
+      .slice(0, 12);
+
+    if (visibleProductsNeedingPrices.length === 0) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const hydrateMissingPrices = async () => {
+      setIsHydratingPrices(true);
+
+      try {
+        const updates = await Promise.all(
+          visibleProductsNeedingPrices.map(async (product) => {
+            try {
+              const { data, error } = await supabase.functions.invoke('get-live-product-pricing', {
+                body: {
+                  brand: product.brand,
+                  product: product.name,
+                },
+              });
+
+              if (error || !data) return null;
+
+              return {
+                id: product.id,
+                price:
+                  typeof data.salePrice === 'number'
+                    ? data.salePrice
+                    : typeof data.price === 'number'
+                      ? data.price
+                      : undefined,
+                salePrice:
+                  typeof data.salePrice === 'number' ? data.salePrice : undefined,
+                image_link: data.imageUrl || undefined,
+                product_link: data.affiliateUrl || product.product_link,
+                website_link: data.productUrl || product.website_link,
+              };
+            } catch (error) {
+              console.warn('Could not hydrate live price for', product.brand, product.name, error);
+              return null;
+            }
+          }),
+        );
+
+        if (cancelled) {
+          return;
+        }
+
+        const byId = new Map(
+          updates
+            .filter((update): update is NonNullable<typeof update> => update !== null)
+            .map((update) => [update.id, update]),
+        );
+
+        if (byId.size === 0) {
+          return;
+        }
+
+        const applyUpdates = (items: CosmeticsProduct[]) =>
+          items.map((item) => {
+            const update = byId.get(item.id);
+            if (!update) return item;
+            return {
+              ...item,
+              price: update.price ?? item.price,
+              salePrice: update.salePrice ?? item.salePrice,
+              image_link: update.image_link ?? item.image_link,
+              product_link: update.product_link ?? item.product_link,
+              website_link: update.website_link ?? item.website_link,
+            };
+          });
+
+        if (browseMode === 'live') {
+          setLiveProducts((current) => applyUpdates(current));
+        } else {
+          setAllProducts((current) => applyUpdates(current));
+        }
+      } finally {
+        if (!cancelled) {
+          setIsHydratingPrices(false);
+        }
+      }
+    };
+
+    void hydrateMissingPrices();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [filteredProducts, browseMode]);
+
+  const runLiveSearch = async () => {
+    if (!searchTerm.trim()) {
+      toast({
+        title: 'Enter a search term',
+        description: 'Try a brand or product name like "NARS foundation" or "Rare Beauty blush".',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsLiveSearching(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('search-live-cosmetics', {
+        body: {
+          keywords: searchTerm.trim(),
+          category:
+            categoryFilter === 'all'
+              ? 'all'
+              : categoryFilter.toLowerCase().includes('foundation')
+                ? 'foundation'
+                : 'makeup',
+          limit: 24,
+          providers: ['rakuten', 'ulta'],
+        },
+      });
+
+      if (error) throw error;
+
+      const products = Array.isArray(data?.products) ? data.products as LiveSearchResponseProduct[] : [];
+      const mapped = products.map((product) => ({
+        id: `${product.provider}-${product.id}`,
+        brand: product.brand,
+        name: product.name,
+        price: product.salePrice ?? product.price,
+        salePrice: product.salePrice ?? undefined,
+        image_link: product.imageUrl,
+        product_link: product.affiliateUrl || product.productUrl,
+        website_link: product.productUrl,
+        rating: product.rating,
+        category: product.category,
+        product_type: product.category,
+        source: `live_${product.provider}`,
+      } satisfies CosmeticsProduct));
+
+      setLiveProducts(mapped);
+      setBrowseMode('live');
+      toast({
+        title: 'Live search complete',
+        description: `Found ${mapped.length} live products from Ulta and Rakuten.`,
+      });
+    } catch (error) {
+      console.error('Live cosmetics search failed', error);
+      toast({
+        title: 'Live search failed',
+        description: 'This search requires the backend function to be deployed and a signed-in session.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLiveSearching(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -499,6 +683,11 @@ const CosmeticsBrowser = () => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && browseMode === 'live') {
+                void runLiveSearch();
+              }
+            }}
           />
         </div>
 
@@ -546,9 +735,56 @@ const CosmeticsBrowser = () => {
         </Badge>
       </div>
 
+      <div className="flex flex-wrap items-center gap-3">
+        <Button
+          type="button"
+          variant={browseMode === 'catalog' ? 'default' : 'outline'}
+          onClick={() => setBrowseMode('catalog')}
+        >
+          Catalog Browser
+        </Button>
+        <Button
+          type="button"
+          variant={browseMode === 'live' ? 'default' : 'outline'}
+          onClick={() => {
+            if (liveProducts.length > 0) {
+              setBrowseMode('live');
+            } else {
+              void runLiveSearch();
+            }
+          }}
+        >
+          <Sparkles className="w-4 h-4 mr-2" />
+          {liveProducts.length > 0 ? 'Live Results' : 'Search Live'}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={isLiveSearching}
+          onClick={() => void runLiveSearch()}
+        >
+          {isLiveSearching ? 'Searching…' : 'Refresh Live Search'}
+        </Button>
+        <Badge variant="secondary">
+          Mode: {browseMode === 'live' ? 'Real-time search' : 'Catalog dataset'}
+        </Badge>
+      </div>
+
       {Object.keys(sourceSummary).length > 0 && (
         <div className="text-xs text-muted-foreground">
           Sources: {Object.entries(sourceSummary).map(([k, v]) => `${k}: ${v}`).join(' | ')}
+        </div>
+      )}
+
+      {browseMode === 'live' && (
+        <div className="text-sm text-muted-foreground">
+          Live results come from the `search-live-cosmetics` edge function using your existing Ulta and Rakuten integrations.
+        </div>
+      )}
+
+      {isHydratingPrices && (
+        <div className="text-sm text-muted-foreground">
+          Filling in live prices for products that were missing pricing data…
         </div>
       )}
 
@@ -591,7 +827,16 @@ const CosmeticsBrowser = () => {
 
                 <div className="flex items-center justify-between pt-1">
                   {typeof product.price === 'number' ? (
-                    <div className="text-base font-bold">${product.price.toFixed(2)}</div>
+                    <div className="flex flex-col">
+                      <div className="text-base font-bold">
+                        ${product.price.toFixed(2)}
+                      </div>
+                      {typeof product.salePrice === 'number' && product.salePrice !== product.price ? (
+                        <div className="text-xs text-muted-foreground line-through">
+                          ${product.salePrice.toFixed(2)}
+                        </div>
+                      ) : null}
+                    </div>
                   ) : (
                     <div className="text-xs text-muted-foreground">Price unavailable</div>
                   )}
@@ -606,10 +851,16 @@ const CosmeticsBrowser = () => {
                 <Button
                   size="sm"
                   className="w-full mt-2"
-                  variant="outline"
-                  disabled
+                  variant={product.product_link || product.website_link ? 'default' : 'outline'}
+                  disabled={!product.product_link && !product.website_link}
+                  onClick={() => {
+                    const destination = product.product_link || product.website_link;
+                    if (destination) {
+                      window.open(destination, '_blank', 'noopener,noreferrer');
+                    }
+                  }}
                 >
-                  External links disabled
+                  {browseMode === 'live' ? 'Open product' : 'View product'}
                 </Button>
               </div>
             </CardContent>
