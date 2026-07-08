@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { useState, ReactNode } from 'react';
 import { FoundationMatch } from '@/types/foundation';
 import { buildAffiliateUrl, inferAffiliateProvider, type AffiliateProvider } from '@/lib/affiliate';
+import { CartContext } from './cart-context';
 
 export interface CartItem {
   id: string;
@@ -16,31 +17,6 @@ export interface CartItem {
   affiliateUrl?: string;
   affiliateProvider?: AffiliateProvider;
 }
-
-interface CartContextType {
-  items: CartItem[];
-  addToCart: (product: FoundationMatch, selectedShade?: 'primary' | 'contour') => void;
-  removeFromCart: (itemId: string) => void;
-  updateQuantity: (itemId: string, quantity: number) => void;
-  updateItemPricing: (
-    itemId: string,
-    updates: Partial<FoundationMatch>,
-    options?: Partial<Pick<CartItem, 'priceCheckedAt' | 'retailerUrl' | 'affiliateUrl' | 'affiliateProvider' | 'purchaseModel'>>
-  ) => void;
-  clearCart: () => void;
-  getTotalPrice: () => number;
-  getTotalItems: () => number;
-}
-
-const CartContext = createContext<CartContextType | undefined>(undefined);
-
-export const useCart = () => {
-  const context = useContext(CartContext);
-  if (!context) {
-    throw new Error('useCart must be used within a CartProvider');
-  }
-  return context;
-};
 
 interface CartProviderProps {
   children: ReactNode;

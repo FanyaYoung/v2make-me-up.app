@@ -14,7 +14,7 @@ import { describeSkinTone } from '@/lib/skinToneDescription';
 import { optimizeImageForAnalysis } from '@/lib/imageOptimization';
 import { loadProductMetadataMap, parseCsvRow, normalizeImageUrl, ProductMetadata, makeProductKey } from '@/lib/productMetadata';
 import { PigmentColorDisplay } from './PigmentColorDisplay';
-import { useCart } from '@/contexts/CartContext';
+import { useCart } from '@/hooks/useCart';
 import { useAuth } from '@/hooks/useAuth';
 import { refreshFoundationMatchesPricing } from '@/lib/livePricing';
 import { trackUserActivity } from '@/lib/activityTracking';

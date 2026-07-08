@@ -20,6 +20,7 @@ import {
   Filter
 } from 'lucide-react';
 import { toast } from 'sonner';
+import type { Json } from '@/integrations/supabase/types';
 
 interface EnhancedFoundationMatch {
   id: string;
@@ -47,6 +48,67 @@ interface EnhancedFoundationMatch {
   imageUrl?: string;
   productUrl?: string;
   dataset: string;
+}
+
+interface ProductMetadata {
+  shade_color?: string;
+  shade_name?: string;
+  shade?: string;
+  coverage?: string;
+  finish?: string;
+  undertone?: string;
+}
+
+interface CosmeticsProductRow {
+  id: string;
+  product_name: string;
+  price: number | null;
+  rating: number | null;
+  total_reviews: number | null;
+  image_url: string | null;
+  product_url: string | null;
+  dataset_name: string;
+  category: string | null;
+  description: string | null;
+  metadata: ProductMetadata | null;
+  brand: {
+    name: string | null;
+    logo_url: string | null;
+    brand_tier: string | null;
+  } | null;
+}
+
+interface FoundationShadeRow {
+  id: string;
+  shade_name: string;
+  hex_color: string | null;
+  rgb_values: number[] | null;
+  undertone: string | null;
+  depth_level: number | null;
+  is_available: boolean;
+}
+
+interface FoundationProductRow {
+  id: string;
+  name: string;
+  price: number | null;
+  coverage: string | null;
+  finish: string | null;
+  image_url: string | null;
+  product_url: string | null;
+  brand: {
+    name: string | null;
+    logo_url: string | null;
+    brand_tier: string | null;
+  } | null;
+  shades: FoundationShadeRow[] | null;
+}
+
+interface ProductTextSource {
+  product_name: string;
+  category?: string | null;
+  description?: string | null;
+  metadata?: ProductMetadata | null;
 }
 
 interface SkinProfile {
@@ -97,7 +159,7 @@ const EnhancedShadeMatcher: React.FC<EnhancedShadeMatcherProps> = ({
         .not('brand_id', 'is', null);
       
       if (error) throw error;
-      return data;
+      return (data ?? []) as CosmeticsProductRow[];
     }
   });
 
@@ -115,7 +177,7 @@ const EnhancedShadeMatcher: React.FC<EnhancedShadeMatcherProps> = ({
         .eq('is_active', true);
       
       if (error) throw error;
-      return data;
+      return (data ?? []) as FoundationProductRow[];
     }
   });
 
@@ -136,7 +198,7 @@ const EnhancedShadeMatcher: React.FC<EnhancedShadeMatcherProps> = ({
 
   // Track match usage
   const trackMatchUsage = useMutation({
-    mutationFn: async (matchData: { matchType: string; metadata: any }) => {
+    mutationFn: async (matchData: { matchType: string; metadata: Json }) => {
       if (!user) return;
       
       const { error } = await supabase
@@ -442,7 +504,7 @@ const EnhancedShadeMatcher: React.FC<EnhancedShadeMatcherProps> = ({
   };
 
   // Helper functions
-  const extractOrGenerateColor = (product: any): string => {
+  const extractOrGenerateColor = (product: ProductTextSource): string => {
     // Try to extract from metadata or generate based on shade name
     return product.metadata?.shade_color || generateColorFromName(product.product_name);
   };
@@ -456,14 +518,14 @@ const EnhancedShadeMatcher: React.FC<EnhancedShadeMatcherProps> = ({
     return '#E8C2A0'; // Default medium-light
   };
 
-  const extractShadeFromMetadata = (product: any): string => {
+  const extractShadeFromMetadata = (product: ProductTextSource): string => {
     return product.metadata?.shade_name || 
            product.metadata?.shade || 
            product.product_name.split(' ').pop() || 
            'Universal';
   };
 
-  const extractCoverageFromProduct = (product: any): string => {
+  const extractCoverageFromProduct = (product: ProductTextSource): string => {
     const coverage = product.metadata?.coverage || product.category;
     if (coverage?.toLowerCase().includes('light')) return 'light';
     if (coverage?.toLowerCase().includes('full')) return 'full';
@@ -471,7 +533,7 @@ const EnhancedShadeMatcher: React.FC<EnhancedShadeMatcherProps> = ({
     return 'medium';
   };
 
-  const extractFinishFromProduct = (product: any): string => {
+  const extractFinishFromProduct = (product: ProductTextSource): string => {
     const finish = product.metadata?.finish || product.description;
     if (finish?.toLowerCase().includes('matte')) return 'matte';
     if (finish?.toLowerCase().includes('dewy')) return 'dewy';
@@ -480,7 +542,7 @@ const EnhancedShadeMatcher: React.FC<EnhancedShadeMatcherProps> = ({
     return 'natural';
   };
 
-  const extractUndertoneFromProduct = (product: any): string => {
+  const extractUndertoneFromProduct = (product: ProductTextSource): string => {
     const undertone = product.metadata?.undertone || product.description;
     if (undertone?.toLowerCase().includes('warm')) return 'warm';
     if (undertone?.toLowerCase().includes('cool')) return 'cool';

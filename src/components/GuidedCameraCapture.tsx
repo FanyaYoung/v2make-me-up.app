@@ -6,8 +6,15 @@ import { Camera, CheckCircle, Circle, RotateCcw, Square, AlertCircle } from 'luc
 import { toast } from 'sonner';
 
 interface GuidedCameraCaptureProps {
-  onPhotosCapture: (photos: string[], calibrationData: any) => void;
+  onPhotosCapture: (photos: string[], calibrationData: CalibrationData | null) => void;
   onBack: () => void;
+}
+
+interface CalibrationData {
+  whitePoint: { r: number; g: number; b: number };
+  lightingCondition: string;
+  colorTemperature: number;
+  timestamp: string;
 }
 
 interface CaptureStep {
@@ -28,7 +35,7 @@ const GuidedCameraCapture: React.FC<GuidedCameraCaptureProps> = ({
   const [currentStep, setCurrentStep] = useState(0);
   const [photos, setPhotos] = useState<string[]>([]);
   const [calibrationComplete, setCalibrationComplete] = useState(false);
-  const [calibrationData, setCalibrationData] = useState<any>(null);
+  const [calibrationData, setCalibrationData] = useState<CalibrationData | null>(null);
 
   const [captureSteps] = useState<CaptureStep[]>([
     {

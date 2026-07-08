@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Star, Eye, MapPin, Clock, ShoppingCart, ExternalLink } from 'lucide-react';
 import { FoundationMatch } from '../types/foundation';
-import { useCart } from '@/contexts/CartContext';
+import { useCart } from '@/hooks/useCart';
 import { useToast } from '@/hooks/use-toast';
 
 interface EnhancedProductRecommendationsProps {

@@ -4,12 +4,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ShoppingBag, Eye } from 'lucide-react';
 
-// Import foundation product images
-import charlotteTilburyImg from '@/assets/foundation-charlotte-tilbury.jpg';
-import rareBeautyImg from '@/assets/foundation-rare-beauty.jpg';
-import narsImg from '@/assets/foundation-nars.jpg';
-import skinToneSwatchesImg from '@/assets/skin-tone-swatches.jpg';
-
 interface FoundationMatch {
   id: string;
   brand: string;
@@ -17,7 +11,6 @@ interface FoundationMatch {
   shade: string;
   matchPercentage: number;
   swatchColor: string;
-  productImage: string;
   isOriginal?: boolean;
 }
 
@@ -38,7 +31,6 @@ const VisualFoundationMatches: React.FC<VisualFoundationMatchesProps> = ({
       shade: originalShade,
       matchPercentage: 100,
       swatchColor: '#CFC1A2',
-      productImage: rareBeautyImg,
       isOriginal: true
     },
     {
@@ -47,8 +39,7 @@ const VisualFoundationMatches: React.FC<VisualFoundationMatchesProps> = ({
       product: '6 Medium',
       shade: 'Airbrush Flawless Foundation',
       matchPercentage: 95,
-      swatchColor: '#D2C3A4',
-      productImage: charlotteTilburyImg
+      swatchColor: '#D2C3A4'
     },
     {
       id: 'match2',
@@ -56,8 +47,7 @@ const VisualFoundationMatches: React.FC<VisualFoundationMatchesProps> = ({
       product: '240N',
       shade: 'Liquid Touch Foundation',
       matchPercentage: 95,
-      swatchColor: '#CAB89C',
-      productImage: rareBeautyImg
+      swatchColor: '#CAB89C'
     },
     {
       id: 'match3',
@@ -65,8 +55,7 @@ const VisualFoundationMatches: React.FC<VisualFoundationMatchesProps> = ({
       product: 'Barcelona',
       shade: 'Natural Radiant Foundation',
       matchPercentage: 95,
-      swatchColor: '#C6B498',
-      productImage: narsImg
+      swatchColor: '#C6B498'
     }
   ];
 
@@ -88,12 +77,20 @@ const VisualFoundationMatches: React.FC<VisualFoundationMatchesProps> = ({
           }`}>
             <CardContent className="p-0">
               {/* Product Image */}
-              <div className="relative h-48 bg-gradient-to-br from-gray-50 to-gray-100">
-                <img
-                  src={match.productImage}
-                  alt={`${match.brand} ${match.product}`}
-                  className="w-full h-full object-contain p-4"
-                />
+              <div className="relative flex h-48 items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 p-4">
+                <div className="w-full max-w-[9rem] rounded-[2rem] bg-white px-5 py-6 shadow-sm ring-1 ring-black/5">
+                  <div
+                    className="mx-auto mb-4 h-20 w-12 rounded-t-full rounded-b-lg shadow-inner"
+                    style={{ backgroundColor: match.swatchColor }}
+                    aria-hidden="true"
+                  />
+                  <div className="text-center text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
+                    {match.brand}
+                  </div>
+                  <div className="mt-1 text-center text-sm font-medium text-gray-700">
+                    {match.shade}
+                  </div>
+                </div>
                 {match.isOriginal && (
                   <Badge className="absolute top-2 left-2 bg-rose-500 text-white">
                     Original
@@ -149,10 +146,13 @@ const VisualFoundationMatches: React.FC<VisualFoundationMatchesProps> = ({
       <Card className="overflow-hidden">
         <CardContent className="p-0">
           <div className="relative">
-            <img
-              src={skinToneSwatchesImg}
-              alt="Diverse skin tone swatches"
-              className="w-full h-32 object-cover"
+            <div
+              className="h-32 w-full"
+              style={{
+                backgroundImage:
+                  'linear-gradient(90deg, #5b3a2d 0%, #7a5442 14%, #9a7258 28%, #b4896d 42%, #cfa382 57%, #ddb48e 71%, #ebc7a7 85%, #f2d7be 100%)',
+              }}
+              aria-label="Diverse skin tone swatches"
             />
             <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-transparent to-black/60 flex items-center justify-center">
               <div className="text-center text-white">

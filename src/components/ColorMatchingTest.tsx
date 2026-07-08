@@ -4,10 +4,29 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
+interface ColorAnalysisResult {
+  color1: {
+    hex: string;
+    rgb: { r: number; g: number; b: number };
+    xyz: { x: number; y: number; z: number };
+    lab: { l: number; a: number; b: number };
+  };
+  color2: {
+    hex: string;
+    rgb: { r: number; g: number; b: number };
+    xyz: { x: number; y: number; z: number };
+    lab: { l: number; a: number; b: number };
+  };
+  deltaE: string;
+  matchPercentage: string;
+  interpretation: string;
+  error?: string;
+}
+
 const ColorMatchingTest = () => {
   const [color1, setColor1] = useState('#F5C6A8'); // Light skin tone
   const [color2, setColor2] = useState('#D4A574'); // Medium skin tone
-  const [results, setResults] = useState<any>(null);
+  const [results, setResults] = useState<ColorAnalysisResult | { error: string } | null>(null);
 
   const testColorMatching = () => {
     // Test the complete CIELAB pipeline

@@ -1,4 +1,4 @@
-import { hexToRgb, rgbToXyz, xyzToLab, deltaE2000, Lab, RGB } from './colorUtils';
+import { hexToRgb, rgbToXyz, xyzToLab, deltaE2000, Lab } from './colorUtils';
 
 export interface SkinToneAnalysis {
   hexColor: string;
@@ -8,8 +8,8 @@ export interface SkinToneAnalysis {
 }
 
 export interface ShadeMatch {
-  shade: any;
-  product: any;
+  shade: ProductShade;
+  product: MatchableProduct;
   colorDistance: number;
   matchPercentage: number;
   undertoneCompatibility: number;
@@ -23,6 +23,21 @@ export interface UserPreferences {
   preferredFinish?: string;
   hairColor?: string;
   eyeColor?: string;
+}
+
+export interface ProductShade {
+  id: string;
+  shade_name: string;
+  depth_level?: number | null;
+  undertone?: string | null;
+  hex_color?: string | null;
+  is_available?: boolean | null;
+}
+
+export interface MatchableProduct {
+  description?: string | null;
+  product_name?: string | null;
+  foundation_shades?: ProductShade[] | null;
 }
 
 /**
@@ -98,7 +113,7 @@ export const calculateDepthCompatibility = (
  * Score shade based on user preferences (skin type, coverage, finish)
  */
 export const calculatePreferenceScore = (
-  product: any, 
+  product: MatchableProduct,
   preferences: UserPreferences
 ): number => {
   let score = 1.0;
@@ -130,7 +145,7 @@ export const calculatePreferenceScore = (
  * Find the best shade matches for a given skin tone analysis
  */
 export const findBestShadeMatches = (
-  products: any[],
+  products: MatchableProduct[],
   skinTone: SkinToneAnalysis,
   preferences: UserPreferences = {},
   maxResults: number = 10
@@ -195,7 +210,7 @@ export const findBestShadeMatches = (
  * Create a synthetic shade match for products without specific shade data
  */
 const createSyntheticShadeMatch = (
-  product: any,
+  product: MatchableProduct,
   skinTone: SkinToneAnalysis,
   preferences: UserPreferences
 ): ShadeMatch | null => {
@@ -245,10 +260,10 @@ const createSyntheticShadeMatch = (
  * Find best contour shade based on a primary shade
  */
 export const findContourShade = (
-  product: any,
-  primaryShade: any,
+  product: MatchableProduct,
+  primaryShade: ProductShade,
   skinTone: SkinToneAnalysis
-): any => {
+): ProductShade => {
   const shades = product.foundation_shades || [];
   
   if (shades.length === 0) {
@@ -262,14 +277,14 @@ export const findContourShade = (
   
   // Look for a shade 1-2 levels deeper with same undertone
   const targetDepth = (primaryShade.depth_level || skinTone.depth) + 1;
-  const contourShade = shades.find((shade: any) => 
+  const contourShade = shades.find((shade) =>
     shade.depth_level === targetDepth &&
     shade.undertone === primaryShade.undertone &&
     shade.is_available
-  ) || shades.find((shade: any) =>
+  ) || shades.find((shade) =>
     shade.depth_level === targetDepth + 1 &&
     shade.is_available
-  ) || shades.find((shade: any) =>
+  ) || shades.find((shade) =>
     (shade.depth_level || 5) > (primaryShade.depth_level || 5) &&
     shade.is_available
   );
@@ -278,7 +293,7 @@ export const findContourShade = (
 };
 
 // Helper functions (extracted from original component)
-export const extractUndertone = (product: any): string => {
+export const extractUndertone = (product: MatchableProduct): string => {
   const text = (product.description || product.product_name || '').toLowerCase();
   if (text.includes('warm') || text.includes('golden') || text.includes('yellow')) return 'warm';
   if (text.includes('cool') || text.includes('pink') || text.includes('rose')) return 'cool';
@@ -287,7 +302,7 @@ export const extractUndertone = (product: any): string => {
   return 'neutral';
 };
 
-export const extractFinish = (product: any): string => {
+export const extractFinish = (product: MatchableProduct): string => {
   const text = (product.description || product.product_name || '').toLowerCase();
   if (text.includes('matte')) return 'matte';
   if (text.includes('dewy') || text.includes('hydrating')) return 'dewy';
@@ -296,7 +311,7 @@ export const extractFinish = (product: any): string => {
   return 'natural';
 };
 
-export const extractCoverage = (product: any): string => {
+export const extractCoverage = (product: MatchableProduct): string => {
   const text = (product.description || product.product_name || '').toLowerCase();
   if (text.includes('full')) return 'full';
   if (text.includes('light') || text.includes('sheer')) return 'light';
@@ -304,7 +319,7 @@ export const extractCoverage = (product: any): string => {
   return 'medium';
 };
 
-const estimateDepthFromDescription = (product: any): number | null => {
+const estimateDepthFromDescription = (product: MatchableProduct): number | null => {
   const text = (product.description || product.product_name || '').toLowerCase();
   if (text.includes('fair') || text.includes('porcelain')) return 2;
   if (text.includes('light')) return 3;

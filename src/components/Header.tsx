@@ -2,7 +2,7 @@
 import React from 'react';
 import { Palette, User, LogOut, ShoppingCart, Package, Sparkles } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { useCart } from '@/contexts/CartContext';
+import { useCart } from '@/hooks/useCart';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Link, useNavigate } from 'react-router-dom';

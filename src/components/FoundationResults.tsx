@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Star, Eye, MapPin, ShoppingCart, Plus } from 'lucide-react';
 import { FoundationMatch } from '../types/foundation';
-import { useCart } from '@/contexts/CartContext';
+import { useCart } from '@/hooks/useCart';
 import { toast } from '@/hooks/use-toast';
 import EnhancedFoundationFeedback from './EnhancedFoundationFeedback';
 

@@ -7,17 +7,23 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Camera, Upload, ShoppingCart, Sparkles, ArrowLeft, Check } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { useCart } from '@/contexts/CartContext';
+import { useCart } from '@/hooks/useCart';
 import { detectFaceLandmarks, applyMakeupOverlay } from '@/utils/faceDetection';
 import { describeSkinTone } from '@/lib/skinToneDescription';
 import { optimizeImageForAnalysis } from '@/lib/imageOptimization';
 import { createPigmentColor, calculatePigmentMatch } from '@/lib/pigmentMixing';
 import { loadProductMetadataMap, parseCsvRow, normalizeImageUrl, makeProductKey } from '@/lib/productMetadata';
+import type { FoundationMatch } from '@/types/foundation';
 
 interface ProductPair {
-  lightProduct: any;
-  darkProduct: any;
+  lightProduct: ShadeRow;
+  darkProduct: ShadeRow;
   brand: string;
+}
+
+interface VirtualTryOnLocationState {
+  products?: ProductPair[];
+  image?: string;
 }
 
 interface ShadeRow {
@@ -81,6 +87,32 @@ const normalizePrice = (value: unknown): number | undefined => {
   return undefined;
 };
 
+const isErrorWithStatus = (error: unknown): error is { context?: { status?: number } } =>
+  typeof error === 'object' && error !== null && 'context' in error;
+
+const toCartMatch = (product: ShadeRow, brandOverride?: string): FoundationMatch => ({
+  id: `${brandOverride ?? product.brand}-${product.shade}`,
+  brand: brandOverride ?? product.brand,
+  shade: product.shade,
+  product: product.product,
+  price: product.price ?? 0,
+  rating: 4.5,
+  reviewCount: 0,
+  availability: {
+    online: true,
+    inStore: false,
+    readyForPickup: false,
+    nearbyStores: [],
+  },
+  matchPercentage: 95,
+  undertone: 'neutral',
+  coverage: 'medium',
+  finish: 'natural',
+  imageUrl: product.imgSrc || PLACEHOLDER_IMAGE,
+  productUrl: product.url,
+  retailer: product.store,
+});
+
 const VirtualTryOn = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -103,8 +135,9 @@ const VirtualTryOn = () => {
 
   // Load initial products from navigation state
   useEffect(() => {
-    const products = location.state?.products as ProductPair[] | undefined;
-    const initialImage = location.state?.image as string | undefined;
+    const locationState = location.state as VirtualTryOnLocationState | null;
+    const products = locationState?.products;
+    const initialImage = locationState?.image;
     
     if (products && products.length > 0) {
       setCurrentRecommendations(products);
@@ -264,7 +297,7 @@ const VirtualTryOn = () => {
       const { lightest_hex: lightestHex, darkest_hex: darkestHex } = data;
       
       // Find new brand pairs
-      const brandMap = new Map<string, any[]>();
+      const brandMap = new Map<string, ShadeRow[]>();
       shadeDatabase.forEach(shade => {
         if (!brandMap.has(shade.brand)) {
           brandMap.set(shade.brand, []);
@@ -309,9 +342,9 @@ const VirtualTryOn = () => {
       setRecommendationHistory(prev => [...prev, newPairs]);
       setSelectedProductIndex(null);
       toast.success('New recommendations generated!');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error:', error);
-      const status = error?.context?.status;
+      const status = isErrorWithStatus(error) ? error.context?.status : undefined;
       const message = status === 404
         ? 'Skin analysis service is not deployed for this Supabase project. Check your project config and deploy analyze-skin-tone.'
         : 'Failed to generate new recommendations';
@@ -328,31 +361,15 @@ const VirtualTryOn = () => {
     return 100 - calculatePigmentMatch(toneA, toneB);
   };
 
-  const handleBuyProduct = async (product: any, type: 'light' | 'dark') => {
+  const handleBuyProduct = async (product: ShadeRow, type: 'light' | 'dark') => {
     const verifiedPrice = normalizePrice(product.price);
     if (typeof verifiedPrice !== 'number') {
       toast.error('Price unavailable for this product');
       return;
     }
-    const foundationMatch: any = {
-      id: `${product.brand}-${product.shade}`,
-      brand: product.brand,
-      shade: product.shade,
-      product: product.product,
+    const foundationMatch: FoundationMatch = {
+      ...toCartMatch(product),
       price: verifiedPrice,
-      rating: 4.5,
-      reviewCount: 0,
-      availability: {
-        online: true,
-        inStore: false,
-        readyForPickup: false,
-        nearbyStores: []
-      },
-      matchPercentage: 95,
-      undertone: 'neutral',
-      coverage: 'medium',
-      finish: 'natural',
-      imageUrl: product.imageUrl || product.imgSrc
     };
     addToCart(foundationMatch);
     toast.success(`Added ${type} shade to cart!`);
@@ -365,111 +382,78 @@ const VirtualTryOn = () => {
       toast.error('Price unavailable for one or both products');
       return;
     }
-    const lightMatch: any = {
-      id: `${pair.brand}-${pair.lightProduct.shade}`,
-      brand: pair.brand,
-      shade: pair.lightProduct.shade,
-      product: pair.lightProduct.product,
+    const lightMatch: FoundationMatch = {
+      ...toCartMatch(pair.lightProduct, pair.brand),
       price: lightPrice,
-      rating: 4.5,
-      reviewCount: 0,
-      availability: {
-        online: true,
-        inStore: false,
-        readyForPickup: false,
-        nearbyStores: []
-      },
-      matchPercentage: 95,
-      undertone: 'neutral',
-      coverage: 'medium',
-      finish: 'natural',
-      imageUrl: pair.lightProduct.imageUrl || pair.lightProduct.imgSrc
     };
-    const darkMatch: any = {
-      id: `${pair.brand}-${pair.darkProduct.shade}`,
-      brand: pair.brand,
-      shade: pair.darkProduct.shade,
-      product: pair.darkProduct.product,
+    const darkMatch: FoundationMatch = {
+      ...toCartMatch(pair.darkProduct, pair.brand),
       price: darkPrice,
-      rating: 4.5,
-      reviewCount: 0,
-      availability: {
-        online: true,
-        inStore: false,
-        readyForPickup: false,
-        nearbyStores: []
-      },
-      matchPercentage: 95,
-      undertone: 'neutral',
-      coverage: 'medium',
-      finish: 'natural',
-      imageUrl: pair.darkProduct.imageUrl || pair.darkProduct.imgSrc
     };
     addToCart(lightMatch);
     addToCart(darkMatch);
     toast.success('Added both shades to cart!');
   };
 
-  const applyMakeupToFace = async (productIndex: number) => {
-    if (!capturedImage || productIndex === null) return;
-
-    setIsApplyingMakeup(true);
-    try {
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      
-      await new Promise((resolve, reject) => {
-        img.onload = resolve;
-        img.onerror = reject;
-        img.src = capturedImage;
-      });
-
-      // Detect face landmarks
-      const landmarks = await detectFaceLandmarks(img);
-      
-      if (!landmarks) {
-        toast.error('Could not detect face in image');
-        setIsApplyingMakeup(false);
-        return;
-      }
-
-      // Create canvas for makeup application
-      const canvas = document.createElement('canvas');
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      const ctx = canvas.getContext('2d');
-      
-      if (!ctx) throw new Error('Could not get canvas context');
-
-      // Draw original image
-      ctx.drawImage(img, 0, 0);
-
-      // Apply makeup overlay
-      const lightColor = currentRecommendations[productIndex].lightProduct.hex;
-      const darkColor = currentRecommendations[productIndex].darkProduct.hex;
-      
-      applyMakeupOverlay(canvas, landmarks, lightColor, darkColor);
-
-      // Convert to data URL
-      const makeupImage = canvas.toDataURL('image/jpeg', 0.95);
-      setMakeupPreviewUrl(makeupImage);
-      
-    } catch (error) {
-      console.error('Error applying makeup:', error);
-      toast.error('Failed to apply makeup preview');
-    } finally {
-      setIsApplyingMakeup(false);
-    }
-  };
-
   // Apply makeup when product is selected
   useEffect(() => {
-    if (selectedProductIndex !== null && capturedImage) {
-      applyMakeupToFace(selectedProductIndex);
-    } else {
+    if (selectedProductIndex === null || !capturedImage) {
       setMakeupPreviewUrl(null);
+      return;
     }
-  }, [selectedProductIndex, capturedImage]);
+
+    const applyPreview = async () => {
+      setIsApplyingMakeup(true);
+      try {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+
+        await new Promise<void>((resolve, reject) => {
+          img.onload = () => resolve();
+          img.onerror = () => reject(new Error('Failed to load captured image.'));
+          img.src = capturedImage;
+        });
+
+        const landmarks = await detectFaceLandmarks(img);
+        if (!landmarks) {
+          toast.error('Could not detect face in image');
+          setMakeupPreviewUrl(null);
+          return;
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext('2d');
+
+        if (!ctx) throw new Error('Could not get canvas context');
+
+        ctx.drawImage(img, 0, 0);
+
+        const selectedPair = currentRecommendations[selectedProductIndex];
+        if (!selectedPair) {
+          setMakeupPreviewUrl(null);
+          return;
+        }
+
+        applyMakeupOverlay(
+          canvas,
+          landmarks,
+          selectedPair.lightProduct.hex,
+          selectedPair.darkProduct.hex
+        );
+
+        setMakeupPreviewUrl(canvas.toDataURL('image/jpeg', 0.95));
+      } catch (error) {
+        console.error('Error applying makeup:', error);
+        toast.error('Failed to apply makeup preview');
+      } finally {
+        setIsApplyingMakeup(false);
+      }
+    };
+
+    void applyPreview();
+  }, [capturedImage, currentRecommendations, selectedProductIndex]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background">

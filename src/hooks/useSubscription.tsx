@@ -86,7 +86,38 @@ export const useSubscription = () => {
   };
 
   useEffect(() => {
-    checkSubscription();
+    const runCheck = async () => {
+      if (!user) {
+        setSubscription({
+          subscribed: false,
+          subscription_tier: null,
+          subscription_end: null,
+          loading: false,
+        });
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase.functions.invoke('check-subscription');
+
+        if (error) {
+          console.error('Error checking subscription:', error);
+          return;
+        }
+
+        setSubscription({
+          subscribed: data.subscribed,
+          subscription_tier: data.subscription_tier,
+          subscription_end: data.subscription_end,
+          loading: false,
+        });
+      } catch (error) {
+        console.error('Error invoking check-subscription:', error);
+        setSubscription(prev => ({ ...prev, loading: false }));
+      }
+    };
+
+    void runCheck();
   }, [user]);
 
   const isPremium = (subscription.subscribed && subscription.subscription_tier !== null) || hasUnlimitedAccess;

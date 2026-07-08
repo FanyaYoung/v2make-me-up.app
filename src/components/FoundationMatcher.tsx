@@ -10,6 +10,7 @@ import OptionalUserInfo from './OptionalUserInfo';
 import FoundationResults from './FoundationResults';
 import { FoundationMatch } from '../types/foundation';
 import { hexToRgb, rgbToXyz, xyzToLab, deltaE2000 } from '../lib/colorUtils';
+import type { Tables } from '@/integrations/supabase/types';
 
 interface SkinToneData {
   hexColor: string;
@@ -24,6 +25,27 @@ interface UserQuestionnaireData {
   preferredCoverage: string;
   preferredFinish: string;
 }
+
+type FoundationProductRow = Tables<'foundation_products'> & {
+  brands: {
+    name: string;
+    logo_url: string | null;
+  };
+  foundation_shades: Tables<'foundation_shades'>[];
+};
+
+type FoundationShadeCandidate = Tables<'foundation_shades'> & {
+  product_id: string;
+  product_name: string;
+  brand_name: string;
+  brand_logo_url: string | null;
+  product_image_url: string | null;
+  product_price: number | null;
+  product_rating: number;
+  product_reviewCount: number;
+  product_coverage: string | null;
+  product_finish: string | null;
+};
 
 const FoundationMatcher = () => {
   const [currentFoundation, setCurrentFoundation] = useState<{brand: string, shade: string, userHexColor: string} | null>(null);
@@ -89,9 +111,9 @@ const FoundationMatcher = () => {
         return;
       }
 
-      const allFoundationShades: any[] = [];
-      foundationProductsData?.forEach(product => {
-        product.foundation_shades.forEach((shade: any) => {
+      const allFoundationShades: FoundationShadeCandidate[] = [];
+      (foundationProductsData as FoundationProductRow[] | null)?.forEach(product => {
+        product.foundation_shades.forEach((shade) => {
           allFoundationShades.push({
             ...shade,
             product_id: product.id,
@@ -122,7 +144,7 @@ const FoundationMatcher = () => {
       }
       const userLab = xyzToLab(rgbToXyz(userRgb));
 
-      const potentialMatches: { shade: any; deltaE: number }[] = [];
+      const potentialMatches: { shade: FoundationShadeCandidate; deltaE: number }[] = [];
 
       for (const shade of allFoundationShades) {
         if (shade.hex_color) {
