@@ -12,6 +12,12 @@ import { checkRateLimit, getRateLimitKey, SECURITY_CONFIG } from '@/utils/securi
 import { validateEmail, validateInputLength } from '@/utils/sanitization';
 import { Separator } from '@/components/ui/separator';
 
+const sanitizeReturnPath = (value: string | null | undefined) => {
+  if (!value || !value.startsWith('/')) return '/';
+  if (value.startsWith('//')) return '/';
+  return value;
+};
+
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
@@ -42,7 +48,7 @@ const Auth = () => {
     }
 
     // Get return URL from query params
-    const returnTo = searchParams.get('returnTo') || '/';
+    const returnTo = sanitizeReturnPath(searchParams.get('returnTo'));
     const oauthError = searchParams.get('oauthError');
     if (oauthError && !hasShownOauthError.current) {
       hasShownOauthError.current = true;
@@ -145,7 +151,7 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      const returnTo = searchParams.get('returnTo') || '/';
+      const returnTo = sanitizeReturnPath(searchParams.get('returnTo'));
       const redirectUrl = `${window.location.origin}${returnTo}`;
       
       const { error } = await supabase.auth.signUp({
@@ -245,7 +251,7 @@ const Auth = () => {
 
   const handleOAuthSignIn = async (provider: 'google' | 'apple') => {
     try {
-      const returnTo = searchParams.get('returnTo') || '/';
+      const returnTo = sanitizeReturnPath(searchParams.get('returnTo'));
       const redirectUrl = `${window.location.origin}/auth/callback?next=${encodeURIComponent(returnTo)}`;
       
       const { error } = await supabase.auth.signInWithOAuth({

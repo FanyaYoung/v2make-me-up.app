@@ -7,6 +7,22 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const getBaseUrl = (req: Request) => {
+  const origin = req.headers.get("origin");
+  if (origin) return origin;
+
+  const fallback =
+    Deno.env.get("PUBLIC_SITE_URL") ||
+    Deno.env.get("SITE_URL") ||
+    "http://localhost:3000";
+
+  try {
+    return new URL(fallback).origin;
+  } catch {
+    return "http://localhost:3000";
+  }
+};
+
 const logStep = (step: string, details?: any) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
   console.log(`[CREATE-CHECKOUT] ${step}${detailsStr}`);
@@ -60,12 +76,14 @@ serve(async (req) => {
 
     const config = tierConfig[tier as keyof typeof tierConfig];
     
+    const baseUrl = getBaseUrl(req);
+
     let sessionConfig: any = {
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
       mode: config.mode,
-      success_url: `${req.headers.get("origin")}/subscription-success?tier=${tier}`,
-      cancel_url: `${req.headers.get("origin")}/subscription-canceled`,
+      success_url: `${baseUrl}/subscription-success?tier=${tier}`,
+      cancel_url: `${baseUrl}/subscription-canceled`,
     };
 
     if (config.mode === "payment") {

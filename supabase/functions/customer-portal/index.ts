@@ -7,6 +7,22 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const getBaseUrl = (req: Request) => {
+  const origin = req.headers.get("origin");
+  if (origin) return origin;
+
+  const fallback =
+    Deno.env.get("PUBLIC_SITE_URL") ||
+    Deno.env.get("SITE_URL") ||
+    "http://localhost:3000";
+
+  try {
+    return new URL(fallback).origin;
+  } catch {
+    return "http://localhost:3000";
+  }
+};
+
 const logStep = (step: string, details?: any) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
   console.log(`[CUSTOMER-PORTAL] ${step}${detailsStr}`);
@@ -48,10 +64,9 @@ serve(async (req) => {
     const customerId = customers.data[0].id;
     logStep("Found Stripe customer", { customerId });
 
-    const origin = req.headers.get("origin") || "http://localhost:3000";
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: customerId,
-      return_url: `${origin}/`,
+      return_url: `${getBaseUrl(req)}/`,
     });
     
     logStep("Customer portal session created", { sessionId: portalSession.id, url: portalSession.url });

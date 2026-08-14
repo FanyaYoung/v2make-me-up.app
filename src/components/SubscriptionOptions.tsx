@@ -4,9 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Check, Star, Crown, Zap } from 'lucide-react';
 import { useSubscription } from '@/hooks/useSubscription';
+import { useToast } from '@/hooks/use-toast';
+import { openExternalUrl } from '@/lib/externalNavigation';
 
 const SubscriptionOptions = () => {
   const { createCheckout, isPremium } = useSubscription();
+  const { toast } = useToast();
 
   const plans = [
     {
@@ -79,9 +82,15 @@ const SubscriptionOptions = () => {
   ];
 
   const handleSubscribe = async (planId: string) => {
-    const url = await createCheckout(planId as 'one_time' | 'weekly' | 'monthly' | 'yearly');
-    if (url) {
-      window.open(url, '_blank');
+    try {
+      const url = await createCheckout(planId as 'one_time' | 'weekly' | 'monthly' | 'yearly');
+      await openExternalUrl(url, { preferSameTab: true });
+    } catch (error) {
+      toast({
+        title: "Checkout Error",
+        description: error instanceof Error ? error.message : "Unable to start checkout.",
+        variant: "destructive",
+      });
     }
   };
 

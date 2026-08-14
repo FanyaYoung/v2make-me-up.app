@@ -10,6 +10,7 @@ import { describeSkinTone } from '@/lib/skinToneDescription';
 import { supabase } from '@/integrations/supabase/client';
 import { normalizeProductPrice } from '@/lib/productMetadata';
 import { useToast } from '@/hooks/use-toast';
+import { openExternalUrl } from '@/lib/externalNavigation';
 
 interface CosmeticsProduct {
   id: string;
@@ -44,6 +45,17 @@ interface LiveSearchResponseProduct {
   inStock?: boolean;
   category: 'foundation' | 'makeup';
 }
+
+type SourceTableClient = {
+  from: (table: string) => {
+    select: (columns: string) => {
+      range: (
+        from: number,
+        to: number,
+      ) => Promise<{ data: Record<string, unknown>[] | null; error: { message?: string } | null }>;
+    };
+  };
+};
 
 const PLACEHOLDER_IMAGE = '/placeholder.svg';
 const MAX_CARDS = 120;
@@ -105,8 +117,8 @@ const toProductKey = (brand: string, name: string) => `${normalizeKey(brand)}|${
 
 const parseRowToProduct = (row: Record<string, unknown>, source: string): CosmeticsProduct | null => {
   let brand = getValueFromRow(row, ['brand', 'brand_name', 'manufacturer']);
-  const nestedBrand = row.brands as any;
-  if (!brand && nestedBrand && typeof nestedBrand === 'object') {
+  const nestedBrand = row.brands;
+  if (!brand && nestedBrand && typeof nestedBrand === 'object' && 'name' in nestedBrand) {
     brand = String(nestedBrand.name || '').trim();
   }
 
@@ -248,6 +260,7 @@ const CosmeticsBrowser = () => {
         setIsLoading(true);
         const sourceCounts: Record<string, number> = {};
         const mergedMap = new Map<string, CosmeticsProduct>();
+        const sourceClient = supabase as unknown as SourceTableClient;
 
         for (const source of SUPABASE_SOURCES) {
           try {
@@ -255,7 +268,7 @@ const CosmeticsBrowser = () => {
             let from = 0;
             let totalForSource = 0;
             while (true) {
-              const { data, error } = await (supabase as any)
+              const { data, error } = await sourceClient
                 .from(source)
                 .select('*')
                 .range(from, from + pageSize - 1);
@@ -655,9 +668,17 @@ const CosmeticsBrowser = () => {
       });
     } catch (error) {
       console.error('Live cosmetics search failed', error);
+      const message =
+        typeof error === 'object' &&
+        error !== null &&
+        'context' in error &&
+        typeof (error as { context?: { status?: number } }).context?.status === 'number' &&
+        (error as { context?: { status?: number } }).context?.status === 401
+          ? 'Live search requires a signed-in account. Sign in and try again.'
+          : 'This search requires the backend function to be deployed and available.';
       toast({
         title: 'Live search failed',
-        description: 'This search requires the backend function to be deployed and a signed-in session.',
+        description: message,
         variant: 'destructive',
       });
     } finally {
@@ -856,7 +877,7 @@ const CosmeticsBrowser = () => {
                   onClick={() => {
                     const destination = product.product_link || product.website_link;
                     if (destination) {
-                      window.open(destination, '_blank', 'noopener,noreferrer');
+                      void openExternalUrl(destination);
                     }
                   }}
                 >

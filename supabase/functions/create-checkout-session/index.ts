@@ -7,6 +7,22 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const getBaseUrl = (req: Request) => {
+  const origin = req.headers.get("origin");
+  if (origin) return origin;
+
+  const fallback =
+    Deno.env.get("PUBLIC_SITE_URL") ||
+    Deno.env.get("SITE_URL") ||
+    "http://localhost:3000";
+
+  try {
+    return new URL(fallback).origin;
+  } catch {
+    return "http://localhost:3000";
+  }
+};
+
 interface CartItem {
   id: string;
   product: {
@@ -138,12 +154,14 @@ serve(async (req) => {
     );
 
     // Create checkout session
+    const baseUrl = getBaseUrl(req);
+
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       line_items: lineItems,
       mode: 'payment',
-      success_url: `${req.headers.get("origin")}/checkout-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${req.headers.get("origin")}/cart?canceled=true`,
+      success_url: `${baseUrl}/checkout-success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${baseUrl}/cart?canceled=true`,
       automatic_tax: {
         enabled: true,
       },

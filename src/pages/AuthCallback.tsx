@@ -2,6 +2,12 @@ import { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 
+const sanitizeNextPath = (value: string | null) => {
+  if (!value || !value.startsWith('/')) return '/';
+  if (value.startsWith('//')) return '/';
+  return value;
+};
+
 const AuthCallback = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -26,7 +32,7 @@ const AuthCallback = () => {
 
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        const next = searchParams.get('next') ?? '/';
+        const next = sanitizeNextPath(searchParams.get('next'));
         navigate(next, { replace: true });
       } else {
         navigate('/auth?oauthError=Unable%20to%20complete%20sign%20in', { replace: true });

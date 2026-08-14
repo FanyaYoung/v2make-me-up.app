@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useCallback, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import type { Json } from '@/integrations/supabase/types';
 import { Camera, Upload, Loader2, ShoppingCart, Eye, BookmarkPlus } from 'lucide-react';
 import { createPigmentColor, createLightFromDark, calculatePigmentMatch, PigmentColor } from '@/lib/pigmentMixing';
 import { describeSkinTone } from '@/lib/skinToneDescription';
@@ -18,6 +19,7 @@ import { useCart } from '@/hooks/useCart';
 import { useAuth } from '@/hooks/useAuth';
 import { refreshFoundationMatchesPricing } from '@/lib/livePricing';
 import { trackUserActivity } from '@/lib/activityTracking';
+import { openExternalUrl } from '@/lib/externalNavigation';
 
 const PLACEHOLDER_IMAGE = '/placeholder.svg';
 const withFallbackImage = (src: string | undefined | null) => {
@@ -93,6 +95,29 @@ interface FoundationMatch {
   website?: string;
 }
 
+type CartFoundationMatch = {
+  id: string;
+  brand: string;
+  product: string;
+  shade: string;
+  price: number;
+  rating: number;
+  reviewCount: number;
+  availability: {
+    online: boolean;
+    inStore: boolean;
+    readyForPickup: boolean;
+    nearbyStores: string[];
+  };
+  matchPercentage: number;
+  undertone: string;
+  coverage: string;
+  finish: string;
+  imageUrl: string;
+  productUrl: string;
+  retailer?: string;
+};
+
 interface ShadeData {
   brand: string;
   product: string;
@@ -124,6 +149,7 @@ export const AISkinToneMatcher = () => {
   const [showDarkest, setShowDarkest] = useState(true);
   const [brandPairs, setBrandPairs] = useState<Array<{ light: FoundationMatch; dark: FoundationMatch }>>([]);
   const [shadeDatabase, setShadeDatabase] = useState<ShadeData[]>([]);
+  const [shadeDatabaseLoading, setShadeDatabaseLoading] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<FoundationMatch | null>(null);
   const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
   
@@ -136,7 +162,7 @@ export const AISkinToneMatcher = () => {
 
   // Load CSV database on mount
   React.useEffect(() => {
-    loadShadeDatabase();
+    void loadShadeDatabase();
   }, []);
 
   React.useEffect(() => {
@@ -162,7 +188,14 @@ export const AISkinToneMatcher = () => {
     }
   }, [stream, isCamera]);
 
-  const loadShadeDatabase = async () => {
+  const isValidHexColor = (value: unknown): value is string =>
+    typeof value === 'string' && /^#?[0-9A-Fa-f]{6}$/.test(value);
+
+  const normalizeHexColor = (value: string) =>
+    value.startsWith('#') ? value.toUpperCase() : `#${value.toUpperCase()}`;
+
+  const loadShadeDatabase = useCallback(async () => {
+    setShadeDatabaseLoading(true);
     try {
       const productMetadataMap = await loadProductMetadataMap();
 
@@ -227,6 +260,7 @@ export const AISkinToneMatcher = () => {
       
       setShadeDatabase(shades);
       console.log(`Loaded ${shades.length} shades from database`);
+      return shades;
     } catch (error) {
       console.error('Failed to load shade database:', error);
       toast({
@@ -234,6 +268,126 @@ export const AISkinToneMatcher = () => {
         description: "Could not load foundation database. Some features may not work.",
         variant: "destructive"
       });
+      return [];
+    } finally {
+      setShadeDatabaseLoading(false);
+    }
+  }, [toast]);
+
+  const analyzeImageLocally = async (imageDataUrl: string) => {
+    const image = new Image();
+    image.src = imageDataUrl;
+
+    await new Promise<void>((resolve, reject) => {
+      image.onload = () => resolve();
+      image.onerror = () => reject(new Error('Could not read the selected image.'));
+    });
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      throw new Error('Image analysis is not available in this browser.');
+    }
+
+    const maxDimension = 500;
+    let width = image.naturalWidth;
+    let height = image.naturalHeight;
+
+    if (width > height && width > maxDimension) {
+      height = Math.round((height * maxDimension) / width);
+      width = maxDimension;
+    } else if (height > maxDimension) {
+      width = Math.round((width * maxDimension) / height);
+      height = maxDimension;
+    }
+
+    canvas.width = width;
+    canvas.height = height;
+    ctx.drawImage(image, 0, 0, width, height);
+
+    const { data } = ctx.getImageData(0, 0, width, height);
+    const pixels: Array<{ hex: string; lightness: number }> = [];
+    const sampleSize = 1000;
+    const totalPixels = width * height;
+    const step = Math.max(1, Math.floor(Math.sqrt(totalPixels / sampleSize)));
+
+    for (let y = 0; y < height; y += step) {
+      for (let x = 0; x < width; x += step) {
+        const index = (y * width + x) * 4;
+        if (index + 3 >= data.length) continue;
+
+        const r = data[index];
+        const g = data[index + 1];
+        const b = data[index + 2];
+        const a = data[index + 3];
+
+        if (a < 200) continue;
+        if (g > r * 1.2 && g > b * 1.2 && g > 80) continue;
+        if (b > r * 1.2 && b > g * 1.2 && b > 80) continue;
+
+        const [h, s, l] = rgbToHsl(r, g, b);
+        if (s < 8 || l < 8 || l > 96) continue;
+        if (h < 0 || h > 50) continue;
+
+        pixels.push({
+          hex: rgbToHex(r, g, b),
+          lightness: l,
+        });
+      }
+    }
+
+    if (pixels.length < 10) {
+      throw new Error('Try a clearer, well-lit photo with more visible skin.');
+    }
+
+    pixels.sort((a, b) => a.lightness - b.lightness);
+    const outlierCount = Math.min(Math.floor(pixels.length * 0.05), Math.floor(pixels.length / 4));
+    const relevantPixels = pixels.slice(outlierCount, pixels.length - outlierCount);
+    if (relevantPixels.length === 0) {
+      throw new Error('Try a clearer, well-lit photo with more visible skin.');
+    }
+
+    const darkest = relevantPixels[Math.max(0, Math.floor(relevantPixels.length * 0.05))];
+    const lightest = relevantPixels[Math.min(relevantPixels.length - 1, Math.floor(relevantPixels.length * 0.95))];
+
+    return {
+      lightest_hex: lightest.hex,
+      darkest_hex: darkest.hex,
+      source: 'local' as const,
+    };
+  };
+
+  const resolveSkinToneAnalysis = async (optimizedImage: string) => {
+    try {
+      const { data, error } = await withTimeout(
+        supabase.functions.invoke('analyze-skin-tone', {
+          body: { imageBase64: optimizedImage, analysisType: 'image' }
+        }),
+        ANALYSIS_TIMEOUT_MS
+      );
+
+      if (error) throw error;
+
+      const lightestHex = isValidHexColor(data?.lightest_hex) ? normalizeHexColor(data.lightest_hex) : null;
+      const darkestHex = isValidHexColor(data?.darkest_hex) ? normalizeHexColor(data.darkest_hex) : null;
+
+      if (!lightestHex || !darkestHex) {
+        throw new Error('Skin analysis returned invalid color data.');
+      }
+
+      return {
+        lightest_hex: lightestHex,
+        darkest_hex: darkestHex,
+        source: 'edge' as const,
+      };
+    } catch (error) {
+      console.warn('Falling back to local skin tone analysis', error);
+      const localResult = await analyzeImageLocally(optimizedImage);
+      toast({
+        title: "Using Local Analysis",
+        description: "The cloud skin analysis service was unavailable, so the app used on-device analysis instead."
+      });
+      return localResult;
     }
   };
 
@@ -421,7 +575,8 @@ export const AISkinToneMatcher = () => {
   const rgbToHsl = (r: number, g: number, b: number): [number, number, number] => {
     r /= 255; g /= 255; b /= 255;
     const max = Math.max(r, g, b), min = Math.min(r, g, b);
-    let h = 0, s = 0, l = (max + min) / 2;
+    let h = 0, s = 0;
+    const l = (max + min) / 2;
 
     if (max !== min) {
       const d = max - min;
@@ -493,13 +648,36 @@ export const AISkinToneMatcher = () => {
     return { h, s, l, mix };
   };
 
-  const stopCamera = () => {
+  const stopCamera = useCallback(() => {
     if (stream) {
       stream.getTracks().forEach(track => track.stop());
       setStream(null);
     }
     setIsCamera(false);
-  };
+  }, [stream]);
+
+  const toCartFoundationMatch = (product: FoundationMatch): CartFoundationMatch => ({
+    id: `${product.brand}-${product.shade_name}`,
+    brand: product.brand,
+    product: product.product,
+    shade: product.shade_name,
+    price: product.price ?? 0,
+    rating: 4.5,
+    reviewCount: 0,
+    availability: {
+      online: true,
+      inStore: false,
+      readyForPickup: false,
+      nearbyStores: [],
+    },
+    matchPercentage: Math.round(product.score),
+    undertone: product.undertone || 'neutral',
+    coverage: 'medium',
+    finish: 'natural',
+    imageUrl: product.img || PLACEHOLDER_IMAGE,
+    productUrl: product.url,
+    retailer: product.store,
+  });
 
   const startCamera = async () => {
     setCameraLoading(true);
@@ -581,27 +759,25 @@ export const AISkinToneMatcher = () => {
 
     try {
       const optimizedImage = await optimizeImageForAnalysis(currentImage);
-      const { data, error } = await withTimeout(
-        supabase.functions.invoke('analyze-skin-tone', {
-          body: { imageBase64: optimizedImage, analysisType: 'image' }
-        }),
-        ANALYSIS_TIMEOUT_MS
-      );
+      const analysisResult = await resolveSkinToneAnalysis(optimizedImage);
+      const lightestHex = analysisResult.lightest_hex;
+      const darkestHex = analysisResult.darkest_hex;
 
-      if (error) throw error;
+      const availableShades = shadeDatabase.length > 0 ? shadeDatabase : await loadShadeDatabase();
+      if (availableShades.length === 0) {
+        throw new Error('Foundation shade database is still loading or unavailable. Please try again.');
+      }
 
-      const [rDark, gDark, bDark] = hexToRgb(data.darkest_hex);
-      
-      // Create dark color first, then derive light from it
-      const darkPigmentColor = createPigmentColor(data.darkest_hex);
-      const lightPigmentColor = createLightFromDark(darkPigmentColor);
+      const [rLight, gLight, bLight] = hexToRgb(lightestHex);
+      const [rDark, gDark, bDark] = hexToRgb(darkestHex);
+
+      const lightPigmentColor = createPigmentColor(lightestHex);
+      const darkPigmentColor = createPigmentColor(darkestHex);
       const midPigmentColor = createMidTone(lightPigmentColor, darkPigmentColor);
-      
-      const [rLight, gLight, bLight] = lightPigmentColor.rgb;
       const [rMid, gMid, bMid] = midPigmentColor.rgb;
 
       setLightestResult({
-        hex: lightPigmentColor.hex,
+        hex: lightestHex,
         rgb: [rLight, gLight, bLight],
         analysis: getPigmentMix(rLight, gLight, bLight),
         pigmentColor: lightPigmentColor
@@ -615,7 +791,7 @@ export const AISkinToneMatcher = () => {
       });
 
       setDarkestResult({
-        hex: data.darkest_hex,
+        hex: darkestHex,
         rgb: [rDark, gDark, bDark],
         analysis: getPigmentMix(rDark, gDark, bDark),
         pigmentColor: darkPigmentColor
@@ -625,9 +801,9 @@ export const AISkinToneMatcher = () => {
         localStorage.setItem(
           'latest_skin_tone_analysis',
           JSON.stringify({
-            lightHex: lightPigmentColor.hex,
+            lightHex: lightestHex,
             midHex: midPigmentColor.hex,
-            darkHex: data.darkest_hex,
+            darkHex: darkestHex,
             updatedAt: new Date().toISOString(),
           })
         );
@@ -638,18 +814,23 @@ export const AISkinToneMatcher = () => {
       // Match to product database - find brand pairs
       setLoadingMessage("Finding matching foundation pairs from brands...");
       
-      const pairs = await findBrandPairs(lightPigmentColor.hex, data.darkest_hex, 4);
+      const pairs = await findBrandPairs(lightestHex, darkestHex, 4);
       setBrandPairs(pairs);
+
+      if (pairs.length === 0) {
+        toast({
+          title: "Analysis Complete",
+          description: "Skin tones were detected, but no image-backed brand pairs were available for this result."
+        });
+        return;
+      }
 
       toast({
         title: "Analysis Complete",
         description: "Found matching foundation products!"
       });
-    } catch (error: any) {
-      const status = error?.context?.status;
-      const description = status === 404
-        ? "Skin analysis service is not deployed for this Supabase project. Verify your project URL/keys and deploy the analyze-skin-tone Edge Function."
-        : (error?.message || "Failed to analyze image");
+    } catch (error: unknown) {
+      const description = error instanceof Error ? error.message : "Failed to analyze image";
 
       toast({
         title: "Analysis Failed",
@@ -685,12 +866,12 @@ export const AISkinToneMatcher = () => {
       const { error } = await supabase.from('saved_shade_matches').insert([{
         user_id: user.id,
         lightest_hex: lightestResult.hex,
-        lightest_rgb: lightestResult.rgb as any,
-        lightest_pigment_mix: lightestResult.pigmentColor.pigmentMix as any,
+        lightest_rgb: lightestResult.rgb as unknown as Json,
+        lightest_pigment_mix: lightestResult.pigmentColor.pigmentMix as unknown as Json,
         darkest_hex: darkestResult.hex,
-        darkest_rgb: darkestResult.rgb as any,
-        darkest_pigment_mix: darkestResult.pigmentColor.pigmentMix as any,
-        matched_products: brandPairs as any,
+        darkest_rgb: darkestResult.rgb as unknown as Json,
+        darkest_pigment_mix: darkestResult.pigmentColor.pigmentMix as unknown as Json,
+        matched_products: brandPairs as unknown as Json,
         photo_url: currentImage
       }]);
 
@@ -700,10 +881,10 @@ export const AISkinToneMatcher = () => {
         title: "Saved Successfully",
         description: "Your shade match has been saved to your account"
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Save Failed",
-        description: error.message || "Failed to save shade match",
+        description: error instanceof Error ? error.message : "Failed to save shade match",
         variant: "destructive"
       });
     }
@@ -717,8 +898,7 @@ export const AISkinToneMatcher = () => {
         description: "Please sign in to purchase products",
         variant: "destructive"
       });
-      // Redirect to auth page
-      window.location.href = '/auth';
+      navigate('/auth');
       return;
     }
 
@@ -786,21 +966,22 @@ export const AISkinToneMatcher = () => {
           source: 'ai_skin_tone_matcher',
           item_count: cartItems.length,
         });
-        window.location.href = data.checkout_url;
+        await openExternalUrl(data.checkout_url, { preferSameTab: true });
       }
 
       toast({
         title: "Redirecting to Checkout",
         description: "Taking you to secure payment..."
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'unknown_error';
       await trackUserActivity(user.id, 'checkout_failed', {
         source: 'ai_skin_tone_matcher',
-        reason: error.message || 'unknown_error',
+        reason: message,
       });
       toast({
         title: "Checkout Failed",
-        description: error.message || "Unable to process checkout",
+        description: error instanceof Error ? error.message : "Unable to process checkout",
         variant: "destructive"
       });
     } finally {
@@ -992,14 +1173,14 @@ export const AISkinToneMatcher = () => {
                     <div className="flex gap-2">
                       <Button 
                         onClick={analyzeImage}
-                        disabled={loading}
+                        disabled={loading || shadeDatabaseLoading}
                         className="flex-1"
                         size="lg"
                       >
-                        {loading ? (
+                        {loading || shadeDatabaseLoading ? (
                           <>
                             <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                            {loadingMessage || "Analyzing..."}
+                            {loadingMessage || (shadeDatabaseLoading ? "Loading shade database..." : "Analyzing...")}
                           </>
                         ) : (
                           <>
@@ -1153,15 +1334,7 @@ export const AISkinToneMatcher = () => {
                             });
                             return;
                           }
-                          addToCart({
-                            id: `${pair.light.brand}-${pair.light.shade_name}`,
-                            brand: pair.light.brand,
-                            product: pair.light.product,
-                            shade: pair.light.shade_name,
-                            price: pair.light.price,
-                            hex: pair.light.hex,
-                            imgSrc: pair.light.img
-                          } as any);
+                          addToCart(toCartFoundationMatch(pair.light));
                           toast({
                             title: "Added to Cart",
                             description: `${pair.light.shade_name} added to cart`
@@ -1231,15 +1404,7 @@ export const AISkinToneMatcher = () => {
                             });
                             return;
                           }
-                          addToCart({
-                            id: `${pair.dark.brand}-${pair.dark.shade_name}`,
-                            brand: pair.dark.brand,
-                            product: pair.dark.product,
-                            shade: pair.dark.shade_name,
-                            price: pair.dark.price,
-                            hex: pair.dark.hex,
-                            imgSrc: pair.dark.img
-                          } as any);
+                          addToCart(toCartFoundationMatch(pair.dark));
                           toast({
                             title: "Added to Cart",
                             description: `${pair.dark.shade_name} added to cart`
@@ -1303,24 +1468,8 @@ export const AISkinToneMatcher = () => {
                             });
                             return;
                           }
-                          addToCart({
-                            id: `${pair.light.brand}-${pair.light.shade_name}`,
-                            brand: pair.light.brand,
-                            product: pair.light.product,
-                            shade: pair.light.shade_name,
-                            price: pair.light.price,
-                            hex: pair.light.hex,
-                            imgSrc: pair.light.img
-                          } as any);
-                          addToCart({
-                            id: `${pair.dark.brand}-${pair.dark.shade_name}`,
-                            brand: pair.dark.brand,
-                            product: pair.dark.product,
-                            shade: pair.dark.shade_name,
-                            price: pair.dark.price,
-                            hex: pair.dark.hex,
-                            imgSrc: pair.dark.img
-                          } as any);
+                          addToCart(toCartFoundationMatch(pair.light));
+                          addToCart(toCartFoundationMatch(pair.dark));
                           toast({
                             title: "Added to Cart",
                             description: "Complete set added to cart"

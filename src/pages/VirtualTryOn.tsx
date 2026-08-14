@@ -90,6 +90,12 @@ const normalizePrice = (value: unknown): number | undefined => {
 const isErrorWithStatus = (error: unknown): error is { context?: { status?: number } } =>
   typeof error === 'object' && error !== null && 'context' in error;
 
+const isValidHexColor = (value: unknown): value is string =>
+  typeof value === 'string' && /^#?[0-9A-Fa-f]{6}$/.test(value);
+
+const normalizeHexColor = (value: string) =>
+  value.startsWith('#') ? value.toUpperCase() : `#${value.toUpperCase()}`;
+
 const toCartMatch = (product: ShadeRow, brandOverride?: string): FoundationMatch => ({
   id: `${brandOverride ?? product.brand}-${product.shade}`,
   brand: brandOverride ?? product.brand,
@@ -127,6 +133,7 @@ const VirtualTryOn = () => {
   const [makeupPreviewUrl, setMakeupPreviewUrl] = useState<string | null>(null);
   const [isApplyingMakeup, setIsApplyingMakeup] = useState(false);
   const [shadeDatabase, setShadeDatabase] = useState<ShadeRow[]>([]);
+  const [shadeDatabaseLoading, setShadeDatabaseLoading] = useState(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -153,6 +160,7 @@ const VirtualTryOn = () => {
 
   useEffect(() => {
     const loadShadeDatabase = async () => {
+      setShadeDatabaseLoading(true);
       try {
         const productMetadataMap = await loadProductMetadataMap();
 
@@ -211,6 +219,8 @@ const VirtualTryOn = () => {
         setShadeDatabase(parsed);
       } catch (error) {
         console.error('Failed to load shade database:', error);
+      } finally {
+        setShadeDatabaseLoading(false);
       }
     };
 
@@ -276,15 +286,114 @@ const VirtualTryOn = () => {
       });
   };
 
-  const getNewRecommendations = async () => {
-    if (!capturedImage) {
-      toast.error('Please capture or upload a photo first');
-      return;
+  const analyzeImageLocally = async (imageDataUrl: string) => {
+    const image = new Image();
+    image.src = imageDataUrl;
+
+    await new Promise<void>((resolve, reject) => {
+      image.onload = () => resolve();
+      image.onerror = () => reject(new Error('Could not read the selected image.'));
+    });
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      throw new Error('Image analysis is not available in this browser.');
     }
 
-    setIsAnalyzing(true);
+    const maxDimension = 500;
+    let width = image.naturalWidth;
+    let height = image.naturalHeight;
+
+    if (width > height && width > maxDimension) {
+      height = Math.round((height * maxDimension) / width);
+      width = maxDimension;
+    } else if (height > maxDimension) {
+      width = Math.round((width * maxDimension) / height);
+      height = maxDimension;
+    }
+
+    canvas.width = width;
+    canvas.height = height;
+    ctx.drawImage(image, 0, 0, width, height);
+
+    const { data } = ctx.getImageData(0, 0, width, height);
+    const pixels: Array<{ hex: string; lightness: number }> = [];
+    const sampleSize = 1000;
+    const totalPixels = width * height;
+    const step = Math.max(1, Math.floor(Math.sqrt(totalPixels / sampleSize)));
+
+    for (let y = 0; y < height; y += step) {
+      for (let x = 0; x < width; x += step) {
+        const index = (y * width + x) * 4;
+        if (index + 3 >= data.length) continue;
+
+        const r = data[index];
+        const g = data[index + 1];
+        const b = data[index + 2];
+        const a = data[index + 3];
+
+        if (a < 200) continue;
+        if (g > r * 1.2 && g > b * 1.2 && g > 80) continue;
+        if (b > r * 1.2 && b > g * 1.2 && b > 80) continue;
+
+        const max = Math.max(r, g, b) / 255;
+        const min = Math.min(r, g, b) / 255;
+        const lightness = Math.round(((max + min) / 2) * 100);
+        const saturationDenominator = 1 - Math.abs(2 * ((max + min) / 2) - 1);
+        const saturation = saturationDenominator === 0 ? 0 : ((max - min) / saturationDenominator) * 100;
+
+        let hue = 0;
+        if (max !== min) {
+          switch (max) {
+            case r / 255:
+              hue = ((g - b) / 255) / ((max - min)) + (g < b ? 6 : 0);
+              break;
+            case g / 255:
+              hue = ((b - r) / 255) / ((max - min)) + 2;
+              break;
+            default:
+              hue = ((r - g) / 255) / ((max - min)) + 4;
+              break;
+          }
+          hue *= 60;
+        }
+
+        if (saturation < 8 || lightness < 8 || lightness > 96) continue;
+        if (hue < 0 || hue > 50) continue;
+
+        pixels.push({
+          hex: normalizeHexColor(
+            `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`
+          ),
+          lightness,
+        });
+      }
+    }
+
+    if (pixels.length < 10) {
+      throw new Error('Try a clearer, well-lit photo with more visible skin.');
+    }
+
+    pixels.sort((a, b) => a.lightness - b.lightness);
+    const outlierCount = Math.min(Math.floor(pixels.length * 0.05), Math.floor(pixels.length / 4));
+    const relevantPixels = pixels.slice(outlierCount, pixels.length - outlierCount);
+    if (relevantPixels.length === 0) {
+      throw new Error('Try a clearer, well-lit photo with more visible skin.');
+    }
+
+    const darkest = relevantPixels[Math.max(0, Math.floor(relevantPixels.length * 0.05))];
+    const lightest = relevantPixels[Math.min(relevantPixels.length - 1, Math.floor(relevantPixels.length * 0.95))];
+
+    return {
+      lightest_hex: lightest.hex,
+      darkest_hex: darkest.hex,
+      source: 'local' as const,
+    };
+  };
+
+  const resolveSkinToneAnalysis = async (optimizedImage: string) => {
     try {
-      const optimizedImage = await optimizeImageForAnalysis(capturedImage);
       const { data, error } = await withTimeout(
         supabase.functions.invoke('analyze-skin-tone', {
           body: { imageBase64: optimizedImage, analysisType: 'image' }
@@ -294,7 +403,45 @@ const VirtualTryOn = () => {
 
       if (error) throw error;
 
-      const { lightest_hex: lightestHex, darkest_hex: darkestHex } = data;
+      const lightestHex = isValidHexColor(data?.lightest_hex) ? normalizeHexColor(data.lightest_hex) : null;
+      const darkestHex = isValidHexColor(data?.darkest_hex) ? normalizeHexColor(data.darkest_hex) : null;
+
+      if (!lightestHex || !darkestHex) {
+        throw new Error('Skin analysis returned invalid color data.');
+      }
+
+      return {
+        lightest_hex: lightestHex,
+        darkest_hex: darkestHex,
+        source: 'edge' as const,
+      };
+    } catch (error) {
+      console.warn('Falling back to local try-on analysis', error);
+      const localResult = await analyzeImageLocally(optimizedImage);
+      toast.success('Used local analysis because the cloud skin analysis service was unavailable.');
+      return localResult;
+    }
+  };
+
+  const getNewRecommendations = async () => {
+    if (!capturedImage) {
+      toast.error('Please capture or upload a photo first');
+      return;
+    }
+    if (shadeDatabaseLoading) {
+      toast.error('Shade database is still loading. Please try again in a moment.');
+      return;
+    }
+
+    setIsAnalyzing(true);
+    try {
+      const optimizedImage = await optimizeImageForAnalysis(capturedImage);
+      const analysisResult = await resolveSkinToneAnalysis(optimizedImage);
+      const lightestHex = analysisResult.lightest_hex;
+      const darkestHex = analysisResult.darkest_hex;
+      if (shadeDatabase.length === 0) {
+        throw new Error('Foundation shade database is unavailable. Please try again.');
+      }
       
       // Find new brand pairs
       const brandMap = new Map<string, ShadeRow[]>();
@@ -341,13 +488,22 @@ const VirtualTryOn = () => {
       setCurrentRecommendations(newPairs);
       setRecommendationHistory(prev => [...prev, newPairs]);
       setSelectedProductIndex(null);
+      try {
+        localStorage.setItem(
+          'latest_skin_tone_analysis',
+          JSON.stringify({
+            lightHex: lightestHex,
+            darkHex: darkestHex,
+            updatedAt: new Date().toISOString(),
+          })
+        );
+      } catch (storageError) {
+        console.warn('Could not persist latest skin tone analysis', storageError);
+      }
       toast.success('New recommendations generated!');
     } catch (error: unknown) {
       console.error('Error:', error);
-      const status = isErrorWithStatus(error) ? error.context?.status : undefined;
-      const message = status === 404
-        ? 'Skin analysis service is not deployed for this Supabase project. Check your project config and deploy analyze-skin-tone.'
-        : 'Failed to generate new recommendations';
+      const message = error instanceof Error ? error.message : 'Failed to generate new recommendations';
       toast.error(message);
     } finally {
       setIsAnalyzing(false);
@@ -570,11 +726,11 @@ const VirtualTryOn = () => {
               {capturedImage && (
                 <Button
                   onClick={getNewRecommendations}
-                  disabled={isAnalyzing}
+                  disabled={isAnalyzing || shadeDatabaseLoading}
                   className="w-full mt-4"
                 >
                   <Sparkles className="w-4 h-4 mr-2" />
-                  {isAnalyzing ? 'Analyzing...' : 'Get New Recommendations'}
+                  {isAnalyzing ? 'Analyzing...' : shadeDatabaseLoading ? 'Loading shade data...' : 'Get New Recommendations'}
                 </Button>
               )}
             </CardContent>

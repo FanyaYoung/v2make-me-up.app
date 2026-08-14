@@ -20,6 +20,20 @@ export const useSubscription = () => {
     loading: true,
   });
 
+  const fetchSubscriptionStatus = async () => {
+    const { data, error } = await supabase.functions.invoke('check-subscription');
+
+    if (error) {
+      throw new Error(error.message || 'Unable to check subscription status.');
+    }
+
+    return {
+      subscribed: Boolean(data?.subscribed),
+      subscription_tier: data?.subscription_tier ?? null,
+      subscription_end: data?.subscription_end ?? null,
+    } satisfies Omit<SubscriptionStatus, 'loading'>;
+  };
+
   const checkSubscription = async () => {
     if (!user) {
       setSubscription({
@@ -32,17 +46,9 @@ export const useSubscription = () => {
     }
 
     try {
-      const { data, error } = await supabase.functions.invoke('check-subscription');
-      
-      if (error) {
-        console.error('Error checking subscription:', error);
-        return;
-      }
-
+      const nextSubscription = await fetchSubscriptionStatus();
       setSubscription({
-        subscribed: data.subscribed,
-        subscription_tier: data.subscription_tier,
-        subscription_end: data.subscription_end,
+        ...nextSubscription,
         loading: false,
       });
     } catch (error) {
@@ -58,14 +64,17 @@ export const useSubscription = () => {
       });
       
       if (error) {
-        console.error('Error creating checkout:', error);
-        return null;
+        throw new Error(error.message || 'Unable to create checkout session.');
       }
 
-      return data.url;
+      if (!data?.url) {
+        throw new Error('No checkout URL returned.');
+      }
+
+      return data.url as string;
     } catch (error) {
       console.error('Error invoking create-checkout:', error);
-      return null;
+      throw error instanceof Error ? error : new Error('Unable to create checkout session.');
     }
   };
 
@@ -74,14 +83,17 @@ export const useSubscription = () => {
       const { data, error } = await supabase.functions.invoke('customer-portal');
       
       if (error) {
-        console.error('Error opening customer portal:', error);
-        return null;
+        throw new Error(error.message || 'Unable to open customer portal.');
       }
 
-      return data.url;
+      if (!data?.url) {
+        throw new Error('No customer portal URL returned.');
+      }
+
+      return data.url as string;
     } catch (error) {
       console.error('Error invoking customer-portal:', error);
-      return null;
+      throw error instanceof Error ? error : new Error('Unable to open customer portal.');
     }
   };
 
@@ -98,17 +110,9 @@ export const useSubscription = () => {
       }
 
       try {
-        const { data, error } = await supabase.functions.invoke('check-subscription');
-
-        if (error) {
-          console.error('Error checking subscription:', error);
-          return;
-        }
-
+        const nextSubscription = await fetchSubscriptionStatus();
         setSubscription({
-          subscribed: data.subscribed,
-          subscription_tier: data.subscription_tier,
-          subscription_end: data.subscription_end,
+          ...nextSubscription,
           loading: false,
         });
       } catch (error) {

@@ -7,6 +7,7 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { openExternalUrl } from '@/lib/externalNavigation';
 
 interface RetailUpgradePromptProps {
   onUpgrade?: () => void;
@@ -19,10 +20,27 @@ export default function RetailUpgradePrompt({ onUpgrade }: RetailUpgradePromptPr
   // For now, retail access is available to any premium users (paying subscribers)
   const hasRetailAccess = subscription.isPremium;
 
-  const handleRetailUpgrade = () => {
-    // Open Stripe checkout in a new tab
-    window.open('https://buy.stripe.com/fZu14n8nibVk7AKbeednW08', '_blank');
-    if (onUpgrade) onUpgrade();
+  const handleRetailUpgrade = async () => {
+    if (!user) {
+      toast({
+        title: "Sign In Required",
+        description: "Please sign in to unlock retail features.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const url = await subscription.createCheckout('one_time');
+      await openExternalUrl(url, { preferSameTab: true });
+      if (onUpgrade) onUpgrade();
+    } catch (error) {
+      toast({
+        title: "Upgrade Failed",
+        description: error instanceof Error ? error.message : "Unable to start upgrade checkout.",
+        variant: "destructive",
+      });
+    }
   };
 
   if (hasRetailAccess) return null;
@@ -84,7 +102,7 @@ export default function RetailUpgradePrompt({ onUpgrade }: RetailUpgradePromptPr
               <p className="text-sm text-muted-foreground">Permanent access to retail features</p>
             </div>
             <div className="text-right">
-              <p className="text-2xl font-bold text-primary">$1.00</p>
+              <p className="text-2xl font-bold text-primary">$2.00</p>
               <Button 
                 onClick={handleRetailUpgrade}
                 className="bg-gradient-to-r from-rose-600 to-purple-600 hover:from-rose-700 hover:to-purple-700"

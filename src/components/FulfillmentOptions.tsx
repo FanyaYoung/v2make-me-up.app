@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { refreshFoundationMatchesPricing } from '@/lib/livePricing';
 import { trackUserActivity } from '@/lib/activityTracking';
+import { openExternalUrl } from '@/lib/externalNavigation';
 
 interface FulfillmentOptionsProps {
   products: {
@@ -171,8 +172,7 @@ const FulfillmentOptions: React.FC<FulfillmentOptionsProps> = ({ products, onPur
           item_count: refreshedProducts.length,
           fulfillment_method: selectedMethod,
         });
-        // Redirect to Stripe checkout
-        window.location.href = data.checkout_url;
+        await openExternalUrl(data.checkout_url, { preferSameTab: true });
       } else {
         throw new Error('No checkout URL returned');
       }

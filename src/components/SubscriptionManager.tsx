@@ -5,14 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { Check, Crown, Zap, Calendar, CreditCard } from 'lucide-react';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useToast } from '@/hooks/use-toast';
-
-// Pre-built Stripe payment URLs
-const STRIPE_PAYMENT_URLS = {
-  one_time: 'https://buy.stripe.com/test_4gweVo6QR2XMgMw5kl',
-  weekly: 'https://buy.stripe.com/test_6oEaFY3EFeAu4cE9AC',
-  monthly: 'https://buy.stripe.com/test_cN23dwhppasmfIscMN',
-  yearly: 'https://buy.stripe.com/test_5kA29s3EF5a2fIscMO',
-} as const;
+import { useAuth } from '@/hooks/useAuth';
+import { openExternalUrl } from '@/lib/externalNavigation';
 
 const TIERS = [
   {
@@ -28,7 +22,6 @@ const TIERS = [
     ],
     icon: Zap,
     popular: false,
-    paymentUrl: STRIPE_PAYMENT_URLS.one_time,
   },
   {
     id: 'weekly',
@@ -43,7 +36,6 @@ const TIERS = [
     ],
     icon: Calendar,
     popular: false,
-    paymentUrl: STRIPE_PAYMENT_URLS.weekly,
   },
   {
     id: 'monthly',
@@ -58,7 +50,6 @@ const TIERS = [
     ],
     icon: Crown,
     popular: true,
-    paymentUrl: STRIPE_PAYMENT_URLS.monthly,
   },
   {
     id: 'yearly',
@@ -73,7 +64,6 @@ const TIERS = [
     ],
     icon: Crown,
     popular: false,
-    paymentUrl: STRIPE_PAYMENT_URLS.yearly,
   },
 ];
 
@@ -81,28 +71,30 @@ export const SubscriptionManager = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState<string | null>(null);
   const subscription = useSubscription();
+  const { user } = useAuth();
 
   const handleUpgrade = async (tier: 'one_time' | 'weekly' | 'monthly' | 'yearly') => {
+    if (!user) {
+      toast({
+        title: "Sign In Required",
+        description: "Please sign in to manage or upgrade your plan.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(tier);
     try {
-      const paymentUrl = STRIPE_PAYMENT_URLS[tier];
-      if (paymentUrl) {
-        window.open(paymentUrl, '_blank');
-        toast({
-          title: "Redirecting to payment",
-          description: "You're being redirected to complete your purchase.",
-        });
-      } else {
-        toast({
-          title: "Error",
-          description: "Payment URL not found. Please try again.",
-          variant: "destructive",
-        });
-      }
+      const paymentUrl = await subscription.createCheckout(tier);
+      await openExternalUrl(paymentUrl, { preferSameTab: true });
+      toast({
+        title: "Redirecting to payment",
+        description: "You're being redirected to complete your purchase.",
+      });
     } catch (error) {
       toast({
         title: "Error",
-        description: "Something went wrong. Please try again.",
+        description: error instanceof Error ? error.message : "Something went wrong. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -111,22 +103,23 @@ export const SubscriptionManager = () => {
   };
 
   const handleManageSubscription = async () => {
+    if (!user) {
+      toast({
+        title: "Sign In Required",
+        description: "Please sign in to manage your subscription.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading('portal');
     try {
       const url = await subscription.openCustomerPortal();
-      if (url) {
-        window.open(url, '_blank');
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to open customer portal. Please try again.",
-          variant: "destructive",
-        });
-      }
+      await openExternalUrl(url, { preferSameTab: true });
     } catch (error) {
       toast({
         title: "Error",
-        description: "Something went wrong. Please try again.",
+        description: error instanceof Error ? error.message : "Something went wrong. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -242,7 +235,7 @@ export const SubscriptionManager = () => {
                   </Button>
                 ) : isUpgrade ? (
                   <Button
-                    onClick={() => handleUpgrade(tier.id as any)}
+                    onClick={() => handleUpgrade(tier.id)}
                     disabled={loading === tier.id}
                     className="w-full"
                     variant={tier.popular ? "default" : "outline"}

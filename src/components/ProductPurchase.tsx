@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,6 +29,7 @@ const ProductPurchase: React.FC<ProductPurchaseProps> = ({ product }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const handlePurchase = async () => {
     if (!user) {
@@ -36,8 +38,7 @@ const ProductPurchase: React.FC<ProductPurchaseProps> = ({ product }) => {
         description: "Please sign in to purchase products",
         variant: "destructive",
       });
-      // Redirect to auth page
-      window.location.href = '/auth';
+      navigate('/auth');
       return;
     }
 

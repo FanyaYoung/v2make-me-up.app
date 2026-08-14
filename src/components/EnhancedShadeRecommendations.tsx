@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +9,7 @@ import { ShoppingBag, Store, Truck, Globe, Copy, Check } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useSubscription } from '@/hooks/useSubscription';
+import { openExternalUrl } from '@/lib/externalNavigation';
 import RetailUpgradePrompt from './RetailUpgradePrompt';
 
 interface BrandWithShades {
@@ -76,11 +77,7 @@ export default function EnhancedShadeRecommendations({ matchedShades }: Enhanced
   // For now, retail access is available to any premium users (paying subscribers)
   const hasRetailAccess = subscription.isPremium;
 
-  useEffect(() => {
-    fetchEnhancedRecommendations();
-  }, [matchedShades]);
-
-  const fetchEnhancedRecommendations = async () => {
+  const fetchEnhancedRecommendations = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -180,7 +177,11 @@ export default function EnhancedShadeRecommendations({ matchedShades }: Enhanced
     } finally {
       setLoading(false);
     }
-  };
+  }, [matchedShades, toast]);
+
+  useEffect(() => {
+    void fetchEnhancedRecommendations();
+  }, [fetchEnhancedRecommendations]);
 
   const handlePurchase = (brand: BrandWithShades, optionType: string) => {
     const purchaseOption = brand.purchase_options.find(opt => opt.option_type === optionType);
@@ -195,7 +196,7 @@ export default function EnhancedShadeRecommendations({ matchedShades }: Enhanced
     }
 
     if (url !== '#') {
-      window.open(url, '_blank');
+      void openExternalUrl(url);
     }
   };
 

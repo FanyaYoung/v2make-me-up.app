@@ -16,6 +16,7 @@ import {
   Download
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { openExternalUrl } from '@/lib/externalNavigation';
 
 interface FoundationMatch {
   id: string;
@@ -41,7 +42,7 @@ interface TrueMatchFoundationResultsProps {
   primaryMatches: FoundationMatch[];
   secondaryMatches: FoundationMatch[];
   crossBrandMatches: FoundationMatch[];
-  analysisData: any;
+  analysisData: unknown;
   onSaveResults: () => void;
   onTryVirtual?: (match: FoundationMatch) => void;
 }
@@ -102,7 +103,7 @@ const TrueMatchFoundationResults: React.FC<TrueMatchFoundationResultsProps> = ({
 
   const handlePurchase = (match: FoundationMatch) => {
     // Open purchase URL in new tab
-    window.open(match.purchaseUrl, '_blank');
+    void openExternalUrl(match.purchaseUrl);
     toast.success(`Opening ${match.brand} purchase page...`);
   };
 
