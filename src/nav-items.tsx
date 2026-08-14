@@ -1,5 +1,5 @@
 import { Home, User, Palette, ShoppingCart, Package, Lightbulb, Pipette, ScanFace, Sparkles, FileText } from "lucide-react";
-import Landing from "./pages/Landing";
+import JackAssistant from "./pages/JackAssistant";
 import Auth from "./pages/Auth";
 import AuthCallback from "./pages/AuthCallback";
 import ShadeMatcher from "./pages/ShadeMatcher";
@@ -22,7 +22,7 @@ export const navItems = [
     title: "Home",
     to: "/",
     icon: <Home className="h-4 w-4" />,
-    page: <Landing />,
+    page: <JackAssistant />,
   },
   {
     title: "AI Shade Match", 
