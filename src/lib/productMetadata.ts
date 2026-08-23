@@ -10,6 +10,23 @@ export interface ProductMetadata {
   retailer?: string;
 }
 
+const mergeProductMetadata = (
+  base: ProductMetadata | undefined,
+  override: ProductMetadata,
+): ProductMetadata => {
+  if (!base) return override;
+
+  return {
+    brand: override.brand || base.brand,
+    product: override.product || base.product,
+    price: override.price ?? base.price,
+    productUrl: override.productUrl || base.productUrl,
+    imageUrl: override.imageUrl || base.imageUrl,
+    websiteLink: override.websiteLink || base.websiteLink,
+    retailer: override.retailer || base.retailer,
+  };
+};
+
 export const makeProductKey = (brand: string, product: string) =>
   `${brand}`.toLowerCase().trim().replace(/\s+/g, ' ') + '|' +
   `${product}`.toLowerCase().trim().replace(/\s+/g, ' ');
@@ -223,7 +240,7 @@ export const loadProductMetadataMap = async (): Promise<Map<string, ProductMetad
   // Override with newly uploaded Supabase pricing/photo/website rows.
   for (const [key, value] of supabaseMap.entries()) {
     const existing = merged.get(key);
-    merged.set(key, { ...(existing || value), ...value });
+    merged.set(key, mergeProductMetadata(existing, value));
   }
 
   return merged;
