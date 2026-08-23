@@ -128,6 +128,47 @@ const checkRakutenDeepLink = async (): Promise<EndpointResult> => {
   }
 };
 
+const sendViberAlertIfNeeded = async (report: HealthReport) => {
+  const token = getViberAuthToken();
+  if (!token) return;
+
+  const hasIssues = report.endpoints.some(
+    (e) => e.status === "down" || e.status === "degraded"
+  );
+  const staleThreshold = 10;
+  const hasStaleCache = report.cache.staleRows > staleThreshold;
+
+  if (!hasIssues && !hasStaleCache) return;
+
+  const supabase = adminSupabaseClient();
+  const { data: subscribers } = await supabase
+    .from("viber_subscriptions")
+    .select("viber_user_id")
+    .eq("is_active", true);
+
+  if (!subscribers || subscribers.length === 0) return;
+
+  const downEndpoints = report.endpoints.filter((e) => e.status === "down");
+  const degradedEndpoints = report.endpoints.filter((e) => e.status === "degraded");
+
+  let text = "Make Me Up pricing alert:\n";
+  if (downEndpoints.length) {
+    text += `\nDown: ${downEndpoints.map((e) => e.name).join(", ")}`;
+  }
+  if (degradedEndpoints.length) {
+    text += `\nDegraded: ${degradedEndpoints.map((e) => e.name).join(", ")}`;
+  }
+  if (hasStaleCache) {
+    text += `\nStale cache: ${report.cache.staleRows} products`;
+  }
+  text += `\n\nChecked at ${new Date(report.generatedAt).toLocaleString()}`;
+
+  for (const sub of subscribers) {
+    if (!sub.viber_user_id) continue;
+    await sendViberMessage({ receiver: sub.viber_user_id, type: "text", text });
+  }
+};
+
 const checkUlta = async (): Promise<EndpointResult> => {
   const base: Omit<EndpointResult, "status" | "httpStatus" | "latencyMs" | "detail"> = {
     id: "ulta_affiliate",
