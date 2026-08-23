@@ -73,7 +73,7 @@ const ProductRecommendations = ({ matches, onSelectMatch, currentFoundation }: P
                           <img 
                             src={match.imageUrl} 
                             alt={`${match.brand} ${match.product}`}
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-contain bg-gray-50 p-2"
                             onError={(e) => {
                               // Fallback to color swatch if image fails to load
                               const target = e.target as HTMLImageElement;

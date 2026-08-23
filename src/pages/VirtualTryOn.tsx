@@ -866,7 +866,7 @@ const VirtualTryOn = () => {
                     <img
                       src={pair.lightProduct.imageUrl || pair.lightProduct.imgSrc || PLACEHOLDER_IMAGE}
                       alt={pair.lightProduct.shade}
-                      className="w-full h-32 object-cover rounded"
+                      className="w-full h-32 object-contain rounded bg-muted/40 p-2"
                       data-image-index="0"
                       onError={(e) => {
                         advanceImageFallback(e.currentTarget, pair.lightProduct.imageCandidates);
@@ -911,7 +911,7 @@ const VirtualTryOn = () => {
                     <img
                       src={pair.darkProduct.imageUrl || pair.darkProduct.imgSrc || PLACEHOLDER_IMAGE}
                       alt={pair.darkProduct.shade}
-                      className="w-full h-32 object-cover rounded"
+                      className="w-full h-32 object-contain rounded bg-muted/40 p-2"
                       data-image-index="0"
                       onError={(e) => {
                         advanceImageFallback(e.currentTarget, pair.darkProduct.imageCandidates);
@@ -999,7 +999,7 @@ const VirtualTryOn = () => {
                           <img
                             src={pair.lightProduct.imageUrl || pair.lightProduct.imgSrc || PLACEHOLDER_IMAGE}
                             alt={pair.brand}
-                            className="w-full h-24 object-cover rounded mb-2"
+                            className="w-full h-24 object-contain rounded bg-muted/40 p-2 mb-2"
                             data-image-index="0"
                             onError={(e) => {
                               advanceImageFallback(e.currentTarget, pair.lightProduct.imageCandidates);

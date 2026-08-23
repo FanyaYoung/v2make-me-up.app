@@ -88,7 +88,7 @@ const EnhancedProductRecommendations = ({
                           <img 
                             src={shade.imageUrl} 
                             alt={`${shade.brand} ${shade.product}`}
-                            className="w-full h-full object-cover rounded-lg"
+                            className="w-full h-full object-contain rounded-lg bg-gray-50 p-2"
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
