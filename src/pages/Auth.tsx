@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { toast } from 'sonner';
 import { User, Session } from '@supabase/supabase-js';
 import { Eye, EyeOff } from 'lucide-react';
-import { checkRateLimit, getRateLimitKey, SECURITY_CONFIG } from '@/utils/security';
+import { checkRateLimit, clearRateLimit, getRateLimitKey, SECURITY_CONFIG } from '@/utils/security';
 import { validateEmail, validateInputLength } from '@/utils/sanitization';
 import { Separator } from '@/components/ui/separator';
 
@@ -17,6 +17,9 @@ const sanitizeReturnPath = (value: string | null | undefined) => {
   if (value.startsWith('//')) return '/';
   return value;
 };
+
+const buildAuthCallbackUrl = (nextPath: string) =>
+  `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`;
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -37,11 +40,12 @@ const Auth = () => {
   const [searchParams] = useSearchParams();
 
   useEffect(() => {
-    // Check if this is a password reset link
-    const type = searchParams.get('type');
-    const token = searchParams.get('token');
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    const type = searchParams.get('type') || hashParams.get('type');
+    const hasRecoverySession = Boolean(hashParams.get('access_token') || hashParams.get('refresh_token'));
+    const mode = searchParams.get('mode');
     
-    if (type === 'recovery' && token) {
+    if (mode === 'reset' || (type === 'recovery' && hasRecoverySession)) {
       setIsResetPassword(true);
       setIsForgotPassword(false);
       setIsLogin(false);
@@ -49,7 +53,7 @@ const Auth = () => {
 
     // Get return URL from query params
     const returnTo = sanitizeReturnPath(searchParams.get('returnTo'));
-    const oauthError = searchParams.get('oauthError');
+    const oauthError = searchParams.get('oauthError') || hashParams.get('error_description') || hashParams.get('error');
     if (oauthError && !hasShownOauthError.current) {
       hasShownOauthError.current = true;
       toast.error(decodeURIComponent(oauthError));
@@ -63,7 +67,7 @@ const Auth = () => {
         
         // Redirect authenticated users to return URL
         if (session?.user && !isResetPassword) {
-          navigate(returnTo);
+          navigate(returnTo, { replace: true });
         }
       }
     );
@@ -74,7 +78,7 @@ const Auth = () => {
       setUser(session?.user ?? null);
       
       if (session?.user && !isResetPassword) {
-        navigate(returnTo);
+        navigate(returnTo, { replace: true });
       }
     });
 
@@ -113,6 +117,7 @@ const Auth = () => {
       if (error) {
         toast.error(error.message);
       } else {
+        clearRateLimit(rateLimitKey);
         toast.success('Welcome back!');
       }
     } catch (error) {
@@ -152,7 +157,7 @@ const Auth = () => {
 
     try {
       const returnTo = sanitizeReturnPath(searchParams.get('returnTo'));
-      const redirectUrl = `${window.location.origin}${returnTo}`;
+      const redirectUrl = buildAuthCallbackUrl(returnTo);
       
       const { error } = await supabase.auth.signUp({
         email,
@@ -173,6 +178,7 @@ const Auth = () => {
           toast.error(error.message);
         }
       } else {
+        clearRateLimit(rateLimitKey);
         toast.success('Account created successfully! Please check your email to verify your account.');
       }
     } catch (error) {
@@ -187,7 +193,7 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      const redirectUrl = `${window.location.origin}/auth?type=recovery`;
+      const redirectUrl = buildAuthCallbackUrl('/auth?mode=reset');
       
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: redirectUrl,
@@ -232,7 +238,7 @@ const Auth = () => {
         toast.success('Password updated successfully!');
         // Reset form and redirect to home
         setIsResetPassword(false);
-        navigate('/');
+        navigate('/', { replace: true });
       }
     } catch (error) {
       toast.error('An unexpected error occurred');

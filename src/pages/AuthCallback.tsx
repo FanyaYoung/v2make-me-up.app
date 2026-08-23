@@ -14,7 +14,12 @@ const AuthCallback = () => {
 
   useEffect(() => {
     const handleCallback = async () => {
-      const oauthError = searchParams.get('error_description') || searchParams.get('error');
+      const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+      const oauthError =
+        searchParams.get('error_description') ||
+        searchParams.get('error') ||
+        hashParams.get('error_description') ||
+        hashParams.get('error');
       if (oauthError) {
         navigate(`/auth?oauthError=${encodeURIComponent(oauthError)}`, { replace: true });
         return;
