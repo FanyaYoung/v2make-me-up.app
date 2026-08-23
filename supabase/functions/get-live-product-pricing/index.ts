@@ -51,12 +51,17 @@ const scoreCandidate = (candidate: RakutenProduct, brand: string, product: strin
 };
 
 const fetchRakutenProducts = async (brand: string, product: string): Promise<RakutenProduct[]> => {
+  const rakutenToken0 = Deno.env.get("RAKUTEN_ADVERTISING_TOKEN");
+  if (!rakutenToken0) {
+    throw new Error("Rakuten API not configured");
+  }
+
   const keywords = encodeURIComponent(`${brand} ${product} foundation makeup`.trim());
   const rakutenUrl = `https://api.linksynergy.com/productsearch/1.0?keyword=${keywords}&max=5&pagenumber=1&sort=productname&sorttype=asc&language=en_US&cat=beauty`;
 
   const response = await fetch(rakutenUrl, {
     method: "GET",
-    headers: { Accept: "application/json" },
+    headers: { Accept: "application/json", Authorization: `Bearer ${rakutenToken0}` },
   });
 
   if (!response.ok) {
