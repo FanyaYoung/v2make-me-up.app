@@ -267,7 +267,15 @@ serve(async (req) => {
         );
       }
 
-      throw refreshError;
+      // No cache to fall back on: degrade gracefully so the client keeps catalog pricing.
+      return new Response(
+        JSON.stringify({
+          source: "unavailable",
+          cached: false,
+          warning: refreshError instanceof Error ? refreshError.message : "Live refresh failed",
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : "Service temporarily unavailable";
