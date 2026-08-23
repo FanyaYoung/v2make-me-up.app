@@ -26,7 +26,8 @@ interface ColorAnalysisResult {
 const ColorMatchingTest = () => {
   const [color1, setColor1] = useState('#F5C6A8'); // Light skin tone
   const [color2, setColor2] = useState('#D4A574'); // Medium skin tone
-  const [results, setResults] = useState<ColorAnalysisResult | { error: string } | null>(null);
+  const [results, setResults] = useState<ColorAnalysisResult | null>(null);
+  const [resultError, setResultError] = useState<string | null>(null);
 
   const testColorMatching = () => {
     // Test the complete CIELAB pipeline
@@ -145,7 +146,7 @@ const ColorMatchingTest = () => {
         </Button>
 
         {/* Results Section */}
-        {results && !results.error && (
+        {results && !resultError && (
           <div className="space-y-4 mt-6">
             <div className="text-center">
               <div className="text-3xl font-bold text-primary">
@@ -195,9 +196,9 @@ const ColorMatchingTest = () => {
           </div>
         )}
 
-        {results?.error && (
+        {resultError && (
           <div className="text-red-500 text-center">
-            Error: {results.error}
+            Error: {resultError}
           </div>
         )}
       </CardContent>
