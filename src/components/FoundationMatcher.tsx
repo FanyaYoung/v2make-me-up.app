@@ -191,8 +191,8 @@ const FoundationMatcher = () => {
           },
           matchPercentage,
           undertone: shade.undertone || inferUndertoneFromShade(shade.shade_name),
-          coverage: shade.coverage || shade.product_coverage || 'medium',
-          finish: shade.finish || shade.product_finish || 'natural',
+          coverage: shade.product_coverage || 'medium',
+          finish: shade.product_finish || 'natural',
           imageUrl: shade.product_image_url || '/placeholder.svg',
           primaryShade: {
             name: shade.shade_name,

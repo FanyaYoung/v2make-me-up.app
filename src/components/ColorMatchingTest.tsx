@@ -145,7 +145,7 @@ const ColorMatchingTest = () => {
         </Button>
 
         {/* Results Section */}
-        {results && !results.error && (
+        {results && 'deltaE' in results && (
           <div className="space-y-4 mt-6">
             <div className="text-center">
               <div className="text-3xl font-bold text-primary">

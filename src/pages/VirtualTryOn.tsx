@@ -33,6 +33,7 @@ interface ShadeRow {
   shade: string;
   hex: string;
   imgSrc: string;
+  imageUrl?: string;
   price?: number;
   store?: string;
   website?: string;
