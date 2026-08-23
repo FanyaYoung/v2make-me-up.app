@@ -26,6 +26,44 @@ const RETAILER_OPTIONS = ['Amazon', 'Ulta Beauty', 'Sephora', 'MAC', "Macy's", '
 const withFallbackImage = (src: string | undefined | null) => {
   return (src && src.trim()) || PLACEHOLDER_IMAGE;
 };
+const normalizeImageCandidates = (candidates: Array<string | undefined | null>) =>
+  [...new Set(candidates.map((candidate) => candidate?.trim()).filter((candidate): candidate is string => !!candidate && candidate !== PLACEHOLDER_IMAGE))];
+
+const buildImageCandidates = (
+  imageSources: Array<string | undefined | null>,
+  productUrls: Array<string | undefined | null>,
+) => {
+  const candidates: string[] = [];
+
+  imageSources.forEach((imageSource) => {
+    productUrls.forEach((productUrl) => {
+      const normalized = normalizeImageUrl(imageSource || undefined, productUrl || undefined);
+      if (normalized) candidates.push(normalized);
+    });
+
+    if (imageSource?.startsWith('http://') || imageSource?.startsWith('https://')) {
+      candidates.push(imageSource);
+    }
+  });
+
+  return normalizeImageCandidates(candidates);
+};
+
+const advanceImageFallback = (img: HTMLImageElement, candidates?: string[]) => {
+  const normalizedCandidates = normalizeImageCandidates(candidates || []);
+  const currentIndex = Number(img.dataset.imageIndex || '0');
+  const nextIndex = currentIndex + 1;
+
+  if (nextIndex < normalizedCandidates.length) {
+    img.dataset.imageIndex = String(nextIndex);
+    img.src = normalizedCandidates[nextIndex];
+    return true;
+  }
+
+  img.dataset.imageIndex = '0';
+  img.src = PLACEHOLDER_IMAGE;
+  return false;
+};
 
 const ANALYSIS_TIMEOUT_MS = 45000;
 
@@ -126,6 +164,7 @@ interface FoundationMatch {
   undertone: string;
   url: string;
   img: string;
+  imageCandidates?: string[];
   score: number;
   pigmentColor: PigmentColor;
   price?: number;
@@ -143,6 +182,7 @@ interface ShadeData {
   url: string;
   description: string;
   imgSrc: string;
+  imageCandidates: string[];
   imgAlt: string;
   name: string;
   specific: string;
@@ -257,7 +297,11 @@ export const AISkinToneMatcher = () => {
         const enrichedUrl = enriched?.productUrl || '';
         const resolvedUrl = enrichedUrl || baseUrl;
         const baseImg = values[idx.imgSrc] || values[4] || '';
-        const resolvedImg = enriched?.imageUrl || normalizeImageUrl(baseImg, resolvedUrl);
+        const imageCandidates = buildImageCandidates(
+          [enriched?.imageUrl, baseImg],
+          [resolvedUrl, baseUrl, enriched?.websiteLink],
+        );
+        const resolvedImg = imageCandidates[0] || '';
 
         return {
           brand,
@@ -265,6 +309,7 @@ export const AISkinToneMatcher = () => {
           url: resolvedUrl,
           description: values[idx.description] || values[3] || '',
           imgSrc: resolvedImg || '',
+          imageCandidates,
           imgAlt: values[idx.imgAlt] || values[5] || '',
           name: values[idx.name] || values[6] || '',
           specific: values[idx.specific] || values[7] || '',
@@ -438,6 +483,7 @@ export const AISkinToneMatcher = () => {
         undertone: '',
         url: match.url,
         img: withFallbackImage(match.imgSrc),
+        imageCandidates: match.imageCandidates,
         score: 100 - (match.distance / 441.67) * 100,
         pigmentColor: productPigmentColor,
         price: match.price,
@@ -495,7 +541,14 @@ export const AISkinToneMatcher = () => {
         refreshedPairs.push({
           light: {
             ...currentPair.light,
-            img: light.imageUrl || currentPair.light.img,
+            img: buildImageCandidates(
+              [light.imageUrl, currentPair.light.img, ...(currentPair.light.imageCandidates || [])],
+              [light.productUrl, currentPair.light.url],
+            )[0] || currentPair.light.img,
+            imageCandidates: buildImageCandidates(
+              [light.imageUrl, currentPair.light.img, ...(currentPair.light.imageCandidates || [])],
+              [light.productUrl, currentPair.light.url],
+            ),
             url: light.productUrl || currentPair.light.url,
             affiliateUrl: light.affiliateUrl || currentPair.light.affiliateUrl,
             price: typeof light.price === 'number' && light.price > 0 ? light.price : currentPair.light.price,
@@ -507,7 +560,14 @@ export const AISkinToneMatcher = () => {
           },
           dark: {
             ...currentPair.dark,
-            img: dark.imageUrl || currentPair.dark.img,
+            img: buildImageCandidates(
+              [dark.imageUrl, currentPair.dark.img, ...(currentPair.dark.imageCandidates || [])],
+              [dark.productUrl, currentPair.dark.url],
+            )[0] || currentPair.dark.img,
+            imageCandidates: buildImageCandidates(
+              [dark.imageUrl, currentPair.dark.img, ...(currentPair.dark.imageCandidates || [])],
+              [dark.productUrl, currentPair.dark.url],
+            ),
             url: dark.productUrl || currentPair.dark.url,
             affiliateUrl: dark.affiliateUrl || currentPair.dark.affiliateUrl,
             price: typeof dark.price === 'number' && dark.price > 0 ? dark.price : currentPair.dark.price,
@@ -581,6 +641,7 @@ export const AISkinToneMatcher = () => {
           undertone: '',
           url: lightMatch.url,
           img: withFallbackImage(lightMatch.imgSrc),
+          imageCandidates: lightMatch.imageCandidates,
           score: 100 - (bestLight.distance / 441.67) * 100,
           pigmentColor: lightPigmentColor,
           price: lightMatch.price,
@@ -598,6 +659,7 @@ export const AISkinToneMatcher = () => {
           undertone: '',
           url: darkMatch.url,
           img: withFallbackImage(darkMatch.imgSrc),
+          imageCandidates: darkMatch.imageCandidates,
           score: 100 - (bestDark.distance / 441.67) * 100,
           pigmentColor: darkPigmentColor,
           price: darkMatch.price,
@@ -668,6 +730,7 @@ export const AISkinToneMatcher = () => {
         undertone: '',
         url: best.url,
         img: withFallbackImage(best.imgSrc),
+        imageCandidates: best.imageCandidates,
         score: 100 - (alternates[0].distance / 441.67) * 100,
         pigmentColor: createPigmentColor(best.hex),
         price: best.price,
@@ -1399,10 +1462,11 @@ export const AISkinToneMatcher = () => {
                           src={pair.light.img} 
                           alt={pair.light.shade_name}
                           className="max-h-full max-w-full object-contain"
+                          data-image-index="0"
                           onError={(e) => {
+                            if (advanceImageFallback(e.currentTarget, pair.light.imageCandidates)) return;
                             const fallbackTarget = lightestResult?.hex || pair.light.hex;
                             replacePairShadeWithAlternate(idx, 'light', fallbackTarget);
-                            e.currentTarget.src = PLACEHOLDER_IMAGE;
                           }}
                         />
                       </div>
@@ -1456,10 +1520,11 @@ export const AISkinToneMatcher = () => {
                           src={pair.dark.img} 
                           alt={pair.dark.shade_name}
                           className="max-h-full max-w-full object-contain"
+                          data-image-index="0"
                           onError={(e) => {
+                            if (advanceImageFallback(e.currentTarget, pair.dark.imageCandidates)) return;
                             const fallbackTarget = darkestResult?.hex || pair.dark.hex;
                             replacePairShadeWithAlternate(idx, 'dark', fallbackTarget);
-                            e.currentTarget.src = PLACEHOLDER_IMAGE;
                           }}
                         />
                       </div>
@@ -1523,6 +1588,7 @@ export const AISkinToneMatcher = () => {
                                   hex: p.light.hex,
                                   imgSrc: p.light.img,
                                   imageUrl: p.light.img,
+                                  imageCandidates: p.light.imageCandidates,
                                   url: p.light.url,
                                   price: p.light.price
                                 },
@@ -1533,6 +1599,7 @@ export const AISkinToneMatcher = () => {
                                   hex: p.dark.hex,
                                   imgSrc: p.dark.img,
                                   imageUrl: p.dark.img,
+                                  imageCandidates: p.dark.imageCandidates,
                                   url: p.dark.url,
                                   price: p.dark.price
                                 }

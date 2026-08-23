@@ -67,7 +67,7 @@ export const normalizeImageUrl = (imgSrc?: string, productUrl?: string) => {
   if (!imgSrc || !imgSrc.trim()) return '';
   const src = imgSrc.trim();
   if (src.startsWith('http://') || src.startsWith('https://')) return upgradeRetailerImageUrl(src);
-  if (src.startsWith('//')) return `https:${src}`;
+  if (src.startsWith('//')) return upgradeRetailerImageUrl(`https:${src}`);
   if (src.startsWith('/')) {
     try {
       const origin = productUrl ? new URL(productUrl).origin : '';

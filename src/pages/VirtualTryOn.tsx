@@ -34,6 +34,7 @@ interface ShadeRow {
   hex: string;
   imgSrc: string;
   imageUrl?: string;
+  imageCandidates?: string[];
   price?: number;
   store?: string;
   website?: string;
@@ -41,6 +42,43 @@ interface ShadeRow {
 
 const ANALYSIS_TIMEOUT_MS = 45000;
 const PLACEHOLDER_IMAGE = '/placeholder.svg';
+const normalizeImageCandidates = (candidates: Array<string | undefined | null>) =>
+  [...new Set(candidates.map((candidate) => candidate?.trim()).filter((candidate): candidate is string => !!candidate && candidate !== PLACEHOLDER_IMAGE))];
+
+const buildImageCandidates = (
+  imageSources: Array<string | undefined | null>,
+  productUrls: Array<string | undefined | null>,
+) => {
+  const candidates: string[] = [];
+
+  imageSources.forEach((imageSource) => {
+    productUrls.forEach((productUrl) => {
+      const normalized = normalizeImageUrl(imageSource || undefined, productUrl || undefined);
+      if (normalized) candidates.push(normalized);
+    });
+
+    if (imageSource?.startsWith('http://') || imageSource?.startsWith('https://')) {
+      candidates.push(imageSource);
+    }
+  });
+
+  return normalizeImageCandidates(candidates);
+};
+
+const advanceImageFallback = (img: HTMLImageElement, candidates?: string[]) => {
+  const normalizedCandidates = normalizeImageCandidates(candidates || []);
+  const currentIndex = Number(img.dataset.imageIndex || '0');
+  const nextIndex = currentIndex + 1;
+
+  if (nextIndex < normalizedCandidates.length) {
+    img.dataset.imageIndex = String(nextIndex);
+    img.src = normalizedCandidates[nextIndex];
+    return;
+  }
+
+  img.dataset.imageIndex = '0';
+  img.src = PLACEHOLDER_IMAGE;
+};
 
 const withTimeout = async <T,>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -115,7 +153,7 @@ const toCartMatch = (product: ShadeRow, brandOverride?: string): FoundationMatch
   undertone: 'neutral',
   coverage: 'medium',
   finish: 'natural',
-  imageUrl: product.imgSrc || PLACEHOLDER_IMAGE,
+  imageUrl: product.imageUrl || product.imgSrc || PLACEHOLDER_IMAGE,
   productUrl: product.url,
   retailer: product.store,
 });
@@ -198,7 +236,11 @@ const VirtualTryOn = () => {
             const baseUrl = (values[idx.url] || values[2] || '').trim();
             const url = (metadata?.productUrl || baseUrl || '').trim();
             const baseImg = (values[idx.imgSrc] || values[4] || '').trim();
-            const imgSrc = metadata?.imageUrl || normalizeImageUrl(baseImg, url);
+            const imageCandidates = buildImageCandidates(
+              [metadata?.imageUrl, baseImg],
+              [url, baseUrl, metadata?.websiteLink],
+            );
+            const imgSrc = imageCandidates[0] || '';
             const price = normalizePrice(values[idx.price]) ?? metadata?.price;
             const shade = (values[idx.name] || values[idx.description] || values[6] || values[3] || '').trim();
             const hex = (values[idx.hex] || values[9] || '').trim();
@@ -210,6 +252,7 @@ const VirtualTryOn = () => {
               shade,
               hex,
               imgSrc: imgSrc || '',
+              imageCandidates,
               price,
               store: getStoreFromUrl(url),
               website: getWebsiteFromUrl(url),
@@ -824,8 +867,9 @@ const VirtualTryOn = () => {
                       src={pair.lightProduct.imageUrl || pair.lightProduct.imgSrc || PLACEHOLDER_IMAGE}
                       alt={pair.lightProduct.shade}
                       className="w-full h-32 object-cover rounded"
+                      data-image-index="0"
                       onError={(e) => {
-                        e.currentTarget.src = PLACEHOLDER_IMAGE;
+                        advanceImageFallback(e.currentTarget, pair.lightProduct.imageCandidates);
                       }}
                     />
                     <div className="flex items-center gap-2">
@@ -868,8 +912,9 @@ const VirtualTryOn = () => {
                       src={pair.darkProduct.imageUrl || pair.darkProduct.imgSrc || PLACEHOLDER_IMAGE}
                       alt={pair.darkProduct.shade}
                       className="w-full h-32 object-cover rounded"
+                      data-image-index="0"
                       onError={(e) => {
-                        e.currentTarget.src = PLACEHOLDER_IMAGE;
+                        advanceImageFallback(e.currentTarget, pair.darkProduct.imageCandidates);
                       }}
                     />
                     <div className="flex items-center gap-2">
@@ -955,8 +1000,9 @@ const VirtualTryOn = () => {
                             src={pair.lightProduct.imageUrl || pair.lightProduct.imgSrc || PLACEHOLDER_IMAGE}
                             alt={pair.brand}
                             className="w-full h-24 object-cover rounded mb-2"
+                            data-image-index="0"
                             onError={(e) => {
-                              e.currentTarget.src = PLACEHOLDER_IMAGE;
+                              advanceImageFallback(e.currentTarget, pair.lightProduct.imageCandidates);
                             }}
                           />
                           <p className="text-sm font-medium">{pair.brand}</p>
