@@ -3140,6 +3140,45 @@ export type Database = {
         }
         Relationships: []
       }
+      viber_subscriptions: {
+        Row: {
+          avatar: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string | null
+          subscribed_at: string | null
+          unsubscribed_at: string | null
+          updated_at: string
+          viber_chat_id: string
+          viber_user_id: string
+        }
+        Insert: {
+          avatar?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string | null
+          subscribed_at?: string | null
+          unsubscribed_at?: string | null
+          updated_at?: string
+          viber_chat_id: string
+          viber_user_id: string
+        }
+        Update: {
+          avatar?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string | null
+          subscribed_at?: string | null
+          unsubscribed_at?: string | null
+          updated_at?: string
+          viber_chat_id?: string
+          viber_user_id?: string
+        }
+        Relationships: []
+      }
       virtual_try_on_sessions: {
         Row: {
           created_at: string | null
