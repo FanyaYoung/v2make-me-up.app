@@ -302,20 +302,26 @@ serve(async (req) => {
       .select("*", { count: "exact", head: true })
       .gte("last_checked_at", oneHourAgo);
 
-    return new Response(
-      JSON.stringify({
-        generatedAt: nowIso,
-        endpoints,
-        cache: {
-          totalRows: totalRows ?? 0,
-          freshRows: freshRows ?? 0,
-          staleRows: staleRows ?? 0,
-          fetchedLastHour: lastHourRows ?? 0,
-        },
-        recentFetches: recent.data ?? [],
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    const report: HealthReport = {
+      generatedAt: nowIso,
+      endpoints,
+      cache: {
+        totalRows: totalRows ?? 0,
+        freshRows: freshRows ?? 0,
+        staleRows: staleRows ?? 0,
+        fetchedLastHour: lastHourRows ?? 0,
+      },
+      recentFetches: recent.data ?? [],
+    };
+
+    // Fire Viber alerts in the background; don't block the HTTP response.
+    sendViberAlertIfNeeded(report).catch((err) =>
+      console.error("Failed to send Viber pricing alert:", err)
     );
+
+    return new Response(JSON.stringify(report), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (error) {
     console.error("pricing-health error", error);
     return new Response(JSON.stringify({ error: "Health check failed" }), {
