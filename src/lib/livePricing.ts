@@ -66,7 +66,7 @@ const fetchCachedLivePricing = async (
       source?: PricingSnapshot['source'];
     } | null;
 
-    if (!snapshot) return null;
+    if (!snapshot || snapshot.source === 'unavailable') return null;
     const resolvedProductUrl = snapshot.productUrl;
     const affiliateUrl = buildAffiliateUrl(snapshot.affiliateUrl || snapshot.productUrl);
 
