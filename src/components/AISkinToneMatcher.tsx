@@ -108,6 +108,26 @@ const getWebsiteFromUrl = (url?: string) => {
   }
 };
 
+const resolveShopDestinationUrl = (product: {
+  affiliateUrl?: string;
+  url?: string;
+}) => {
+  const candidates = [product.affiliateUrl, product.url];
+
+  for (const candidate of candidates) {
+    if (!candidate?.trim()) continue;
+    const value = candidate.trim();
+
+    try {
+      return new URL(value).toString();
+    } catch {
+      if (value.startsWith('//')) return `https:${value}`;
+    }
+  }
+
+  return '';
+};
+
 const formatAvailabilityStatus = (value?: string) => {
   if (!value) return 'Availability not confirmed';
   switch (value.toLowerCase()) {
@@ -736,7 +756,7 @@ export const AISkinToneMatcher = () => {
         price: best.price,
         store: best.retailer || getStoreFromUrl(best.url),
         website: getWebsiteFromUrl(best.url),
-        affiliateUrl: currentShade.affiliateUrl,
+        affiliateUrl: undefined,
         priceCheckedAt: currentShade.priceCheckedAt,
         priceSource: currentShade.priceSource,
         availabilityStatus: currentShade.availabilityStatus,
@@ -1070,7 +1090,7 @@ export const AISkinToneMatcher = () => {
 
 
   const handleShopShade = async (product: FoundationMatch) => {
-    const destinationUrl = product.affiliateUrl || product.url;
+    const destinationUrl = resolveShopDestinationUrl(product);
     if (!destinationUrl) {
       toast({
         title: "Link unavailable",
@@ -1081,17 +1101,18 @@ export const AISkinToneMatcher = () => {
     }
 
     const provider = inferAffiliateProvider(destinationUrl);
+    const retailer = product.store || getStoreFromUrl(product.url);
 
     try {
       if (user) {
-        await trackUserActivity(user.id, 'shade_shop_redirect_started', {
+        void trackUserActivity(user.id, 'shade_shop_redirect_started', {
           source: 'ai_skin_tone_matcher',
-          retailer: product.store || getStoreFromUrl(product.url),
+          retailer,
           shade_name: product.shade_name,
         });
       }
 
-      await supabase.functions.invoke('track-affiliate-click', {
+      void supabase.functions.invoke('track-affiliate-click', {
         body: {
           provider,
           offerId: `${product.brand}-${product.product}-${product.shade_name}`,
@@ -1103,9 +1124,9 @@ export const AISkinToneMatcher = () => {
       await openExternalUrl(destinationUrl, { preferSameTab: true });
 
       if (user) {
-        await trackUserActivity(user.id, 'shade_shop_redirect_completed', {
+        void trackUserActivity(user.id, 'shade_shop_redirect_completed', {
           source: 'ai_skin_tone_matcher',
-          retailer: product.store || getStoreFromUrl(product.url),
+          retailer,
           shade_name: product.shade_name,
         });
       }
