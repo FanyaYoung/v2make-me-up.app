@@ -1210,6 +1210,72 @@ export type Database = {
         }
         Relationships: []
       }
+      pricing_alert_events: {
+        Row: {
+          created_at: string
+          delivered: boolean
+          delivery_error: string | null
+          details: Json
+          id: string
+          severity: string
+          summary: string
+        }
+        Insert: {
+          created_at?: string
+          delivered?: boolean
+          delivery_error?: string | null
+          details?: Json
+          id?: string
+          severity?: string
+          summary: string
+        }
+        Update: {
+          created_at?: string
+          delivered?: boolean
+          delivery_error?: string | null
+          details?: Json
+          id?: string
+          severity?: string
+          summary?: string
+        }
+        Relationships: []
+      }
+      pricing_alert_settings: {
+        Row: {
+          alerts_enabled: boolean
+          cooldown_minutes: number
+          created_at: string
+          id: string
+          last_alert_at: string | null
+          singleton: boolean
+          stale_ratio_threshold: number
+          stale_threshold_hours: number
+          updated_at: string
+        }
+        Insert: {
+          alerts_enabled?: boolean
+          cooldown_minutes?: number
+          created_at?: string
+          id?: string
+          last_alert_at?: string | null
+          singleton?: boolean
+          stale_ratio_threshold?: number
+          stale_threshold_hours?: number
+          updated_at?: string
+        }
+        Update: {
+          alerts_enabled?: boolean
+          cooldown_minutes?: number
+          created_at?: string
+          id?: string
+          last_alert_at?: string | null
+          singleton?: boolean
+          stale_ratio_threshold?: number
+          stale_threshold_hours?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       "Primary Tables": {
         Row: {
           brand: string

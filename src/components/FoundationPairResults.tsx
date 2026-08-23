@@ -6,7 +6,6 @@ import { Star, ShoppingCart, Eye, Palette, Blend, Plus } from 'lucide-react';
 import { FoundationMatch } from '../types/foundation';
 import { useCart } from '@/hooks/useCart';
 import { toast } from '@/hooks/use-toast';
-import { PriceFreshness } from '@/components/PriceFreshness';
 
 interface FoundationPairResultsProps {
   pairs: FoundationMatch[][];
@@ -98,14 +97,8 @@ const FoundationPairResults = ({ pairs, onTryVirtual, onSelectPair }: Foundation
                     </div>
 
                     <div className="flex items-center justify-between">
-                      <span className="flex flex-col">
-                        <span className="font-semibold text-lg">
-                          {formatPrice(primaryMatch.price)}
-                        </span>
-                        <PriceFreshness
-                          checkedAt={primaryMatch.priceCheckedAt}
-                          source={primaryMatch.priceSource ?? (primaryMatch.price > 0 ? 'catalog' : 'unavailable')}
-                        />
+                      <span className="font-semibold text-lg">
+                        {formatPrice(primaryMatch.price)}
                       </span>
                       <Badge 
                         variant={primaryMatch.matchPercentage >= 90 ? "default" : "secondary"}
@@ -142,14 +135,8 @@ const FoundationPairResults = ({ pairs, onTryVirtual, onSelectPair }: Foundation
                     </div>
 
                     <div className="flex items-center justify-between">
-                      <span className="flex flex-col">
-                        <span className="font-semibold text-lg">
-                          {formatPrice(contourMatch.price)}
-                        </span>
-                        <PriceFreshness
-                          checkedAt={contourMatch.priceCheckedAt}
-                          source={contourMatch.priceSource ?? (contourMatch.price > 0 ? 'catalog' : 'unavailable')}
-                        />
+                      <span className="font-semibold text-lg">
+                        {formatPrice(contourMatch.price)}
                       </span>
                       <Badge 
                         variant={contourMatch.matchPercentage >= 85 ? "default" : "secondary"}

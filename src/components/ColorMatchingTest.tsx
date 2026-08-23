@@ -26,7 +26,8 @@ interface ColorAnalysisResult {
 const ColorMatchingTest = () => {
   const [color1, setColor1] = useState('#F5C6A8'); // Light skin tone
   const [color2, setColor2] = useState('#D4A574'); // Medium skin tone
-  const [results, setResults] = useState<ColorAnalysisResult | { error: string } | null>(null);
+  const [results, setResults] = useState<ColorAnalysisResult | null>(null);
+  const [resultError, setResultError] = useState<string | null>(null);
 
   const testColorMatching = () => {
     // Test the complete CIELAB pipeline
@@ -34,7 +35,8 @@ const ColorMatchingTest = () => {
     const rgb2 = hexToRgb(color2);
     
     if (!rgb1 || !rgb2) {
-      setResults({ error: 'Invalid hex colors' });
+      setResults(null);
+      setResultError('Invalid hex colors');
       return;
     }
 
@@ -47,6 +49,7 @@ const ColorMatchingTest = () => {
     const deltaE = deltaE2000(lab1, lab2);
     const matchPercentage = Math.max(0, 100 - (deltaE * 2));
 
+    setResultError(null);
     setResults({
       color1: {
         hex: color1,
@@ -145,7 +148,7 @@ const ColorMatchingTest = () => {
         </Button>
 
         {/* Results Section */}
-        {results && 'deltaE' in results && (
+        {results && !resultError && (
           <div className="space-y-4 mt-6">
             <div className="text-center">
               <div className="text-3xl font-bold text-primary">
@@ -195,9 +198,9 @@ const ColorMatchingTest = () => {
           </div>
         )}
 
-        {results?.error && (
+        {resultError && (
           <div className="text-red-500 text-center">
-            Error: {results.error}
+            Error: {resultError}
           </div>
         )}
       </CardContent>

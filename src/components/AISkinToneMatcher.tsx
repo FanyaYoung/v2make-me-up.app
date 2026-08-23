@@ -17,8 +17,7 @@ import { loadProductMetadataMap, parseCsvRow, normalizeImageUrl, ProductMetadata
 import { PigmentColorDisplay } from './PigmentColorDisplay';
 import { useCart } from '@/hooks/useCart';
 import { useAuth } from '@/hooks/useAuth';
-import { refreshFoundationMatchesPricing, getProductPricingSnapshot } from '@/lib/livePricing';
-import { PriceFreshness, type PriceSource } from '@/components/PriceFreshness';
+import { refreshFoundationMatchesPricing } from '@/lib/livePricing';
 import { trackUserActivity } from '@/lib/activityTracking';
 import { openExternalUrl } from '@/lib/externalNavigation';
 
@@ -94,8 +93,6 @@ interface FoundationMatch {
   price?: number;
   store?: string;
   website?: string;
-  priceCheckedAt?: string;
-  priceSource?: PriceSource;
 }
 
 type CartFoundationMatch = {
@@ -591,32 +588,6 @@ export const AISkinToneMatcher = () => {
     return hydrateBrandPairs(selectedPairs);
   };
 
-  const applyPricingSnapshot = async (match: FoundationMatch): Promise<FoundationMatch> => {
-    try {
-      const snapshot = await getProductPricingSnapshot(match.brand, match.product);
-      return {
-        ...match,
-        price: snapshot.price ?? match.price,
-        priceCheckedAt: snapshot.checkedAt,
-        priceSource: snapshot.source as PriceSource,
-      };
-    } catch (error) {
-      console.warn('Pricing snapshot failed', error);
-      return { ...match, priceSource: match.price ? 'catalog' : 'unavailable' };
-    }
-  };
-
-  const hydratePairsWithLivePricing = async (
-    pairs: Array<{ light: FoundationMatch; dark: FoundationMatch; avgDistance?: number }>
-  ) =>
-    Promise.all(
-      pairs.map(async (pair) => ({
-        ...pair,
-        light: await applyPricingSnapshot(pair.light),
-        dark: await applyPricingSnapshot(pair.dark),
-      }))
-    );
-
   const replacePairShadeWithAlternate = (pairIndex: number, side: 'light' | 'dark', targetHex: string) => {
     setBrandPairs(prev => {
       const current = prev[pairIndex];
@@ -918,7 +889,7 @@ export const AISkinToneMatcher = () => {
       setLoadingMessage("Finding matching foundation pairs from brands...");
       
       const pairs = await findBrandPairs(lightestHex, darkestHex, 4);
-      setBrandPairs(await hydratePairsWithLivePricing(pairs));
+      setBrandPairs(pairs);
 
       if (pairs.length === 0) {
         toast({
@@ -1412,14 +1383,8 @@ export const AISkinToneMatcher = () => {
                           />
                           <span className="text-xs text-muted-foreground">{describeSkinTone(pair.light.hex).name}</span>
                         </div>
-                        <span className="flex flex-col items-end">
-                          <span className="text-sm font-bold text-primary">
-                            {typeof pair.light.price === 'number' ? `$${pair.light.price.toFixed(2)}` : 'Price unavailable'}
-                          </span>
-                          <PriceFreshness
-                            checkedAt={pair.light.priceCheckedAt}
-                            source={pair.light.priceSource ?? (pair.light.price ? 'catalog' : 'unavailable')}
-                          />
+                        <span className="text-sm font-bold text-primary">
+                          {typeof pair.light.price === 'number' ? `$${pair.light.price.toFixed(2)}` : 'Price unavailable'}
                         </span>
                       </div>
                       <Button
@@ -1488,14 +1453,8 @@ export const AISkinToneMatcher = () => {
                           />
                           <span className="text-xs text-muted-foreground">{describeSkinTone(pair.dark.hex).name}</span>
                         </div>
-                        <span className="flex flex-col items-end">
-                          <span className="text-sm font-bold text-primary">
-                            {typeof pair.dark.price === 'number' ? `$${pair.dark.price.toFixed(2)}` : 'Price unavailable'}
-                          </span>
-                          <PriceFreshness
-                            checkedAt={pair.dark.priceCheckedAt}
-                            source={pair.dark.priceSource ?? (pair.dark.price ? 'catalog' : 'unavailable')}
-                          />
+                        <span className="text-sm font-bold text-primary">
+                          {typeof pair.dark.price === 'number' ? `$${pair.dark.price.toFixed(2)}` : 'Price unavailable'}
                         </span>
                       </div>
                       <Button

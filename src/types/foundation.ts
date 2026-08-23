@@ -23,7 +23,7 @@ export interface FoundationMatch {
   affiliateUrl?: string;
   retailer?: string;
   priceCheckedAt?: string;
-  priceSource?: 'live' | 'cache' | 'catalog' | 'unavailable';
+  priceSource?: 'live' | 'catalog' | 'unavailable';
   // Dual recommendation support
   primaryShade?: {
     name: string;

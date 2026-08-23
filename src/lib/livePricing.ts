@@ -14,7 +14,7 @@ type PricingSnapshot = {
   affiliateProvider?: 'amazon' | 'rakuten' | 'other';
   retailer?: string;
   checkedAt?: string;
-  source: 'live' | 'cache' | 'catalog' | 'unavailable';
+  source: 'live' | 'catalog' | 'unavailable';
 };
 
 type PricingLookupOptions = {
