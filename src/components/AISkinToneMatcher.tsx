@@ -5,24 +5,24 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import type { Json } from '@/integrations/supabase/types';
-import { Camera, Upload, Loader2, ShoppingCart, Eye, BookmarkPlus } from 'lucide-react';
+import { Camera, Upload, Loader2, ExternalLink, Eye, BookmarkPlus } from 'lucide-react';
 import { createPigmentColor, createLightFromDark, calculatePigmentMatch, PigmentColor } from '@/lib/pigmentMixing';
 import { describeSkinTone } from '@/lib/skinToneDescription';
 import { optimizeImageForAnalysis } from '@/lib/imageOptimization';
 import { loadProductMetadataMap, parseCsvRow, normalizeImageUrl, ProductMetadata, makeProductKey } from '@/lib/productMetadata';
 import { PigmentColorDisplay } from './PigmentColorDisplay';
-import { useCart } from '@/hooks/useCart';
 import { useAuth } from '@/hooks/useAuth';
 import { refreshFoundationMatchesPricing, getProductPricingSnapshot } from '@/lib/livePricing';
 import { PriceFreshness, type PriceSource } from '@/components/PriceFreshness';
 import { trackUserActivity } from '@/lib/activityTracking';
 import { openExternalUrl } from '@/lib/externalNavigation';
+import { inferAffiliateProvider } from '@/lib/affiliate';
 
 const PLACEHOLDER_IMAGE = '/placeholder.svg';
+const RETAILER_OPTIONS = ['Amazon', 'Ulta Beauty', 'Sephora', 'MAC', "Macy's", 'Walmart', 'Nordstrom', 'Target'] as const;
 const withFallbackImage = (src: string | undefined | null) => {
   return (src && src.trim()) || PLACEHOLDER_IMAGE;
 };
@@ -50,7 +50,11 @@ const getStoreFromUrl = (url?: string) => {
     if (host.includes('ulta')) return 'Ulta Beauty';
     if (host.includes('sephora')) return 'Sephora';
     if (host.includes('amazon')) return 'Amazon';
+    if (host.includes('maccosmetics')) return 'MAC';
+    if (host.includes('macys')) return "Macy's";
     if (host.includes('walmart')) return 'Walmart';
+    if (host.includes('nordstrom')) return 'Nordstrom';
+    if (host.includes('target')) return 'Target';
     return host.replace('www.', '');
   } catch {
     return 'Retailer';
@@ -82,6 +86,23 @@ const formatAvailabilityStatus = (value?: string) => {
   }
 };
 
+const matchesPreferredRetailer = (
+  shade: { url?: string; retailer?: string; brand?: string; product?: string },
+  selectedRetailers: string[],
+) => {
+  if (!selectedRetailers.length) return true;
+  const retailer = (shade.retailer || getStoreFromUrl(shade.url)).toLowerCase();
+  const context = `${shade.brand || ''} ${shade.product || ''}`.toLowerCase();
+
+  return selectedRetailers.some((selected) => {
+    const normalized = selected.toLowerCase();
+    if (retailer === normalized) return true;
+    if (retailer.includes(normalized) || normalized.includes(retailer)) return true;
+    if (normalized === 'mac' && (retailer.includes('mac') || context.includes('mac'))) return true;
+    return false;
+  });
+};
+
 interface PigmentMix {
   White: number;
   CadmiumRed: number;
@@ -110,33 +131,11 @@ interface FoundationMatch {
   price?: number;
   store?: string;
   website?: string;
+  affiliateUrl?: string;
   priceCheckedAt?: string;
   priceSource?: PriceSource;
   availabilityStatus?: string;
 }
-
-type CartFoundationMatch = {
-  id: string;
-  brand: string;
-  product: string;
-  shade: string;
-  price: number;
-  rating: number;
-  reviewCount: number;
-  availability: {
-    online: boolean;
-    inStore: boolean;
-    readyForPickup: boolean;
-    nearbyStores: string[];
-  };
-  matchPercentage: number;
-  undertone: string;
-  coverage: string;
-  finish: string;
-  imageUrl: string;
-  productUrl: string;
-  retailer?: string;
-};
 
 interface ShadeData {
   brand: string;
@@ -159,7 +158,6 @@ type BrandPair = { light: FoundationMatch; dark: FoundationMatch };
 
 export const AISkinToneMatcher = () => {
   const { toast } = useToast();
-  const { addToCart } = useCart();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -172,8 +170,7 @@ export const AISkinToneMatcher = () => {
   const [brandPairs, setBrandPairs] = useState<Array<{ light: FoundationMatch; dark: FoundationMatch }>>([]);
   const [shadeDatabase, setShadeDatabase] = useState<ShadeData[]>([]);
   const [shadeDatabaseLoading, setShadeDatabaseLoading] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<FoundationMatch | null>(null);
-  const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
+  const [selectedRetailers, setSelectedRetailers] = useState<string[]>([]);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -446,6 +443,7 @@ export const AISkinToneMatcher = () => {
         price: match.price,
         store: getStoreFromUrl(match.url),
         website: getWebsiteFromUrl(match.url),
+        affiliateUrl: undefined,
       };
 
       foundationMatches.push(baseMatch);
@@ -499,19 +497,25 @@ export const AISkinToneMatcher = () => {
             ...currentPair.light,
             img: light.imageUrl || currentPair.light.img,
             url: light.productUrl || currentPair.light.url,
+            affiliateUrl: light.affiliateUrl || currentPair.light.affiliateUrl,
             price: typeof light.price === 'number' && light.price > 0 ? light.price : currentPair.light.price,
             store: light.retailer || currentPair.light.store,
             website: getWebsiteFromUrl(light.productUrl || currentPair.light.url),
             availabilityStatus: light.availabilityStatus || currentPair.light.availabilityStatus,
+            priceCheckedAt: light.priceCheckedAt || currentPair.light.priceCheckedAt,
+            priceSource: light.priceSource || currentPair.light.priceSource,
           },
           dark: {
             ...currentPair.dark,
             img: dark.imageUrl || currentPair.dark.img,
             url: dark.productUrl || currentPair.dark.url,
+            affiliateUrl: dark.affiliateUrl || currentPair.dark.affiliateUrl,
             price: typeof dark.price === 'number' && dark.price > 0 ? dark.price : currentPair.dark.price,
             store: dark.retailer || currentPair.dark.store,
             website: getWebsiteFromUrl(dark.productUrl || currentPair.dark.url),
             availabilityStatus: dark.availabilityStatus || currentPair.dark.availabilityStatus,
+            priceCheckedAt: dark.priceCheckedAt || currentPair.dark.priceCheckedAt,
+            priceSource: dark.priceSource || currentPair.dark.priceSource,
           },
         });
       }
@@ -526,7 +530,9 @@ export const AISkinToneMatcher = () => {
   const findBrandPairs = async (lightHex: string, darkHex: string, limit: number = 4): Promise<BrandPair[]> => {
     if (shadeDatabase.length === 0) return [];
 
-    const brandGroups = shadeDatabase.reduce((acc, shade) => {
+    const candidateShades = shadeDatabase.filter((shade) => matchesPreferredRetailer(shade, selectedRetailers));
+
+    const brandGroups = candidateShades.reduce((acc, shade) => {
       if (!acc[shade.brand]) acc[shade.brand] = [];
       acc[shade.brand].push(shade);
       return acc;
@@ -580,6 +586,7 @@ export const AISkinToneMatcher = () => {
           price: lightMatch.price,
           store: getStoreFromUrl(lightMatch.url),
           website: getWebsiteFromUrl(lightMatch.url),
+          affiliateUrl: undefined,
           availabilityStatus: undefined,
         };
 
@@ -596,6 +603,7 @@ export const AISkinToneMatcher = () => {
           price: darkMatch.price,
           store: getStoreFromUrl(darkMatch.url),
           website: getWebsiteFromUrl(darkMatch.url),
+          affiliateUrl: undefined,
           availabilityStatus: undefined,
         };
 
@@ -665,6 +673,9 @@ export const AISkinToneMatcher = () => {
         price: best.price,
         store: best.retailer || getStoreFromUrl(best.url),
         website: getWebsiteFromUrl(best.url),
+        affiliateUrl: currentShade.affiliateUrl,
+        priceCheckedAt: currentShade.priceCheckedAt,
+        priceSource: currentShade.priceSource,
         availabilityStatus: currentShade.availabilityStatus,
       };
 
@@ -780,29 +791,6 @@ export const AISkinToneMatcher = () => {
     }
     setIsCamera(false);
   }, [stream]);
-
-  const toCartFoundationMatch = (product: FoundationMatch): CartFoundationMatch => ({
-    id: `${product.brand}-${product.shade_name}`,
-    brand: product.brand,
-    product: product.product,
-    shade: product.shade_name,
-    price: product.price ?? 0,
-    rating: 4.5,
-    reviewCount: 0,
-    availability: {
-      online: true,
-      inStore: false,
-      readyForPickup: false,
-      nearbyStores: [],
-    },
-    matchPercentage: Math.round(product.score),
-    undertone: product.undertone || 'neutral',
-    coverage: 'medium',
-    finish: 'natural',
-    imageUrl: product.img || PLACEHOLDER_IMAGE,
-    productUrl: product.url,
-    retailer: product.store,
-  });
 
   const startCamera = async () => {
     setCameraLoading(true);
@@ -945,7 +933,9 @@ export const AISkinToneMatcher = () => {
       if (pairs.length === 0) {
         toast({
           title: "Analysis Complete",
-          description: "Skin tones were detected, but no image-backed brand pairs were available for this result."
+          description: selectedRetailers.length
+            ? `No matching shades were found for ${selectedRetailers.join(', ')}. Try clearing or changing your retailer filters.`
+            : "Skin tones were detected, but no image-backed brand pairs were available for this result."
         });
         return;
       }
@@ -1016,101 +1006,60 @@ export const AISkinToneMatcher = () => {
   };
 
 
-  const handleBuyNow = async (products: FoundationMatch[]) => {
-    if (!user) {
+  const handleShopShade = async (product: FoundationMatch) => {
+    const destinationUrl = product.affiliateUrl || product.url;
+    if (!destinationUrl) {
       toast({
-        title: "Sign In Required",
-        description: "Please sign in to purchase products",
+        title: "Link unavailable",
+        description: "No retailer link is available for this shade yet.",
         variant: "destructive"
       });
-      navigate('/auth');
       return;
     }
 
+    const provider = inferAffiliateProvider(destinationUrl);
+
     try {
-      setLoading(true);
-      setLoadingMessage("Preparing checkout...");
-
-      const refreshedProducts = await refreshFoundationMatchesPricing(
-        products.map((product) => ({
-          id: `${product.brand}-${product.shade_name}`,
-          brand: product.brand,
-          product: product.product,
-          shade: product.shade_name,
-          price: product.price ?? 0,
-          rating: 0,
-          reviewCount: 0,
-          availability: {
-            online: true,
-            inStore: false,
-            readyForPickup: false,
-            nearbyStores: [],
-          },
-          matchPercentage: product.score,
-          undertone: product.undertone || 'unknown',
-          coverage: 'unknown',
-          finish: 'unknown',
-          imageUrl: product.img || PLACEHOLDER_IMAGE,
-          productUrl: product.url,
-        }))
-      );
-
-      const productsWithPrice = refreshedProducts.filter(product => typeof product.price === 'number' && Number.isFinite(product.price) && product.price > 0);
-      if (productsWithPrice.length === 0) {
-        throw new Error('Price unavailable for selected product(s). Please choose items with listed prices.');
-      }
-
-      await trackUserActivity(user.id, 'checkout_started', {
-        source: 'ai_skin_tone_matcher',
-        item_count: productsWithPrice.length,
-      });
-
-      const cartItems = productsWithPrice.map(product => ({
-        id: product.id,
-        product: {
-          id: product.id,
-          brand: product.brand,
-          product: product.product,
-          shade: product.shade,
-          price: product.price as number
-        },
-        quantity: 1,
-        shadeName: product.shade
-      }));
-
-      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
-        body: {
-          items: cartItems
-        }
-      });
-
-      if (error) throw error;
-
-      if (data?.checkout_url) {
-        await trackUserActivity(user.id, 'checkout_redirected', {
+      if (user) {
+        await trackUserActivity(user.id, 'shade_shop_redirect_started', {
           source: 'ai_skin_tone_matcher',
-          item_count: cartItems.length,
+          retailer: product.store || getStoreFromUrl(product.url),
+          shade_name: product.shade_name,
         });
-        await openExternalUrl(data.checkout_url, { preferSameTab: true });
       }
 
-      toast({
-        title: "Redirecting to Checkout",
-        description: "Taking you to secure payment..."
-      });
+      await supabase.functions.invoke('track-affiliate-click', {
+        body: {
+          provider,
+          offerId: `${product.brand}-${product.product}-${product.shade_name}`,
+          clickUrl: destinationUrl,
+          userId: user?.id,
+        },
+      }).catch(() => null);
+
+      await openExternalUrl(destinationUrl, { preferSameTab: true });
+
+      if (user) {
+        await trackUserActivity(user.id, 'shade_shop_redirect_completed', {
+          source: 'ai_skin_tone_matcher',
+          retailer: product.store || getStoreFromUrl(product.url),
+          shade_name: product.shade_name,
+        });
+      }
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'unknown_error';
-      await trackUserActivity(user.id, 'checkout_failed', {
-        source: 'ai_skin_tone_matcher',
-        reason: message,
-      });
+      if (user) {
+        const message = error instanceof Error ? error.message : 'unknown_error';
+        await trackUserActivity(user.id, 'shade_shop_redirect_failed', {
+          source: 'ai_skin_tone_matcher',
+          retailer: product.store || getStoreFromUrl(product.url),
+          reason: message,
+        });
+      }
       toast({
-        title: "Checkout Failed",
-        description: error instanceof Error ? error.message : "Unable to process checkout",
+        title: "Unable to open retailer",
+        description: error instanceof Error ? error.message : "Please try again.",
         variant: "destructive"
       });
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -1167,9 +1116,50 @@ export const AISkinToneMatcher = () => {
       <div className="text-center space-y-2">
         <h1 className="text-4xl font-bold">AI Skin Tone Pigment Analyzer</h1>
         <p className="text-muted-foreground">
-          Analyze a photo or look up a foundation shade to calculate the pigment mix
+          Analyze a photo, match your shades, and shop them at your preferred retailer
         </p>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Preferred Retailers</CardTitle>
+          <CardDescription>
+            Limit recommendations to specific stores. Leave all unselected to search everywhere.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-2">
+          {RETAILER_OPTIONS.map((retailer) => {
+            const active = selectedRetailers.includes(retailer);
+            return (
+              <Button
+                key={retailer}
+                type="button"
+                variant={active ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => {
+                  setSelectedRetailers((current) =>
+                    current.includes(retailer)
+                      ? current.filter((item) => item !== retailer)
+                      : [...current, retailer]
+                  );
+                }}
+              >
+                {retailer}
+              </Button>
+            );
+          })}
+          {selectedRetailers.length > 0 && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelectedRetailers([])}
+            >
+              Clear Filters
+            </Button>
+          )}
+        </CardContent>
+      </Card>
 
       <Tabs defaultValue="photo" className="w-full">
         <TabsList className="grid w-full grid-cols-1">
@@ -1447,36 +1437,14 @@ export const AISkinToneMatcher = () => {
                           />
                         </span>
                       </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full mb-2"
-                        disabled
-                      >
-                        External links disabled
-                      </Button>
                       <Button 
-                        variant="secondary" 
+                        variant="default" 
                         size="sm" 
                         className="w-full"
-                        onClick={() => {
-                          if (typeof pair.light.price !== 'number') {
-                            toast({
-                              title: "Price unavailable",
-                              description: "This product is missing a verified price.",
-                              variant: "destructive"
-                            });
-                            return;
-                          }
-                          addToCart(toCartFoundationMatch(pair.light));
-                          toast({
-                            title: "Added to Cart",
-                            description: `${pair.light.shade_name} added to cart`
-                          });
-                        }}
+                        onClick={() => void handleShopShade(pair.light)}
                       >
-                        <ShoppingCart className="w-3 h-3 mr-1" />
-                        Add Light
+                        <ExternalLink className="w-3 h-3 mr-1" />
+                        Shop Light Shade
                       </Button>
                     </div>
 
@@ -1526,36 +1494,14 @@ export const AISkinToneMatcher = () => {
                           />
                         </span>
                       </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full mb-2"
-                        disabled
-                      >
-                        External links disabled
-                      </Button>
                       <Button 
-                        variant="secondary" 
+                        variant="default" 
                         size="sm" 
                         className="w-full"
-                        onClick={() => {
-                          if (typeof pair.dark.price !== 'number') {
-                            toast({
-                              title: "Price unavailable",
-                              description: "This product is missing a verified price.",
-                              variant: "destructive"
-                            });
-                            return;
-                          }
-                          addToCart(toCartFoundationMatch(pair.dark));
-                          toast({
-                            title: "Added to Cart",
-                            description: `${pair.dark.shade_name} added to cart`
-                          });
-                        }}
+                        onClick={() => void handleShopShade(pair.dark)}
                       >
-                        <ShoppingCart className="w-3 h-3 mr-1" />
-                        Add Dark
+                        <ExternalLink className="w-3 h-3 mr-1" />
+                        Shop Dark Shade
                       </Button>
                     </div>
 
@@ -1598,32 +1544,9 @@ export const AISkinToneMatcher = () => {
                         <Eye className="w-3 h-3 mr-1" />
                         Virtual Try-On
                       </Button>
-                      <Button 
-                        variant="default" 
-                        size="sm" 
-                        className="w-full font-semibold"
-                        onClick={() => {
-                          if (typeof pair.light.price !== 'number' || typeof pair.dark.price !== 'number') {
-                            toast({
-                              title: "Price unavailable",
-                              description: "One or both products are missing verified prices.",
-                              variant: "destructive"
-                            });
-                            return;
-                          }
-                          addToCart(toCartFoundationMatch(pair.light));
-                          addToCart(toCartFoundationMatch(pair.dark));
-                          toast({
-                            title: "Added to Cart",
-                            description: "Complete set added to cart"
-                          });
-                        }}
-                      >
-                        <ShoppingCart className="w-3 h-3 mr-1" />
-                        {typeof pair.light.price === 'number' && typeof pair.dark.price === 'number'
-                          ? `Add Set - $${(pair.light.price + pair.dark.price).toFixed(2)}`
-                          : 'Add Set - Price unavailable'}
-                      </Button>
+                      <div className="rounded-md border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
+                        Use the buttons above to visit each retailer directly. Referral tracking is applied when supported.
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -1632,96 +1555,6 @@ export const AISkinToneMatcher = () => {
           </CardContent>
         </Card>
       )}
-
-      {/* Product Dialog */}
-      <Dialog open={isProductDialogOpen} onOpenChange={setIsProductDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Product Details</DialogTitle>
-          </DialogHeader>
-          {selectedProduct && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-4">
-                  {selectedProduct.img && (
-                    <div className="h-64 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg flex items-center justify-center">
-                      <img 
-                        src={selectedProduct.img} 
-                        alt={selectedProduct.product}
-                        className="max-h-full max-w-full object-contain p-4"
-                      />
-                    </div>
-                  )}
-                  <div 
-                    className="h-16 rounded-lg border-2 border-border"
-                    style={{ backgroundColor: selectedProduct.hex }}
-                  />
-                  <p className="text-sm text-center">{describeSkinTone(selectedProduct.hex).name}</p>
-                </div>
-                <div className="space-y-4">
-                  <div>
-                    <Badge variant="secondary" className="mb-2">{selectedProduct.brand}</Badge>
-                    <h3 className="text-xl font-semibold">{selectedProduct.product}</h3>
-                    <p className="text-muted-foreground">{selectedProduct.shade_name}</p>
-                  </div>
-                  {selectedProduct.price && (
-                    <div className="text-2xl font-bold text-primary">
-                      ${selectedProduct.price.toFixed(2)}
-                    </div>
-                  )}
-                  {!selectedProduct.price && (
-                    <div className="text-sm text-muted-foreground">Price unavailable</div>
-                  )}
-                  <div className="text-sm text-muted-foreground">
-                    Store: {selectedProduct.store || getStoreFromUrl(selectedProduct.url)}
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Website: {selectedProduct.website || getWebsiteFromUrl(selectedProduct.url) || 'N/A'}
-                  </div>
-                  <div className="space-y-2">
-                    <p className="text-sm font-semibold">Match Score</p>
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-primary"
-                          style={{ width: `${selectedProduct.score}%` }}
-                        />
-                      </div>
-                      <span className="text-sm font-semibold">{selectedProduct.score.toFixed(0)}%</span>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 pt-4">
-                    <Button 
-                      variant="outline" 
-                      size="lg"
-                      onClick={() => {
-                        toast({
-                          title: "Virtual Try-On",
-                          description: "Feature coming soon!"
-                        });
-                      }}
-                    >
-                      <Eye className="w-4 h-4 mr-2" />
-                      Try-On
-                    </Button>
-                    <Button 
-                      variant="default" 
-                      size="lg"
-                      onClick={() => {
-                        setIsProductDialogOpen(false);
-                        handleBuyNow([selectedProduct]);
-                      }}
-                    >
-                      <ShoppingCart className="w-4 h-4 mr-2" />
-                      Buy Now
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
