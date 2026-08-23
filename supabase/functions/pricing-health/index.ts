@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { sendViberMessage, adminSupabaseClient, getViberAuthToken } from "../_shared/viber.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -124,6 +125,47 @@ const checkRakutenDeepLink = async (): Promise<EndpointResult> => {
       latencyMs: null,
       detail: error instanceof Error ? error.message : "Request failed",
     };
+  }
+};
+
+const sendViberAlertIfNeeded = async (report: HealthReport) => {
+  const token = getViberAuthToken();
+  if (!token) return;
+
+  const hasIssues = report.endpoints.some(
+    (e) => e.status === "down" || e.status === "degraded"
+  );
+  const staleThreshold = 10;
+  const hasStaleCache = report.cache.staleRows > staleThreshold;
+
+  if (!hasIssues && !hasStaleCache) return;
+
+  const supabase = adminSupabaseClient();
+  const { data: subscribers } = await supabase
+    .from("viber_subscriptions")
+    .select("viber_user_id")
+    .eq("is_active", true);
+
+  if (!subscribers || subscribers.length === 0) return;
+
+  const downEndpoints = report.endpoints.filter((e) => e.status === "down");
+  const degradedEndpoints = report.endpoints.filter((e) => e.status === "degraded");
+
+  let text = "Make Me Up pricing alert:\n";
+  if (downEndpoints.length) {
+    text += `\nDown: ${downEndpoints.map((e) => e.name).join(", ")}`;
+  }
+  if (degradedEndpoints.length) {
+    text += `\nDegraded: ${degradedEndpoints.map((e) => e.name).join(", ")}`;
+  }
+  if (hasStaleCache) {
+    text += `\nStale cache: ${report.cache.staleRows} products`;
+  }
+  text += `\n\nChecked at ${new Date(report.generatedAt).toLocaleString()}`;
+
+  for (const sub of subscribers) {
+    if (!sub.viber_user_id) continue;
+    await sendViberMessage({ receiver: sub.viber_user_id, type: "text", text });
   }
 };
 
@@ -260,20 +302,26 @@ serve(async (req) => {
       .select("*", { count: "exact", head: true })
       .gte("last_checked_at", oneHourAgo);
 
-    return new Response(
-      JSON.stringify({
-        generatedAt: nowIso,
-        endpoints,
-        cache: {
-          totalRows: totalRows ?? 0,
-          freshRows: freshRows ?? 0,
-          staleRows: staleRows ?? 0,
-          fetchedLastHour: lastHourRows ?? 0,
-        },
-        recentFetches: recent.data ?? [],
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    const report: HealthReport = {
+      generatedAt: nowIso,
+      endpoints,
+      cache: {
+        totalRows: totalRows ?? 0,
+        freshRows: freshRows ?? 0,
+        staleRows: staleRows ?? 0,
+        fetchedLastHour: lastHourRows ?? 0,
+      },
+      recentFetches: recent.data ?? [],
+    };
+
+    // Fire Viber alerts in the background; don't block the HTTP response.
+    sendViberAlertIfNeeded(report).catch((err) =>
+      console.error("Failed to send Viber pricing alert:", err)
     );
+
+    return new Response(JSON.stringify(report), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (error) {
     console.error("pricing-health error", error);
     return new Response(JSON.stringify({ error: "Health check failed" }), {
