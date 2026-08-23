@@ -1,10 +1,48 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
+};
+
+const isValidHexColor = (value: unknown): value is string =>
+  typeof value === 'string' && /^#?[0-9A-Fa-f]{6}$/.test(value);
+
+const normalizeHexColor = (value: string) =>
+  value.startsWith('#') ? value.toUpperCase() : `#${value.toUpperCase()}`;
+
+const extractMessageText = (content: unknown): string | null => {
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content)) {
+    const textParts = content
+      .map((part) => {
+        if (typeof part === 'string') return part;
+        if (part && typeof part === 'object' && 'text' in part && typeof part.text === 'string') {
+          return part.text;
+        }
+        return '';
+      })
+      .filter(Boolean);
+
+    return textParts.length ? textParts.join('\n') : null;
+  }
+  return null;
+};
+
+const extractAnalysisResult = (payload: unknown) => {
+  if (payload && typeof payload === 'object') {
+    const lightest = 'lightest_hex' in payload ? payload.lightest_hex : null;
+    const darkest = 'darkest_hex' in payload ? payload.darkest_hex : null;
+    if (isValidHexColor(lightest) && isValidHexColor(darkest)) {
+      return {
+        lightest_hex: normalizeHexColor(lightest),
+        darkest_hex: normalizeHexColor(darkest),
+      };
+    }
+  }
+
+  return null;
 };
 
 serve(async (req) => {
@@ -13,23 +51,6 @@ serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (authHeader?.startsWith('Bearer ')) {
-      const supabase = createClient(
-        Deno.env.get('SUPABASE_URL')!,
-        Deno.env.get('SUPABASE_ANON_KEY')!,
-        { global: { headers: { Authorization: authHeader } } }
-      );
-      const token = authHeader.replace('Bearer ', '');
-      const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-      if (claimsError || !claimsData?.claims) {
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
-      }
-    }
-
     const body = await req.json();
     const { imageBase64, analysisType } = body;
 
@@ -114,7 +135,23 @@ serve(async (req) => {
       throw new Error('No content in AI response');
     }
 
-    const result = JSON.parse(content);
+    const directResult = extractAnalysisResult(content);
+    if (directResult) {
+      return new Response(JSON.stringify(directResult), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const messageText = extractMessageText(content);
+    if (!messageText) {
+      throw new Error('AI response content was not text.');
+    }
+
+    const parsed = JSON.parse(messageText);
+    const result = extractAnalysisResult(parsed);
+    if (!result) {
+      throw new Error('AI response did not include valid skin tone hex values.');
+    }
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
