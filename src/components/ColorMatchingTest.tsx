@@ -35,7 +35,8 @@ const ColorMatchingTest = () => {
     const rgb2 = hexToRgb(color2);
     
     if (!rgb1 || !rgb2) {
-      setResults({ error: 'Invalid hex colors' });
+      setResults(null);
+      setResultError('Invalid hex colors');
       return;
     }
 
@@ -48,6 +49,7 @@ const ColorMatchingTest = () => {
     const deltaE = deltaE2000(lab1, lab2);
     const matchPercentage = Math.max(0, 100 - (deltaE * 2));
 
+    setResultError(null);
     setResults({
       color1: {
         hex: color1,

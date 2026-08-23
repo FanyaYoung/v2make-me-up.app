@@ -235,7 +235,7 @@ export const SubscriptionManager = () => {
                   </Button>
                 ) : isUpgrade ? (
                   <Button
-                    onClick={() => handleUpgrade(tier.id)}
+                    onClick={() => handleUpgrade(tier.id as 'one_time' | 'weekly' | 'monthly' | 'yearly')}
                     disabled={loading === tier.id}
                     className="w-full"
                     variant={tier.popular ? "default" : "outline"}
