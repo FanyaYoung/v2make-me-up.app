@@ -135,6 +135,8 @@ interface ShadeData {
   retailer?: string;
 }
 
+type BrandPair = { light: FoundationMatch; dark: FoundationMatch };
+
 export const AISkinToneMatcher = () => {
   const { toast } = useToast();
   const { addToCart } = useCart();
@@ -432,7 +434,74 @@ export const AISkinToneMatcher = () => {
     return foundationMatches;
   };
 
-  const findBrandPairs = async (lightHex: string, darkHex: string, limit: number = 4): Promise<Array<{ light: FoundationMatch; dark: FoundationMatch }>> => {
+  const hydrateBrandPairs = async (pairs: BrandPair[]): Promise<BrandPair[]> => {
+    if (!pairs.length) return pairs;
+
+    try {
+      const flattened = pairs.flatMap((pair) => [pair.light, pair.dark]);
+      const refreshed = await refreshFoundationMatchesPricing(
+        flattened.map((product) => ({
+          id: `${product.brand}-${product.shade_name}`,
+          brand: product.brand,
+          product: product.product,
+          shade: product.shade_name,
+          price: product.price ?? 0,
+          rating: 0,
+          reviewCount: 0,
+          availability: {
+            online: true,
+            inStore: false,
+            readyForPickup: false,
+            nearbyStores: [],
+          },
+          matchPercentage: Math.round(product.score),
+          undertone: product.undertone || 'neutral',
+          coverage: 'unknown',
+          finish: 'unknown',
+          imageUrl: product.img || PLACEHOLDER_IMAGE,
+          productUrl: product.url,
+          retailer: product.store,
+        }))
+      );
+
+      const refreshedPairs: BrandPair[] = [];
+      for (let index = 0; index < pairs.length; index++) {
+        const light = refreshed[index * 2];
+        const dark = refreshed[index * 2 + 1];
+        const currentPair = pairs[index];
+        if (!light || !dark) {
+          refreshedPairs.push(currentPair);
+          continue;
+        }
+
+        refreshedPairs.push({
+          light: {
+            ...currentPair.light,
+            img: light.imageUrl || currentPair.light.img,
+            url: light.productUrl || currentPair.light.url,
+            price: typeof light.price === 'number' && light.price > 0 ? light.price : currentPair.light.price,
+            store: light.retailer || currentPair.light.store,
+            website: getWebsiteFromUrl(light.productUrl || currentPair.light.url),
+          },
+          dark: {
+            ...currentPair.dark,
+            img: dark.imageUrl || currentPair.dark.img,
+            url: dark.productUrl || currentPair.dark.url,
+            price: typeof dark.price === 'number' && dark.price > 0 ? dark.price : currentPair.dark.price,
+            store: dark.retailer || currentPair.dark.store,
+            website: getWebsiteFromUrl(dark.productUrl || currentPair.dark.url),
+          },
+        });
+      }
+
+      return refreshedPairs;
+    } catch (error) {
+      console.warn('Could not hydrate recommendation pairs with live pricing', error);
+      return pairs;
+    }
+  };
+
+  const findBrandPairs = async (lightHex: string, darkHex: string, limit: number = 4): Promise<BrandPair[]> => {
     if (shadeDatabase.length === 0) return [];
 
     const brandGroups = shadeDatabase.reduce((acc, shade) => {
@@ -511,7 +580,12 @@ export const AISkinToneMatcher = () => {
       }
     }
 
-    return pairs.sort((a, b) => a.avgDistance - b.avgDistance).slice(0, limit);
+    const selectedPairs = pairs
+      .sort((a, b) => a.avgDistance - b.avgDistance)
+      .slice(0, limit)
+      .map(({ light, dark }) => ({ light, dark }));
+
+    return hydrateBrandPairs(selectedPairs);
   };
 
   const replacePairShadeWithAlternate = (pairIndex: number, side: 'light' | 'dark', targetHex: string) => {

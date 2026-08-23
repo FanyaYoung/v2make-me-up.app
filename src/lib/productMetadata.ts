@@ -47,15 +47,31 @@ export const parseCsvRow = (row: string): string[] => {
   return result;
 };
 
+const upgradeRetailerImageUrl = (src: string) => {
+  if (src.includes('images.ulta.com/is/image/Ulta/')) {
+    return src
+      .replace(/\$(50px|tn)\$/gi, '$md$')
+      .replace(/sw(?=\?|\$|$)/i, '');
+  }
+
+  if (src.includes('/productimages/sku/')) {
+    return src
+      .replace(/\+sw\.jpg(\?.*)?$/i, '-main-zoom.jpg')
+      .replace(/\/sw\.jpg(\?.*)?$/i, '/main-zoom.jpg');
+  }
+
+  return src;
+};
+
 export const normalizeImageUrl = (imgSrc?: string, productUrl?: string) => {
   if (!imgSrc || !imgSrc.trim()) return '';
   const src = imgSrc.trim();
-  if (src.startsWith('http://') || src.startsWith('https://')) return src;
+  if (src.startsWith('http://') || src.startsWith('https://')) return upgradeRetailerImageUrl(src);
   if (src.startsWith('//')) return `https:${src}`;
   if (src.startsWith('/')) {
     try {
       const origin = productUrl ? new URL(productUrl).origin : '';
-      return origin ? `${origin}${src}` : '';
+      return origin ? upgradeRetailerImageUrl(`${origin}${src}`) : '';
     } catch {
       return '';
     }
