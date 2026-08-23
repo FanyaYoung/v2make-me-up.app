@@ -9,3 +9,4 @@ ON public.brand_referral_codes
 FOR SELECT
 TO authenticated
 USING (public.is_admin_user());
+;
