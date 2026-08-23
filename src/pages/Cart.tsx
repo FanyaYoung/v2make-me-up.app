@@ -12,6 +12,7 @@ import FulfillmentOptions from '@/components/FulfillmentOptions';
 import { createPigmentColor } from '@/lib/pigmentMixing';
 import { openExternalUrl } from '@/lib/externalNavigation';
 import { hydrateFoundationMatchPricing, refreshFoundationMatchesPricing } from '@/lib/livePricing';
+import { PriceFreshness } from '@/components/PriceFreshness';
 import { inferAffiliateProvider } from '@/lib/affiliate';
 import type { CartItem } from '@/contexts/CartContext';
 
@@ -372,11 +373,11 @@ const Cart = () => {
                               {item.product.price > 0 ? `$${(item.product.price * item.quantity).toFixed(2)}` : 'Price unavailable'}
                             </p>
                             <p className="text-sm text-gray-500">{formatUnitPrice(item.product.price)} each</p>
-                            {item.product.priceCheckedAt && (
-                              <p className="text-xs text-gray-400">
-                                Checked {new Date(item.product.priceCheckedAt).toLocaleString()}
-                              </p>
-                            )}
+                            <PriceFreshness
+                              className="justify-end"
+                              checkedAt={item.product.priceCheckedAt}
+                              source={item.product.price > 0 ? 'live' : 'unavailable'}
+                            />
                           </div>
                         </div>
                       </div>

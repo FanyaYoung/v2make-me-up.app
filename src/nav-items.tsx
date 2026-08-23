@@ -1,4 +1,4 @@
-import { Home, User, Palette, ShoppingCart, Package, Lightbulb, Pipette, ScanFace, Sparkles, FileText } from "lucide-react";
+import { Home, User, Palette, ShoppingCart, Package, Lightbulb, Pipette, ScanFace, Sparkles, FileText, Activity } from "lucide-react";
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import AuthCallback from "./pages/AuthCallback";
@@ -16,6 +16,7 @@ import AffiliateDisclosure from "./pages/AffiliateDisclosure";
 import RefundPolicy from "./pages/RefundPolicy";
 import ShippingPolicy from "./pages/ShippingPolicy";
 import CheckoutSuccess from "./pages/CheckoutSuccess";
+import AdminPricingHealth from "./pages/AdminPricingHealth";
 
 export const navItems = [
   {
@@ -119,5 +120,11 @@ export const navItems = [
     to: "/checkout-success",
     icon: <FileText className="h-4 w-4" />,
     page: <CheckoutSuccess />,
+  },
+  {
+    title: "Pricing Health (Admin)",
+    to: "/admin/pricing-health",
+    icon: <Activity className="h-4 w-4" />,
+    page: <AdminPricingHealth />,
   },
 ];
