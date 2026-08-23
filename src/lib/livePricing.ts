@@ -13,6 +13,7 @@ type PricingSnapshot = {
   affiliateUrl?: string;
   affiliateProvider?: 'amazon' | 'rakuten' | 'other';
   retailer?: string;
+  availabilityStatus?: string;
   checkedAt?: string;
   source: 'live' | 'cache' | 'catalog' | 'unavailable';
 };
@@ -60,6 +61,7 @@ const fetchCachedLivePricing = async (
       productUrl?: string;
       affiliateUrl?: string;
       retailer?: string;
+      availability?: string;
       checkedAt?: string;
       source?: PricingSnapshot['source'];
     } | null;
@@ -76,6 +78,7 @@ const fetchCachedLivePricing = async (
       affiliateUrl,
       affiliateProvider: inferAffiliateProvider(affiliateUrl),
       retailer: snapshot.retailer || brand,
+      availabilityStatus: typeof snapshot.availability === 'string' ? snapshot.availability : undefined,
       checkedAt: snapshot.checkedAt,
       source: snapshot.source || 'live',
     };
@@ -106,6 +109,7 @@ export const getProductPricingSnapshot = async (
         affiliateUrl: buildAffiliateUrl(metadata.productUrl || metadata.websiteLink),
         affiliateProvider: inferAffiliateProvider(buildAffiliateUrl(metadata.productUrl || metadata.websiteLink)),
         retailer: metadata.retailer,
+        availabilityStatus: undefined,
         source: 'catalog',
       }
     : { source: 'unavailable' };
@@ -139,6 +143,7 @@ export const hydrateFoundationMatchPricing = async (
     productUrl: snapshot.productUrl || match.productUrl,
     affiliateUrl: snapshot.affiliateUrl || match.affiliateUrl,
     retailer: snapshot.retailer || match.retailer,
+    availabilityStatus: snapshot.availabilityStatus || match.availabilityStatus,
     priceCheckedAt: snapshot.checkedAt || match.priceCheckedAt,
     priceSource: snapshot.source,
   };

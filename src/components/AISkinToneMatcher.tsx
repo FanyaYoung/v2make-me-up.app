@@ -66,6 +66,22 @@ const getWebsiteFromUrl = (url?: string) => {
   }
 };
 
+const formatAvailabilityStatus = (value?: string) => {
+  if (!value) return 'Availability not confirmed';
+  switch (value.toLowerCase()) {
+    case 'in_stock':
+      return 'In stock online';
+    case 'available':
+      return 'Available online';
+    case 'out_of_stock':
+      return 'Currently out of stock';
+    case 'unknown':
+      return 'Availability not confirmed';
+    default:
+      return value.replace(/_/g, ' ');
+  }
+};
+
 interface PigmentMix {
   White: number;
   CadmiumRed: number;
@@ -96,6 +112,7 @@ interface FoundationMatch {
   website?: string;
   priceCheckedAt?: string;
   priceSource?: PriceSource;
+  availabilityStatus?: string;
 }
 
 type CartFoundationMatch = {
@@ -485,6 +502,7 @@ export const AISkinToneMatcher = () => {
             price: typeof light.price === 'number' && light.price > 0 ? light.price : currentPair.light.price,
             store: light.retailer || currentPair.light.store,
             website: getWebsiteFromUrl(light.productUrl || currentPair.light.url),
+            availabilityStatus: light.availabilityStatus || currentPair.light.availabilityStatus,
           },
           dark: {
             ...currentPair.dark,
@@ -493,6 +511,7 @@ export const AISkinToneMatcher = () => {
             price: typeof dark.price === 'number' && dark.price > 0 ? dark.price : currentPair.dark.price,
             store: dark.retailer || currentPair.dark.store,
             website: getWebsiteFromUrl(dark.productUrl || currentPair.dark.url),
+            availabilityStatus: dark.availabilityStatus || currentPair.dark.availabilityStatus,
           },
         });
       }
@@ -561,6 +580,7 @@ export const AISkinToneMatcher = () => {
           price: lightMatch.price,
           store: getStoreFromUrl(lightMatch.url),
           website: getWebsiteFromUrl(lightMatch.url),
+          availabilityStatus: undefined,
         };
 
         const dark: FoundationMatch = {
@@ -576,6 +596,7 @@ export const AISkinToneMatcher = () => {
           price: darkMatch.price,
           store: getStoreFromUrl(darkMatch.url),
           website: getWebsiteFromUrl(darkMatch.url),
+          availabilityStatus: undefined,
         };
 
         const avgDistance = (bestLight.distance + bestDark.distance) / 2;
@@ -644,6 +665,7 @@ export const AISkinToneMatcher = () => {
         price: best.price,
         store: best.retailer || getStoreFromUrl(best.url),
         website: getWebsiteFromUrl(best.url),
+        availabilityStatus: currentShade.availabilityStatus,
       };
 
       const updated = [...prev];
@@ -1401,8 +1423,11 @@ export const AISkinToneMatcher = () => {
                       <p className="text-xs text-muted-foreground mb-1">
                         Store: {pair.light.store || getStoreFromUrl(pair.light.url)}
                       </p>
-                      <p className="text-xs text-muted-foreground mb-2">
+                      <p className="text-xs text-muted-foreground mb-1">
                         Website: {pair.light.website || getWebsiteFromUrl(pair.light.url) || 'N/A'}
+                      </p>
+                      <p className="text-xs text-muted-foreground mb-2">
+                        Availability: {formatAvailabilityStatus(pair.light.availabilityStatus)}
                       </p>
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
@@ -1477,8 +1502,11 @@ export const AISkinToneMatcher = () => {
                       <p className="text-xs text-muted-foreground mb-1">
                         Store: {pair.dark.store || getStoreFromUrl(pair.dark.url)}
                       </p>
-                      <p className="text-xs text-muted-foreground mb-2">
+                      <p className="text-xs text-muted-foreground mb-1">
                         Website: {pair.dark.website || getWebsiteFromUrl(pair.dark.url) || 'N/A'}
+                      </p>
+                      <p className="text-xs text-muted-foreground mb-2">
+                        Availability: {formatAvailabilityStatus(pair.dark.availabilityStatus)}
                       </p>
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
