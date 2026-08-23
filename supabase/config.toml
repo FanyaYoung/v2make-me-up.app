@@ -28,5 +28,3 @@ verify_jwt = false
 [functions.ulta-affiliate-probe]
 verify_jwt = false
 
-[functions.viber-webhook]
-verify_jwt = false
