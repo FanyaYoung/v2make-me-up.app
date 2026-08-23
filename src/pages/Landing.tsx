@@ -3,7 +3,7 @@ import Header from '../components/Header';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Link } from 'react-router-dom';
-import { Sparkles, Package, ShoppingCart, Truck } from 'lucide-react';
+import { Sparkles, Package, MapPin, Store } from 'lucide-react';
 import ImageSlideshow from '../components/ImageSlideshow';
 
 const Landing = () => {
@@ -36,7 +36,7 @@ const Landing = () => {
                 <span className="text-gray-800">Delivered Your Way</span>
               </h1>
               <p className="text-lg text-gray-600 max-w-md">
-                Discover your ideal foundation match with AI-powered skin tone analysis. Shop from top retailers and choose your preferred delivery.
+                Discover your ideal foundation match with AI-powered skin tone analysis. Compare shades across top retailers and jump straight to the store you trust.
               </p>
               <div className="flex flex-wrap gap-4 items-center justify-center lg:justify-start text-sm text-gray-600">
                 <div className="flex items-center gap-2">
@@ -53,9 +53,9 @@ const Landing = () => {
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-full bg-pink-100 flex items-center justify-center">
-                    <Truck className="w-4 h-4 text-pink-600" />
+                    <MapPin className="w-4 h-4 text-pink-600" />
                   </div>
-                  <span>Flexible Delivery</span>
+                  <span>Where To Buy</span>
                 </div>
               </div>
               <div className="flex flex-col sm:flex-row gap-3 pt-4">
@@ -112,11 +112,11 @@ const Landing = () => {
 
             <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-pink-500 to-rose-600 p-8 text-white hover:shadow-2xl transition-all hover:scale-105">
               <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16" />
-              <Truck className="w-12 h-12 mb-4 relative z-10" />
-              <h3 className="text-2xl font-bold mb-2">Your Way</h3>
-              <p className="text-white/90 mb-4">4 delivery options</p>
+              <Store className="w-12 h-12 mb-4 relative z-10" />
+              <h3 className="text-2xl font-bold mb-2">Shop By Store</h3>
+              <p className="text-white/90 mb-4">Filter by Amazon, Ulta, Sephora, MAC, Macy&apos;s and more</p>
               <Button asChild variant="secondary" size="sm" className="bg-white/20 hover:bg-white/30 text-white border-0">
-                <Link to="/cart">Learn More →</Link>
+                <Link to="/shade-matcher">See Store Matches →</Link>
               </Button>
             </div>
           </div>

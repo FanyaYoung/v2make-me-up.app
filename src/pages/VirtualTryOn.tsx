@@ -4,16 +4,15 @@ import Header from '@/components/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Camera, Upload, ShoppingCart, Sparkles, ArrowLeft, Check } from 'lucide-react';
+import { Camera, Upload, Sparkles, ArrowLeft, Check, ExternalLink } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { useCart } from '@/hooks/useCart';
 import { detectFaceLandmarks, applyMakeupOverlay } from '@/utils/faceDetection';
 import { describeSkinTone } from '@/lib/skinToneDescription';
 import { optimizeImageForAnalysis } from '@/lib/imageOptimization';
 import { createPigmentColor, calculatePigmentMatch } from '@/lib/pigmentMixing';
 import { loadProductMetadataMap, parseCsvRow, normalizeImageUrl, makeProductKey } from '@/lib/productMetadata';
-import type { FoundationMatch } from '@/types/foundation';
+import { openExternalUrl } from '@/lib/externalNavigation';
 
 interface ProductPair {
   lightProduct: ShadeRow;
@@ -135,33 +134,9 @@ const isValidHexColor = (value: unknown): value is string =>
 const normalizeHexColor = (value: string) =>
   value.startsWith('#') ? value.toUpperCase() : `#${value.toUpperCase()}`;
 
-const toCartMatch = (product: ShadeRow, brandOverride?: string): FoundationMatch => ({
-  id: `${brandOverride ?? product.brand}-${product.shade}`,
-  brand: brandOverride ?? product.brand,
-  shade: product.shade,
-  product: product.product,
-  price: product.price ?? 0,
-  rating: 4.5,
-  reviewCount: 0,
-  availability: {
-    online: true,
-    inStore: false,
-    readyForPickup: false,
-    nearbyStores: [],
-  },
-  matchPercentage: 95,
-  undertone: 'neutral',
-  coverage: 'medium',
-  finish: 'natural',
-  imageUrl: product.imageUrl || product.imgSrc || PLACEHOLDER_IMAGE,
-  productUrl: product.url,
-  retailer: product.store,
-});
-
 const VirtualTryOn = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { addToCart } = useCart();
   
   const [recommendationHistory, setRecommendationHistory] = useState<ProductPair[][]>([]);
   const [currentRecommendations, setCurrentRecommendations] = useState<ProductPair[]>([]);
@@ -561,38 +536,13 @@ const VirtualTryOn = () => {
     return 100 - calculatePigmentMatch(toneA, toneB);
   };
 
-  const handleBuyProduct = async (product: ShadeRow, type: 'light' | 'dark') => {
-    const verifiedPrice = normalizePrice(product.price);
-    if (typeof verifiedPrice !== 'number') {
-      toast.error('Price unavailable for this product');
+  const handleShopProduct = async (product: ShadeRow, type: 'light' | 'dark') => {
+    if (!product.url) {
+      toast.error('Retailer link unavailable for this product');
       return;
     }
-    const foundationMatch: FoundationMatch = {
-      ...toCartMatch(product),
-      price: verifiedPrice,
-    };
-    addToCart(foundationMatch);
-    toast.success(`Added ${type} shade to cart!`);
-  };
-
-  const handleBuySet = async (pair: ProductPair) => {
-    const lightPrice = normalizePrice(pair.lightProduct.price);
-    const darkPrice = normalizePrice(pair.darkProduct.price);
-    if (typeof lightPrice !== 'number' || typeof darkPrice !== 'number') {
-      toast.error('Price unavailable for one or both products');
-      return;
-    }
-    const lightMatch: FoundationMatch = {
-      ...toCartMatch(pair.lightProduct, pair.brand),
-      price: lightPrice,
-    };
-    const darkMatch: FoundationMatch = {
-      ...toCartMatch(pair.darkProduct, pair.brand),
-      price: darkPrice,
-    };
-    addToCart(lightMatch);
-    addToCart(darkMatch);
-    toast.success('Added both shades to cart!');
+    await openExternalUrl(product.url);
+    toast.success(`Opening ${type} shade at ${product.store || getStoreFromUrl(product.url)}.`);
   };
 
   // Apply makeup when product is selected
@@ -894,14 +844,14 @@ const VirtualTryOn = () => {
                     <Button
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleBuyProduct(pair.lightProduct, 'light');
+                        void handleShopProduct(pair.lightProduct, 'light');
                       }}
                       variant="secondary"
                       size="sm"
                       className="w-full"
                     >
-                      <ShoppingCart className="w-3 h-3 mr-1" />
-                      Buy Light
+                      <ExternalLink className="w-3 h-3 mr-1" />
+                      Shop Light
                     </Button>
                   </div>
 
@@ -939,30 +889,16 @@ const VirtualTryOn = () => {
                     <Button
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleBuyProduct(pair.darkProduct, 'dark');
+                        void handleShopProduct(pair.darkProduct, 'dark');
                       }}
                       variant="secondary"
                       size="sm"
                       className="w-full"
                     >
-                      <ShoppingCart className="w-3 h-3 mr-1" />
-                      Buy Dark
+                      <ExternalLink className="w-3 h-3 mr-1" />
+                      Shop Dark
                     </Button>
                   </div>
-
-                  {/* Buy Set Button */}
-                  <Button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleBuySet(pair);
-                    }}
-                    className="w-full font-semibold"
-                  >
-                    <ShoppingCart className="w-4 h-4 mr-2" />
-                    {typeof pair.lightProduct.price === 'number' && typeof pair.darkProduct.price === 'number'
-                      ? `Buy Set - $${(pair.lightProduct.price + pair.darkProduct.price).toFixed(2)}`
-                      : 'Buy Set - Price unavailable'}
-                  </Button>
                 </div>
               </CardContent>
             </Card>
