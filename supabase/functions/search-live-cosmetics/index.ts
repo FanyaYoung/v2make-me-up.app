@@ -164,7 +164,7 @@ function normalizeUltaProducts(data: any): LiveCosmeticResult[] {
       product.reviewCount == null ? undefined : Number(product.reviewCount),
     imageUrl: product.imageUrl || undefined,
     productUrl: product.productUrl || undefined,
-    affiliateUrl: product.productUrl || undefined,
+    affiliateUrl: product.affiliateUrl || undefined,
     retailer: "Ulta Beauty",
     inStock: Boolean(product.inStock),
     category: inferCategory(`${product.name || ""} ${product.brand || ""}`),

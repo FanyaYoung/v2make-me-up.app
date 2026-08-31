@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { normalizeProductPrice } from '@/lib/productMetadata';
 import { useToast } from '@/hooks/use-toast';
 import { openExternalUrl } from '@/lib/externalNavigation';
+import { resolveRetailerProductUrl } from '@/lib/shopLinks';
 
 interface CosmeticsProduct {
   id: string;
@@ -875,7 +876,10 @@ const CosmeticsBrowser = () => {
                   variant={product.product_link || product.website_link ? 'default' : 'outline'}
                   disabled={!product.product_link && !product.website_link}
                   onClick={() => {
-                    const destination = product.product_link || product.website_link;
+                    const destination = resolveRetailerProductUrl({
+                      retailerUrl: product.website_link,
+                      productLink: product.product_link,
+                    });
                     if (destination) {
                       void openExternalUrl(destination);
                     }

@@ -14,6 +14,7 @@ import { openExternalUrl } from '@/lib/externalNavigation';
 import { hydrateFoundationMatchPricing, refreshFoundationMatchesPricing } from '@/lib/livePricing';
 import { PriceFreshness } from '@/components/PriceFreshness';
 import { inferAffiliateProvider } from '@/lib/affiliate';
+import { resolveAffiliateTrackingUrl, resolveRetailerProductUrl } from '@/lib/shopLinks';
 import type { CartItem } from '@/contexts/CartContext';
 
 const PRICE_STALE_HOURS = 24;
@@ -76,9 +77,25 @@ const Cart = () => {
           product,
           {
             priceCheckedAt: new Date(product.priceCheckedAt || new Date().toISOString()),
-            retailerUrl: product.productUrl || item.retailerUrl,
-            affiliateUrl: product.affiliateUrl || item.affiliateUrl,
-            affiliateProvider: product.affiliateUrl ? inferAffiliateProvider(product.affiliateUrl) : item.affiliateProvider,
+            retailerUrl: resolveRetailerProductUrl({
+              retailerUrl: item.retailerUrl,
+              productUrl: product.productUrl,
+              affiliateUrl: product.affiliateUrl,
+            }) || item.retailerUrl,
+            affiliateUrl: resolveAffiliateTrackingUrl({
+              productId: item.product.id,
+              retailerUrl: item.retailerUrl,
+              productUrl: product.productUrl,
+              affiliateUrl: product.affiliateUrl || item.affiliateUrl,
+            }) || item.affiliateUrl,
+            affiliateProvider: inferAffiliateProvider(
+              resolveAffiliateTrackingUrl({
+                productId: item.product.id,
+                retailerUrl: item.retailerUrl,
+                productUrl: product.productUrl,
+                affiliateUrl: product.affiliateUrl || item.affiliateUrl,
+              }) || item.affiliateUrl || item.retailerUrl
+            ),
             purchaseModel: item.purchaseModel,
           }
         );
@@ -177,9 +194,21 @@ const Cart = () => {
     const links = affiliateItems
       .map((item) => ({
         item,
-        url: item.affiliateUrl || item.retailerUrl,
+        destinationUrl: resolveRetailerProductUrl({
+          retailerUrl: item.retailerUrl,
+          productUrl: item.product.productUrl,
+          affiliateUrl: item.affiliateUrl,
+        }) || item.retailerUrl || item.affiliateUrl,
+        trackingUrl: resolveAffiliateTrackingUrl({
+          productId: item.product.id,
+          retailerUrl: item.retailerUrl,
+          productUrl: item.product.productUrl,
+          affiliateUrl: item.affiliateUrl,
+        }) || item.affiliateUrl || item.retailerUrl,
       }))
-      .filter((entry): entry is { item: typeof affiliateItems[number]; url: string } => Boolean(entry.url));
+      .filter((entry): entry is { item: typeof affiliateItems[number]; destinationUrl: string; trackingUrl?: string } =>
+        Boolean(entry.destinationUrl)
+      );
 
     if (!links.length) {
       toast({
@@ -194,18 +223,18 @@ const Cart = () => {
       setIsProcessingAffiliate(true);
 
       await Promise.all(
-        links.map(({ item, url }) =>
+        links.map(({ item, trackingUrl, destinationUrl }) =>
           supabase.functions.invoke('track-affiliate-click', {
             body: {
-              provider: item.affiliateProvider || 'other',
+              provider: item.affiliateProvider || inferAffiliateProvider(trackingUrl || destinationUrl),
               offerId: item.product.id,
-              clickUrl: url,
+              clickUrl: trackingUrl || destinationUrl,
             },
           }).catch(() => null)
         )
       );
 
-      await openExternalUrl(links[0].url);
+      await openExternalUrl(links[0].destinationUrl);
       if (links.length > 1) {
         toast({
           title: "Affiliate checkout started",

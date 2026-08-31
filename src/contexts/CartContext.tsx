@@ -1,6 +1,7 @@
 import React, { useState, ReactNode } from 'react';
 import { FoundationMatch } from '@/types/foundation';
-import { buildAffiliateUrl, inferAffiliateProvider, type AffiliateProvider } from '@/lib/affiliate';
+import { inferAffiliateProvider, type AffiliateProvider } from '@/lib/affiliate';
+import { resolveAffiliateTrackingUrl, resolveRetailerProductUrl } from '@/lib/shopLinks';
 import { CartContext } from './cart-context';
 
 export interface CartItem {
@@ -40,14 +41,20 @@ export const CartProvider = ({ children }: CartProviderProps) => {
     
     // Get hex from the product itself (it's on the main object, not on shade sub-objects)
     const shadeHex = sourceProduct.hex;
-    const retailerUrl =
-      sourceProduct.affiliate_url ||
-      sourceProduct.product_link ||
-      sourceProduct.website_link ||
-      sourceProduct.productUrl ||
-      sourceProduct.rakutenData?.productUrl;
-    const affiliateUrl = buildAffiliateUrl(retailerUrl, product.id);
-    const purchaseModel = affiliateUrl ? 'affiliate' : 'direct';
+    const retailerUrl = resolveRetailerProductUrl({
+      retailerUrl: sourceProduct.website_link,
+      productUrl: sourceProduct.productUrl,
+      productLink: sourceProduct.product_link || sourceProduct.rakutenData?.productUrl,
+      affiliateUrl: sourceProduct.affiliate_url || sourceProduct.affiliateUrl,
+    });
+    const affiliateUrl = resolveAffiliateTrackingUrl({
+      productId: product.id,
+      retailerUrl: sourceProduct.website_link,
+      productUrl: sourceProduct.productUrl,
+      productLink: sourceProduct.product_link || sourceProduct.rakutenData?.productUrl,
+      affiliateUrl: sourceProduct.affiliate_url || sourceProduct.affiliateUrl,
+    });
+    const purchaseModel = affiliateUrl || retailerUrl ? 'affiliate' : 'direct';
     const affiliateProvider = affiliateUrl ? inferAffiliateProvider(affiliateUrl) : undefined;
     
     const itemId = `${product.id}-${selectedShade || 'primary'}`;

@@ -17,6 +17,7 @@ interface UltaProduct {
   reviewCount: number;
   imageUrl: string;
   productUrl: string;
+  affiliateUrl?: string;
   inStock: boolean;
   shades: Array<{
     name: string;
@@ -377,7 +378,8 @@ serve(async (req) => {
 
       return {
         ...normalized,
-        productUrl: trackingLink ?? normalized.productUrl,
+        productUrl: normalized.productUrl,
+        affiliateUrl: trackingLink ?? undefined,
       };
     }))).filter((product): product is UltaProduct => product !== null);
 

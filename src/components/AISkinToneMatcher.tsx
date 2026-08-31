@@ -112,7 +112,7 @@ const resolveShopDestinationUrl = (product: {
   affiliateUrl?: string;
   url?: string;
 }) => {
-  const candidates = [product.affiliateUrl, product.url];
+  const candidates = [product.url, product.affiliateUrl];
 
   for (const candidate of candidates) {
     if (!candidate?.trim()) continue;
