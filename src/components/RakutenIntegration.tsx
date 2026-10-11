@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { openExternalUrl } from '@/lib/externalNavigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -80,11 +81,11 @@ const RakutenIntegration = () => {
       });
 
       // Open the affiliate link
-      window.open(clickUrl, '_blank');
+      await openExternalUrl(clickUrl);
     } catch (error) {
       console.error('Click tracking error:', error);
       // Still open the link even if tracking fails
-      window.open(clickUrl, '_blank');
+      await openExternalUrl(clickUrl);
     }
   };
 

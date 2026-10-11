@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { Capacitor } from '@capacitor/core';
 
 const sanitizeNextPath = (value: string | null) => {
   if (!value || !value.startsWith('/')) return '/';
@@ -29,6 +30,17 @@ const AuthCallback = () => {
       const code = searchParams.get('code');
       if (code) {
         const { error } = await supabase.auth.exchangeCodeForSession(code);
+        if (error) {
+          navigate(`/auth?oauthError=${encodeURIComponent(error.message)}`, { replace: true });
+          return;
+        }
+      }
+
+      // Email links may return token sessions even when OAuth uses PKCE.
+      const accessToken = hashParams.get('access_token');
+      const refreshToken = hashParams.get('refresh_token');
+      if (!code && Capacitor.isNativePlatform() && accessToken && refreshToken) {
+        const { error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
         if (error) {
           navigate(`/auth?oauthError=${encodeURIComponent(error.message)}`, { replace: true });
           return;

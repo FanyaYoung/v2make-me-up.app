@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { openExternalUrl } from '@/lib/externalNavigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -181,7 +182,7 @@ const UltaBeautyIntegration = () => {
                     <Button 
                       size="sm" 
                       variant="outline"
-                      onClick={() => window.open(product.productUrl, '_blank')}
+                      onClick={() => { void openExternalUrl(product.productUrl); }}
                     >
                       <ExternalLink className="w-4 h-4" />
                     </Button>

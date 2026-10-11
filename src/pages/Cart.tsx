@@ -206,7 +206,7 @@ const Cart = () => {
           affiliateUrl: item.affiliateUrl,
         }) || item.affiliateUrl || item.retailerUrl,
       }))
-      .filter((entry): entry is { item: typeof affiliateItems[number]; destinationUrl: string; trackingUrl?: string } =>
+      .filter((entry): entry is { item: typeof affiliateItems[number]; destinationUrl: string; trackingUrl: string } =>
         Boolean(entry.destinationUrl)
       );
 

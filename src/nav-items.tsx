@@ -1,6 +1,7 @@
 import { Home, User, Palette, Package, Lightbulb, Pipette, ScanFace, Sparkles, FileText, Activity } from "lucide-react";
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
+import Account from "./pages/Account";
 import AuthCallback from "./pages/AuthCallback";
 import ShadeMatcher from "./pages/ShadeMatcher";
 import CosmeticsLibrary from "./pages/CosmeticsLibrary";
@@ -18,6 +19,12 @@ import CheckoutSuccess from "./pages/CheckoutSuccess";
 import AdminPricingHealth from "./pages/AdminPricingHealth";
 
 export const navItems = [
+  {
+    title: "Account",
+    to: "/account",
+    icon: <User className="h-4 w-4" />,
+    page: <Account />,
+  },
   {
     title: "Home",
     to: "/",

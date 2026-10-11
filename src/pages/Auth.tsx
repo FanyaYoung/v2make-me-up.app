@@ -11,15 +11,15 @@ import { Eye, EyeOff } from 'lucide-react';
 import { checkRateLimit, clearRateLimit, getRateLimitKey, SECURITY_CONFIG } from '@/utils/security';
 import { validateEmail, validateInputLength } from '@/utils/sanitization';
 import { Separator } from '@/components/ui/separator';
+import { Capacitor } from '@capacitor/core';
+import { Browser } from '@capacitor/browser';
+import { buildAuthCallbackUrl } from '@/lib/mobileAuth';
 
 const sanitizeReturnPath = (value: string | null | undefined) => {
   if (!value || !value.startsWith('/')) return '/';
   if (value.startsWith('//')) return '/';
   return value;
 };
-
-const buildAuthCallbackUrl = (nextPath: string) =>
-  `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`;
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -258,17 +258,20 @@ const Auth = () => {
   const handleOAuthSignIn = async (provider: 'google' | 'apple') => {
     try {
       const returnTo = sanitizeReturnPath(searchParams.get('returnTo'));
-      const redirectUrl = `${window.location.origin}/auth/callback?next=${encodeURIComponent(returnTo)}`;
+      const redirectUrl = buildAuthCallbackUrl(returnTo);
       
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
           redirectTo: redirectUrl,
+          skipBrowserRedirect: Capacitor.isNativePlatform(),
         }
       });
 
       if (error) {
         toast.error(`Failed to sign in with ${provider === 'google' ? 'Google' : 'Apple'}`);
+      } else if (Capacitor.isNativePlatform() && data.url) {
+        await Browser.open({ url: data.url });
       }
     } catch (error) {
       toast.error('An unexpected error occurred');

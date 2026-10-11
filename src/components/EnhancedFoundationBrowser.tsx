@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { openExternalUrl } from '@/lib/externalNavigation';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
@@ -331,7 +332,7 @@ const EnhancedFoundationBrowser = () => {
                     <Button 
                       size="sm" 
                       className="flex-1"
-                      onClick={() => window.open(product.product_url, '_blank')}
+                      onClick={() => { void openExternalUrl(product.product_url); }}
                     >
                       <ShoppingCart className="w-3 h-3 mr-1" />
                       Buy

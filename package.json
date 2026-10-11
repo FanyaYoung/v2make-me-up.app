@@ -14,10 +14,13 @@
     "android:sync": "npm run build && npx cap sync android",
     "android:open": "npx cap open android",
     "ios:sync": "npm run build && npx cap sync ios",
-    "ios:open": "npx cap open ios"
+    "ios:open": "npx cap open ios",
+    "ios:build:simulator": "npm run ios:sync && xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath ios/DerivedData CODE_SIGNING_ALLOWED=NO build",
+    "ios:archive:unsigned": "npm run ios:sync && xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release -destination 'generic/platform=iOS' -archivePath ios/App/output/MakeMeUp.xcarchive CODE_SIGNING_ALLOWED=NO archive"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.0",
+    "@capacitor/app": "^8.1.1",
     "@capacitor/browser": "^8.0.3",
     "@capacitor/core": "^8.3.0",
     "@capacitor/ios": "^8.3.0",
@@ -59,6 +62,7 @@
     "date-fns": "^3.6.0",
     "dompurify": "^3.2.6",
     "embla-carousel-react": "^8.3.0",
+    "esbuild": "^0.28.1",
     "input-otp": "^1.2.4",
     "lucide-react": "^0.462.0",
     "next-themes": "^0.3.0",
@@ -70,6 +74,7 @@
     "react-router-dom": "^6.26.2",
     "recharts": "^2.12.7",
     "sonner": "^1.5.0",
+    "sucrase": "^3.35.1",
     "tailwind-merge": "^2.5.2",
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^0.9.3",

@@ -12,11 +12,32 @@
         <scene sceneID="EHf-IW-A2E">
             <objects>
                 <viewController id="01J-lp-oVM" sceneMemberID="viewController">
-                    <imageView key="view" userInteractionEnabled="NO" contentMode="scaleAspectFill" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="Splash" id="snD-IY-ifK">
+                    <view key="view" contentMode="scaleToFill" id="snD-IY-ifK">
                         <rect key="frame" x="0.0" y="0.0" width="375" height="667"/>
-                        <autoresizingMask key="autoresizingMask"/>
-                        <color key="backgroundColor" systemColor="systemBackgroundColor"/>
-                    </imageView>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <subviews>
+                            <imageView userInteractionEnabled="NO" contentMode="scaleAspectFit" image="BrandMark" translatesAutoresizingMaskIntoConstraints="NO" id="brand-mark">
+                                <rect key="frame" x="107.5" y="233.5" width="160" height="160"/>
+                                <constraints>
+                                    <constraint firstAttribute="width" constant="160" id="brand-width"/>
+                                    <constraint firstAttribute="height" constant="160" id="brand-height"/>
+                                </constraints>
+                            </imageView>
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" text="Make Me Up" textAlignment="center" translatesAutoresizingMaskIntoConstraints="NO" id="brand-name">
+                                <rect key="frame" x="40" y="417.5" width="295" height="36"/>
+                                <fontDescription key="fontDescription" type="system" weight="bold" pointSize="28"/>
+                                <color key="textColor" red="0.74" green="0.12" blue="0.35" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                            </label>
+                        </subviews>
+                        <color key="backgroundColor" red="1" green="0.95" blue="0.97" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                        <constraints>
+                            <constraint firstItem="brand-mark" firstAttribute="centerX" secondItem="snD-IY-ifK" secondAttribute="centerX" id="brand-center-x"/>
+                            <constraint firstItem="brand-mark" firstAttribute="centerY" secondItem="snD-IY-ifK" secondAttribute="centerY" constant="-20" id="brand-center-y"/>
+                            <constraint firstItem="brand-name" firstAttribute="top" secondItem="brand-mark" secondAttribute="bottom" constant="24" id="name-top"/>
+                            <constraint firstItem="brand-name" firstAttribute="leading" secondItem="snD-IY-ifK" secondAttribute="leading" constant="40" id="name-leading"/>
+                            <constraint firstItem="snD-IY-ifK" firstAttribute="trailing" secondItem="brand-name" secondAttribute="trailing" constant="40" id="name-trailing"/>
+                        </constraints>
+                    </view>
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="iYj-Kq-Ea1" userLabel="First Responder" sceneMemberID="firstResponder"/>
             </objects>
@@ -24,7 +45,7 @@
         </scene>
     </scenes>
     <resources>
-        <image name="Splash" width="1366" height="1366"/>
+        <image name="BrandMark" width="1024" height="1024"/>
         <systemColor name="systemBackgroundColor">
             <color white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
         </systemColor>

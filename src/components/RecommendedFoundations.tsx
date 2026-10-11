@@ -1,4 +1,5 @@
 import React from 'react';
+import { openExternalUrl } from '@/lib/externalNavigation';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
@@ -162,7 +163,7 @@ const RecommendedFoundations = () => {
                       size="sm"
                       variant="outline"
                       className="w-full mt-2 text-xs"
-                      onClick={() => window.open(product.url, '_blank', 'noopener')}
+                      onClick={() => { void openExternalUrl(product.url); }}
                     >
                       <ExternalLink className="w-3 h-3 mr-1" />
                       View Product
