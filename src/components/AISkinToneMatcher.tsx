@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Json } from '@/integrations/supabase/types';
 import { Camera, Upload, Loader2, ExternalLink, Eye, BookmarkPlus } from 'lucide-react';
 import { createPigmentColor, createLightFromDark, calculatePigmentMatch, PigmentColor } from '@/lib/pigmentMixing';
+import { detectSkinRegions } from '@/lib/localSkinRegions';
 import { describeSkinTone } from '@/lib/skinToneDescription';
 import { optimizeImageForAnalysis } from '@/lib/imageOptimization';
 import { loadProductMetadataMap, parseCsvRow, normalizeImageUrl, ProductMetadata, makeProductKey } from '@/lib/productMetadata';
@@ -60,8 +61,8 @@ const advanceImageFallback = (img: HTMLImageElement, candidates?: string[]) => {
     return true;
   }
 
-  img.dataset.imageIndex = '0';
-  img.src = PLACEHOLDER_IMAGE;
+  img.onerror = null;
+  if (img.getAttribute('src') !== PLACEHOLDER_IMAGE) img.src = PLACEHOLDER_IMAGE;
   return false;
 };
 
@@ -279,6 +280,7 @@ export const AISkinToneMatcher = () => {
       const productMetadataMap = await loadProductMetadataMap();
 
       const response = await fetch('/data/allShades.csv');
+      if (!response.ok) throw new Error('Foundation catalog request failed.');
       const csvText = await response.text();
       const lines = csvText.trim().split('\n');
       const headers = parseCsvRow(lines[0]).map(h => h.toLowerCase());
@@ -289,6 +291,9 @@ export const AISkinToneMatcher = () => {
         }
         return -1;
       };
+      if (!headers.includes('hex') || !headers.includes('brand') || !headers.includes('product')) {
+        throw new Error('Foundation catalog has invalid headers.');
+      }
       const idx = {
         brand: getIdx('brand'),
         product: getIdx('product'),
@@ -340,7 +345,7 @@ export const AISkinToneMatcher = () => {
           price: Number.isFinite(parsedPrice) ? parsedPrice : enriched?.price,
           retailer: values[idx.retailer] || enriched?.retailer,
         };
-      }).filter(shade => shade.hex && shade.hex.startsWith('#'));
+      }).filter(shade => isValidHexColor(shade.hex));
       
       setShadeDatabase(shades);
       console.log(`Loaded ${shades.length} shades from database`);
@@ -360,11 +365,11 @@ export const AISkinToneMatcher = () => {
 
   const analyzeImageLocally = async (imageDataUrl: string) => {
     const image = new Image();
-    image.src = imageDataUrl;
 
     await new Promise<void>((resolve, reject) => {
       image.onload = () => resolve();
       image.onerror = () => reject(new Error('Could not read the selected image.'));
+      image.src = imageDataUrl;
     });
 
     const canvas = document.createElement('canvas');
@@ -389,6 +394,7 @@ export const AISkinToneMatcher = () => {
     canvas.height = height;
     ctx.drawImage(image, 0, 0, width, height);
 
+    const regions = await detectSkinRegions(canvas);
     const { data } = ctx.getImageData(0, 0, width, height);
     const pixels: Array<{ hex: string; lightness: number }> = [];
     const sampleSize = 1000;
@@ -397,6 +403,7 @@ export const AISkinToneMatcher = () => {
 
     for (let y = 0; y < height; y += step) {
       for (let x = 0; x < width; x += step) {
+        if (!regions.some(region => x >= region.x && x < region.x + region.width && y >= region.y && y < region.y + region.height)) continue;
         const index = (y * width + x) * 4;
         if (index + 3 >= data.length) continue;
 
@@ -476,8 +483,7 @@ export const AISkinToneMatcher = () => {
   };
 
   const colorDistance = (hex1: string, hex2: string): number => {
-    // Use pigment-based match (subtractive model) instead of plain RGB distance.
-    // Lower "distance" is better.
+    // Preserve the original pigment-composition matching model.
     const toneA = createPigmentColor(hex1);
     const toneB = createPigmentColor(hex2);
     return 100 - calculatePigmentMatch(toneA, toneB);
@@ -504,7 +510,7 @@ export const AISkinToneMatcher = () => {
         url: match.url,
         img: withFallbackImage(match.imgSrc),
         imageCandidates: match.imageCandidates,
-        score: 100 - (match.distance / 441.67) * 100,
+        score: Math.max(0, 100 - match.distance),
         pigmentColor: productPigmentColor,
         price: match.price,
         store: getStoreFromUrl(match.url),
@@ -607,10 +613,10 @@ export const AISkinToneMatcher = () => {
     }
   };
 
-  const findBrandPairs = async (lightHex: string, darkHex: string, limit: number = 4): Promise<BrandPair[]> => {
-    if (shadeDatabase.length === 0) return [];
+  const findBrandPairs = async (catalog: ShadeData[], lightHex: string, darkHex: string, limit: number = 4): Promise<BrandPair[]> => {
+    if (catalog.length === 0) return [];
 
-    const candidateShades = shadeDatabase.filter((shade) => matchesPreferredRetailer(shade, selectedRetailers));
+    const candidateShades = catalog.filter((shade) => matchesPreferredRetailer(shade, selectedRetailers));
 
     const brandGroups = candidateShades.reduce((acc, shade) => {
       if (!acc[shade.brand]) acc[shade.brand] = [];
@@ -643,7 +649,7 @@ export const AISkinToneMatcher = () => {
       if (bestLight && bestDark) {
         const darkMatch = bestDark.shade;
         
-        // Create dark color first, then derive light from it
+        // Preserve the original light-from-dark pigment mixing formula.
         const darkPigmentColor = createPigmentColor(darkMatch.hex);
         const lightPigmentColor = createLightFromDark(darkPigmentColor);
         
@@ -662,7 +668,7 @@ export const AISkinToneMatcher = () => {
           url: lightMatch.url,
           img: withFallbackImage(lightMatch.imgSrc),
           imageCandidates: lightMatch.imageCandidates,
-          score: 100 - (bestLight.distance / 441.67) * 100,
+          score: Math.max(0, 100 - bestLight.distance),
           pigmentColor: lightPigmentColor,
           price: lightMatch.price,
           store: getStoreFromUrl(lightMatch.url),
@@ -680,7 +686,7 @@ export const AISkinToneMatcher = () => {
           url: darkMatch.url,
           img: withFallbackImage(darkMatch.imgSrc),
           imageCandidates: darkMatch.imageCandidates,
-          score: 100 - (bestDark.distance / 441.67) * 100,
+          score: Math.max(0, 100 - bestDark.distance),
           pigmentColor: darkPigmentColor,
           price: darkMatch.price,
           store: getStoreFromUrl(darkMatch.url),
@@ -727,48 +733,6 @@ export const AISkinToneMatcher = () => {
         dark: await applyPricingSnapshot(pair.dark),
       }))
     );
-
-  const replacePairShadeWithAlternate = (pairIndex: number, side: 'light' | 'dark', targetHex: string) => {
-    setBrandPairs(prev => {
-      const current = prev[pairIndex];
-      if (!current) return prev;
-
-      const currentShade = side === 'light' ? current.light : current.dark;
-      const alternates = shadeDatabase
-        .filter(s => s.brand === currentShade.brand && s.hex !== currentShade.hex && !!s.imgSrc)
-        .map(s => ({ shade: s, distance: colorDistance(targetHex, s.hex) }))
-        .sort((a, b) => a.distance - b.distance);
-
-      const best = alternates[0]?.shade;
-      if (!best) return prev;
-
-      const replacement: FoundationMatch = {
-        brand: best.brand,
-        product: best.product,
-        shade_name: best.name || best.description,
-        hex: best.hex,
-        undertone: '',
-        url: best.url,
-        img: withFallbackImage(best.imgSrc),
-        imageCandidates: best.imageCandidates,
-        score: 100 - (alternates[0].distance / 441.67) * 100,
-        pigmentColor: createPigmentColor(best.hex),
-        price: best.price,
-        store: best.retailer || getStoreFromUrl(best.url),
-        website: getWebsiteFromUrl(best.url),
-        affiliateUrl: undefined,
-        priceCheckedAt: currentShade.priceCheckedAt,
-        priceSource: currentShade.priceSource,
-        availabilityStatus: currentShade.availabilityStatus,
-      };
-
-      const updated = [...prev];
-      updated[pairIndex] = side === 'light'
-        ? { ...current, light: replacement }
-        : { ...current, dark: replacement };
-      return updated;
-    });
-  };
 
   const rgbToHex = (r: number, g: number, b: number): string => {
     return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase();
@@ -1010,7 +974,7 @@ export const AISkinToneMatcher = () => {
       // Match to product database - find brand pairs
       setLoadingMessage("Finding matching foundation pairs from brands...");
       
-      const pairs = await findBrandPairs(lightestHex, darkestHex, 4);
+      const pairs = await findBrandPairs(availableShades, lightestHex, darkestHex, 4);
       setBrandPairs(await hydratePairsWithLivePricing(pairs));
 
       if (pairs.length === 0) {
@@ -1485,9 +1449,7 @@ export const AISkinToneMatcher = () => {
                           className="max-h-full max-w-full object-contain"
                           data-image-index="0"
                           onError={(e) => {
-                            if (advanceImageFallback(e.currentTarget, pair.light.imageCandidates)) return;
-                            const fallbackTarget = lightestResult?.hex || pair.light.hex;
-                            replacePairShadeWithAlternate(idx, 'light', fallbackTarget);
+                            advanceImageFallback(e.currentTarget, pair.light.imageCandidates);
                           }}
                         />
                       </div>
@@ -1543,9 +1505,7 @@ export const AISkinToneMatcher = () => {
                           className="max-h-full max-w-full object-contain"
                           data-image-index="0"
                           onError={(e) => {
-                            if (advanceImageFallback(e.currentTarget, pair.dark.imageCandidates)) return;
-                            const fallbackTarget = darkestResult?.hex || pair.dark.hex;
-                            replacePairShadeWithAlternate(idx, 'dark', fallbackTarget);
+                            advanceImageFallback(e.currentTarget, pair.dark.imageCandidates);
                           }}
                         />
                       </div>

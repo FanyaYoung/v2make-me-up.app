@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface FoundationMatch {
   brand: string;
@@ -19,32 +20,24 @@ export default function LightingAwareFoundationMatcher() {
   const [top, setTop] = useState<FoundationMatch[]>([]);
   const [perimeter, setPerimeter] = useState<FoundationMatch[]>([]);
 
-  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-  const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-  const FN_PATH = `${SUPABASE_URL}/functions/v1/match-foundations`;
-
   async function runMatch(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError("");
     
     try {
-      const res = await fetch(FN_PATH, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
-        },
-        body: JSON.stringify({
+      setTop([]);
+      setPerimeter([]);
+      const { data, error: requestError } = await supabase.functions.invoke('match-foundations', {
+        body: {
           user_hex: userHex,
           lighting_cct_k: Number(cct),
           lighting_cri: Number(cri),
           n_results: 5
-        })
+        }
       });
-
-      const data = await res.json();
-      if (!data.ok) throw new Error(data.error || "Unknown error");
+      if (requestError) throw requestError;
+      if (!data?.ok) throw new Error(data?.error || "Unknown error");
 
       setTop(data.top_matches || []);
       setPerimeter(data.perimeter_options || []);

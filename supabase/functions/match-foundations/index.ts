@@ -30,6 +30,16 @@ Deno.serve(async (req) => {
 
     const { user_hex, lighting_cct_k = 4000, lighting_cri = 80, n_results = 5 } = await req.json();
 
+    const validHex = (value: unknown): value is string =>
+      typeof value === 'string' && /^#?(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(value);
+    if (!validHex(user_hex) || !Number.isFinite(lighting_cct_k) || lighting_cct_k < 2500 || lighting_cct_k > 7500 ||
+        !Number.isFinite(lighting_cri) || lighting_cri < 0 || lighting_cri > 100 ||
+        !Number.isInteger(n_results) || n_results < 1 || n_results > 20) {
+      return new Response(JSON.stringify({ ok: false, error: 'Invalid color, lighting, or result count' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
     // Reuse the authenticated client (anon key + user's Bearer token) instead of service_role
     const supabase = authClient;
 
@@ -55,12 +65,12 @@ Deno.serve(async (req) => {
       return "neutral";
     };
 
-    const scored = data.map((r: any) => {
+    const scored = (data || []).filter((r: Record<string, unknown>) => validHex(r['Swatch: imgSrc'])).map((r: any) => {
       const hex = r['Swatch: imgSrc']; // Sephora hex color
       const ok = hexToOKLab(hex);
       const dist = oklabDistance(userAdj, ok);
       const undertone = getUndertone(r.name || r.specific || '');
-      const utPenalty = undertone === userUT ? 1.0 : 0.9;
+      const utPenalty = undertone === userUT ? 1.0 : 1.1;
       const score = dist * utPenalty;
       return { 
         brand: r.brand, 
@@ -79,6 +89,11 @@ Deno.serve(async (req) => {
 
     // Find perimeter options (3-12% darker)
     const base = top_matches[0];
+    if (!base) {
+      return new Response(JSON.stringify({ ok: true, top_matches: [], perimeter_options: [] }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
     const targetL = base.ok.L;
     const darker = scored.filter((x: any) => {
       const dL = targetL - x.ok.L;
