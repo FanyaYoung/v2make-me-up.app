@@ -1,0 +1,59 @@
+Proposal: Restore four RMS shade identifiers
+Status: Proposed only; no database changes applied.
+
+Source: /Users/fanyayoung/makemeup-foundation-match-only/public/data/allShades.csv
+Source SHA-256: 265076283381a00f9813256bf1b2f448ec129923d2693340074a610d82403569
+Line numbers include the CSV header. Identify records by product and image SKU before applying changes; line numbers are secondary references.
+
+Proposed changes: change only the specific field, preserving it as text.
+
+Line 6365 | rms beauty | "Un" Cover-up Concealer
+Image SKU: s1833516
+specific: "0" -> "00"
+Existing description: 00 light shade for fair skin
+Existing image label: 00 0.20 oz/ 6 mL
+Preserve hex: #F6D7B3
+
+Line 6714 | rms beauty | "Un" Cover-up Concealer
+Image SKU: s1902485
+specific: "0" -> "000"
+Existing description: 000 lightest alabaster, lightest shade for the true snow whites
+Existing image label: 000 0.20 oz/ 5.67 g
+Preserve hex: #FDE6C2
+
+Line 6419 | rms beauty | "Un" Cover-Up Cream Foundation
+Image SKU: s2255719
+specific: "0" -> "000"
+Existing description: 000 lightest alabaster
+Existing image label: 000 1 oz/ 30 mL Clean at Sephora
+Preserve hex: #F7E2CE
+
+Line 6503 | rms beauty | "Un" Cover-Up Cream Foundation
+Image SKU: s2255727
+specific: "0" -> "00"
+Existing description: 00 a light shade for fair skin
+Existing image label: 00 1 oz/ 30 mL Clean at Sephora
+Preserve hex: #F9D8C5
+
+Evidence and confidence
+High confidence based on agreement between each record's existing description and image label. The exact historical cream-foundation SKU mapping has not been independently verified online.
+Manufacturer reference: https://www.rmsbeauty.com/products/un-cover-up
+Retailer reference distinguishing concealer 00 and 000: https://credobeauty.com/collections/bestsellers/products/rms-beauty-uncoverup
+These references support distinct shade identifiers, not the accuracy of the stored hex values.
+Loss of leading zeros is a likely explanation, but the original import process has not been verified.
+
+Scope
+Retain all four records as separate shades. Preserve their name field (currently NA), colors, HSL values, descriptions, image paths, and product URLs. Do not merge records, average colors, or change app code or the pigment algorithm. Replacing NA display names is a separate proposal.
+
+Expected result
+Two falsely conflicting groups become four correctly distinguished product/shade identities. If nothing else changes, conflicting groups decline from 56 to 54. Total rows remain 6,816.
+
+Validation before applying a future change
+1. Confirm the source hash or re-identify all four records by brand, product, image SKU, and existing labels.
+2. Require exactly one matching record per SKU and existing specific value "0"; stop if those conditions differ.
+3. Create a separate candidate file; preserve the original source.
+4. Verify exactly four specific-field changes and no other field changes.
+5. Verify identifiers remain strings "00" and "000" through CSV import/export; do not convert them to numbers.
+6. Recheck row count, unique product/shade identities, and valid hex/HSL values. Compare matching results to confirm color ranking is unchanged.
+
+This document is a proposal only. It was not committed, pushed, or applied.
