@@ -11,6 +11,7 @@ import type { Json } from '@/integrations/supabase/types';
 import { Camera, Upload, Loader2, ExternalLink, Eye, BookmarkPlus } from 'lucide-react';
 import { createPigmentColor, createLightFromDark, calculatePigmentMatch, PigmentColor } from '@/lib/pigmentMixing';
 import { detectSkinRegions } from '@/lib/localSkinRegions';
+import { isShadeDepthCompatible, areSkinZoneDepthsPlausible } from '@/lib/shadeDepthGuard';
 import { describeSkinTone } from '@/lib/skinToneDescription';
 import { optimizeImageForAnalysis } from '@/lib/imageOptimization';
 import { loadProductMetadataMap, parseCsvRow, normalizeImageUrl, ProductMetadata, makeProductKey } from '@/lib/productMetadata';
@@ -492,10 +493,11 @@ export const AISkinToneMatcher = () => {
   const findMatchingShades = async (targetHex: string, limit: number = 5): Promise<FoundationMatch[]> => {
     if (shadeDatabase.length === 0) return [];
 
-    const matches = shadeDatabase.map(shade => ({
-      ...shade,
-      distance: colorDistance(targetHex, shade.hex)
-    })).sort((a, b) => a.distance - b.distance).slice(0, limit);
+    const matches = shadeDatabase
+      .filter(shade => isShadeDepthCompatible(targetHex, shade.hex))
+      .map(shade => ({ ...shade, distance: colorDistance(targetHex, shade.hex) }))
+      .sort((a, b) => a.distance - b.distance)
+      .slice(0, limit);
 
     const foundationMatches: FoundationMatch[] = [];
 
@@ -630,6 +632,7 @@ export const AISkinToneMatcher = () => {
       if (shades.length < 2) continue;
 
       const lightMatches = shades
+        .filter(shade => isShadeDepthCompatible(lightHex, shade.hex))
         .map(shade => ({
           shade,
           distance: colorDistance(lightHex, shade.hex)
@@ -637,14 +640,16 @@ export const AISkinToneMatcher = () => {
         .sort((a, b) => a.distance - b.distance);
 
       const darkMatches = shades
+        .filter(shade => isShadeDepthCompatible(darkHex, shade.hex))
         .map(shade => ({
           shade,
           distance: colorDistance(darkHex, shade.hex)
         }))
         .sort((a, b) => a.distance - b.distance);
 
-      const bestLight = lightMatches.find(m => m.shade.imgSrc) ?? lightMatches[0];
-      const bestDark = darkMatches.find(m => m.shade.imgSrc) ?? darkMatches[0];
+      // Never replace the best color match with a worse shade just to get an image.
+      const bestLight = lightMatches[0];
+      const bestDark = darkMatches[0];
 
       if (bestLight && bestDark) {
         const darkMatch = bestDark.shade;
@@ -656,7 +661,8 @@ export const AISkinToneMatcher = () => {
         const lightMatch = bestLight.shade;
 
         // If either side has no usable image URL, skip this pair and try other brands.
-        if (!lightMatch.imgSrc || !darkMatch.imgSrc) continue;
+        // Product photography is optional: missing images must not change the match.
+        // The existing placeholder is used when the retailer has no image.
 
         // Use CSV image URLs as base
         const light: FoundationMatch = {
@@ -922,6 +928,9 @@ export const AISkinToneMatcher = () => {
       const analysisResult = await resolveSkinToneAnalysis(optimizedImage);
       const lightestHex = analysisResult.lightest_hex;
       const darkestHex = analysisResult.darkest_hex;
+      if (!areSkinZoneDepthsPlausible(lightestHex, darkestHex)) {
+        throw new Error('The sampled face colors are inconsistent. Please retake the photo in even, natural lighting with your face clearly visible.');
+      }
 
       const availableShades = shadeDatabase.length > 0 ? shadeDatabase : await loadShadeDatabase();
       if (availableShades.length === 0) {
